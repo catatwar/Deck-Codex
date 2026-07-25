@@ -1635,8 +1635,12 @@
     if(!currentUser) return;
     const id = personalCollectionId(currentUser.uid);
     if(collections.some(c => c.id === id)) return;
-    const col = { id, ownerUid: currentUser.uid, name: null, createdAt: Date.now() };
     try{
+      // Check Firestore directly, not just our local cache — avoids ever
+      // re-issuing this as a write against a doc that already exists.
+      const existing = await getDoc(doc(COLLECTIONS_COL, id));
+      if(existing.exists()) return;
+      const col = { id, ownerUid: currentUser.uid, name: null, createdAt: Date.now() };
       await setDoc(doc(COLLECTIONS_COL, id), col);
     }catch(e){ console.error('Could not create personal collection', e); }
   }
