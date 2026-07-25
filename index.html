@@ -123,7 +123,8 @@
   }
 
   *{ box-sizing: border-box; }
-  html, body{ margin:0; padding:0; }
+  html, body{ margin:0; padding:0; overscroll-behavior-y: none; }
+  html{ background: var(--bg); }
   body{
     background:
       radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
@@ -210,11 +211,29 @@
   /* ---------- Controls ---------- */
   .controls{
     display:flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .controls-row{
+    display:flex;
     flex-wrap: wrap;
     gap: 14px;
     align-items:center;
-    margin-bottom: 28px;
   }
+  /* Filters get their own row, own padded surface, and generous internal
+     gaps so pips/buttons don't feel like they're jammed together — and the
+     clear button is pushed to the far edge so the row reads balanced
+     instead of everything clumping toward the left. */
+  .controls-row.filters-row{
+    gap: 18px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .btn-clear{ margin-left: auto; }
+
   .search-input{
     flex: 1 1 220px;
     background: var(--surface);
@@ -243,13 +262,13 @@
 
   .color-filters{
     display:flex;
-    gap: 6px;
+    gap: 9px;
   }
   .pip-toggle{
-    width: 30px; height: 30px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     border: 2px solid var(--line);
-    background: var(--surface);
+    background: var(--surface-2);
     display:flex; align-items:center; justify-content:center;
     font-family: var(--font-display);
     font-weight: 700;
@@ -265,15 +284,15 @@
     box-shadow: 0 0 12px -2px var(--pip-color, var(--gold));
   }
 
-  .build-filters{ display:flex; gap: 6px; }
+  .build-filters{ display:flex; gap: 9px; }
   .build-filter-btn{
     border: 1px solid var(--line);
-    background: var(--surface);
+    background: var(--surface-2);
     color: var(--muted);
     font-family: var(--font-ui);
     font-size: 0.8rem;
     font-weight: 500;
-    padding: 8px 12px;
+    padding: 8px 13px;
     border-radius: 8px;
     transition: all 0.15s ease;
     white-space: nowrap;
@@ -1447,17 +1466,21 @@
   </header>
 
   <div class="controls">
-    <input class="search-input" id="searchInput" type="text" placeholder="Search decks by name…">
-    <div class="color-filters" id="colorFilters"></div>
-    <div class="build-filters" id="buildFilters"></div>
-    <button class="btn-clear" id="btnClearFilters">Clear filters</button>
-    <select class="sort-select" id="sortSelect">
-      <option value="name">Sort: Name (A–Z)</option>
-      <option value="colors">Sort: Color identity</option>
-      <option value="buildType">Sort: Build type</option>
-      <option value="newest">Sort: Newest first</option>
-      <option value="oldest">Sort: Oldest first</option>
-    </select>
+    <div class="controls-row">
+      <input class="search-input" id="searchInput" type="text" placeholder="Search decks by name…">
+      <select class="sort-select" id="sortSelect">
+        <option value="name">Sort: Name (A–Z)</option>
+        <option value="colors">Sort: Color identity</option>
+        <option value="buildType">Sort: Build type</option>
+        <option value="newest">Sort: Newest first</option>
+        <option value="oldest">Sort: Oldest first</option>
+      </select>
+    </div>
+    <div class="controls-row filters-row">
+      <div class="color-filters" id="colorFilters"></div>
+      <div class="build-filters" id="buildFilters"></div>
+      <button class="btn-clear" id="btnClearFilters">Clear filters</button>
+    </div>
   </div>
 
   <div id="content"></div>
@@ -1585,7 +1608,7 @@
         if(done) return;
         done = true;
         window.removeEventListener('fb-ready', onReady);
-        reject(new Error('Firebase never finished loading. Make sure this page is served over http:// or https:// (not opened as a local file), and that www.gstatic.com and Firebase\'s servers are reachable from this browser.'));
+        reject(new Error('Could not connect. Make sure this page is served over http:// or https:// (not opened as a local file), and that this browser can reach the internet.'));
       }, timeoutMs || 8000);
       window.addEventListener('fb-ready', onReady);
     });
@@ -2888,7 +2911,7 @@
   // ---------- Init ----------
   let appInitialized = false;
   function timeout(ms, label){
-    return new Promise((_, reject) => setTimeout(()=> reject(new Error(`${label} took too long (over ${ms/1000}s) — check your internet connection and Firestore setup.`)), ms));
+    return new Promise((_, reject) => setTimeout(()=> reject(new Error(`${label} took too long (over ${ms/1000}s) — check your internet connection and try again.`)), ms));
   }
   function delay(ms){
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -2933,8 +2956,8 @@
       content.innerHTML = `<div class="empty-state">
         <h2>Couldn't load your group's data</h2>
         <p>${isPermissionError
-          ? 'Firestore rejected the request. Make sure your security rules allow group members to read and write under groups/{groupId}, and that you\'ve published those rules.'
-          : 'Something went wrong talking to Firebase. Check the browser console (F12) for the exact error, then refresh the page to try again.'}</p>
+          ? 'The server rejected the request. Make sure you still have access to this group, then refresh the page to try again.'
+          : 'Something went wrong loading your data. Check the browser console (F12) for the exact error, then refresh the page to try again.'}</p>
       </div>`;
     }
   }
@@ -3350,7 +3373,7 @@
       const needsIndex = e && (e.code === 'failed-precondition' || /index/i.test(e.message || ''));
       myGroupsList.innerHTML = `<div style="color:#e77a6a;font-family:var(--font-ui);font-size:0.8rem;padding:6px 2px;line-height:1.5;">${
         needsIndex
-          ? 'Firestore needs a one-time index for this. Open the browser console (F12) — Firestore printed a link there that creates it in one click.'
+          ? 'The server needs a one-time setup step for this. Open the browser console (F12) — a link was printed there that completes it in one click.'
           : 'Could not load your groups. Please try again.'
       }</div>`;
       return;
@@ -3506,7 +3529,7 @@
         }catch(e){
           console.error('Could not load your account', e);
           authScreen.style.display = 'flex';
-          authError.textContent = 'Could not reach Firebase. Check your connection and try again.';
+          authError.textContent = 'Could not reach the server. Check your connection and try again.';
           authError.style.display = 'block';
         }
       })();
