@@ -1879,6 +1879,70 @@
     });
   }
 
+  // Keeps the group's own name (and leader) live, so a rename by the
+  // leader shows up for every member immediately, no refresh needed.
+  function attachLiveGroup(groupId){
+    return new Promise((resolve, reject)=>{
+      let firstLoadDone = false;
+      const unsub = onSnapshot(doc(GROUPS_COL, groupId), (snap)=>{
+        if(snap.exists()){
+          currentGroup = snap.data();
+          groupChipName.textContent = currentGroup.name;
+        }
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          resolve();
+        } else {
+          updateHeaderLabel();
+          render();
+        }
+      }, (err)=>{
+        if(!firstLoadDone){ firstLoadDone = true; reject(err); }
+        else console.error('Live group update error', err);
+      });
+      unsubscribers.push(unsub);
+    });
+  }
+
+  // Keeps the member roster live — joins, removals, and renames (by
+  // anyone, on any device) show up immediately: player names on decks
+  // and collections, the members list if it's open, and — if you're the
+  // one who got removed — it sends you back to the group setup screen
+  // right away instead of leaving you in a group you no longer belong to.
+  function attachLiveMembers(groupId){
+    return new Promise((resolve, reject)=>{
+      let firstLoadDone = false;
+      const q = query(groupSubcollection(groupId, 'members'), orderBy('joinedAt'));
+      const unsub = onSnapshot(q, (snap)=>{
+        const results = [];
+        snap.forEach(d => results.push(d.data()));
+        members = results;
+        currentMember = members.find(m => m.uid === currentUser.uid) || null;
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          resolve();
+        } else {
+          if(groupDrawerOverlay.classList.contains('show')) renderMemberList();
+          updateHeaderLabel();
+          render();
+          if(!currentMember){
+            clearSnapshotListeners();
+            appInitialized = false;
+            setUserGroup(currentUser.uid, null).catch(()=>{ /* non-fatal */ });
+            closeGroupDrawer();
+            appRoot.style.display = 'none';
+            showGroupSetupScreen();
+            showGroupSetupError("You're no longer a member of that group.");
+          }
+        }
+      }, (err)=>{
+        if(!firstLoadDone){ firstLoadDone = true; reject(err); }
+        else console.error('Live members update error', err);
+      });
+      unsubscribers.push(unsub);
+    });
+  }
+
   // Migrates any decks saved before collections existed onto the group's
   // first collection. Runs once, right after the initial live load.
   async function migrateDeckCollectionIds(){
@@ -1905,7 +1969,7 @@
     const ref = doc(USERS_COL, user.uid);
     const snap = await getDoc(ref);
     if(snap.exists()) return snap.data();
-    const displayName = (user.email || 'Player').split('@')[0];
+    const displayName = capitalizeName((user.email || 'Player').split('@')[0]);
     const data = { uid: user.uid, email: user.email || '', displayName, groupId: null, createdAt: Date.now() };
     await setDoc(ref, data);
     return data;
@@ -1944,11 +2008,19 @@
     return results;
   }
 
+  // Player names are always shown with a capitalized first letter, no
+  // matter how they were typed or derived from an email address.
+  function capitalizeName(name){
+    const trimmed = (name || '').trim();
+    if(!trimmed) return trimmed;
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+
   async function createGroup(name, user){
     const groupId = 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
     const groupData = { id: groupId, name, leaderUid: user.uid, createdAt: Date.now() };
     await setDoc(doc(GROUPS_COL, groupId), groupData);
-    const memberData = { uid: user.uid, displayName: (user.email || 'Leader').split('@')[0], email: user.email || '', role: 'leader', joinedAt: Date.now() };
+    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Leader').split('@')[0]), email: user.email || '', role: 'leader', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(groupId, 'members'), user.uid), memberData);
     await setUserGroup(user.uid, groupId);
     return groupId;
@@ -1972,7 +2044,7 @@
   }
 
   async function renameMember(groupId, uid, name){
-    await updateDoc(doc(groupSubcollection(groupId, 'members'), uid), { displayName: name });
+    await updateDoc(doc(groupSubcollection(groupId, 'members'), uid), { displayName: capitalizeName(name) });
   }
 
   async function removeMember(groupId, uid){
@@ -2010,7 +2082,7 @@
     if(!snap.exists()) throw new Error("That code doesn't exist. Double-check it and try again.");
     const data = snap.data();
     if(data.expiresAt < Date.now()) throw new Error('That code has expired. Ask the group leader for a new one.');
-    const memberData = { uid: user.uid, displayName: (user.email || 'Player').split('@')[0], email: user.email || '', role: 'member', joinedAt: Date.now() };
+    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Player').split('@')[0]), email: user.email || '', role: 'member', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
     await setUserGroup(user.uid, data.groupId);
     return data.groupId;
@@ -2022,7 +2094,7 @@
 
   function ownerDisplayName(uid){
     const m = members.find(x => x.uid === uid);
-    return m ? m.displayName : null;
+    return m ? capitalizeName(m.displayName) : null;
   }
 
   function isLeader(){
@@ -2190,7 +2262,7 @@
       }
 
       if(deck.ownerUid){
-        const ownerName = ownerDisplayName(deck.ownerUid) || (deck.ownerName || null);
+        const ownerName = ownerDisplayName(deck.ownerUid) || capitalizeName(deck.ownerName) || null;
         if(ownerName){
           const ownerTag = document.createElement('div');
           ownerTag.className = 'owner-tag';
@@ -2235,7 +2307,7 @@
     if(series) subtitleParts.push(series.name);
     if(col) subtitleParts.push(collectionDisplayName(col));
     if(deck.ownerUid){
-      const ownerName = ownerDisplayName(deck.ownerUid) || deck.ownerName;
+      const ownerName = ownerDisplayName(deck.ownerUid) || capitalizeName(deck.ownerName);
       if(ownerName) subtitleParts.push(deck.ownerUid === (currentUser && currentUser.uid) ? 'Your deck' : `${ownerName}'s deck`);
     }
     $('infoCollection').textContent = subtitleParts.join(' • ');
@@ -2619,7 +2691,7 @@
           seriesId: seriesId,
           buildType: buildType,
           ownerUid: currentUser.uid,
-          ownerName: currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0],
+          ownerName: capitalizeName(currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0]),
           createdAt: Date.now()
         };
         await saveDeck(deck);
@@ -2797,6 +2869,8 @@
     try{
       await Promise.race([
         Promise.all([
+          attachLiveGroup(currentGroup.id),
+          attachLiveMembers(currentGroup.id),
           attachLiveCollections(),
           attachLiveSeries(),
           attachLiveDecks()
@@ -3128,12 +3202,13 @@
 
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
-      nameInput.value = m.displayName;
+      const displayValue = capitalizeName(m.displayName);
+      nameInput.value = displayValue;
       const canRename = isLeader() || m.uid === currentUser.uid;
       nameInput.disabled = !canRename;
       nameInput.addEventListener('change', async ()=>{
-        const newName = nameInput.value.trim();
-        if(!newName || newName === m.displayName){ nameInput.value = m.displayName; return; }
+        const newName = capitalizeName(nameInput.value.trim());
+        if(!newName || newName === displayValue){ nameInput.value = displayValue; return; }
         try{
           await renameMember(currentGroup.id, m.uid, newName);
           m.displayName = newName;
@@ -3142,7 +3217,7 @@
         }catch(e){
           alert('Could not rename that member. Please try again.');
           console.error(e);
-          nameInput.value = m.displayName;
+          nameInput.value = displayValue;
         }
       });
       row.appendChild(nameInput);
@@ -3159,7 +3234,7 @@
         delBtn.textContent = '✕';
         delBtn.title = 'Remove from group';
         delBtn.addEventListener('click', async ()=>{
-          if(!confirm(`Remove ${m.displayName} from the group? They'll lose access, but their decks stay in the group.`)) return;
+          if(!confirm(`Remove ${capitalizeName(m.displayName)} from the group? They'll lose access, but their decks stay in the group.`)) return;
           try{
             await removeMember(currentGroup.id, m.uid);
             members = members.filter(x => x.uid !== m.uid);
