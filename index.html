@@ -139,6 +139,11 @@
   *{ box-sizing: border-box; }
   html, body{ margin:0; padding:0; overscroll-behavior-y: none; }
   html{ background: var(--bg); }
+  /* Whenever any modal/drawer/overlay is open, the page underneath must not
+     be scrollable — otherwise touch-scrolling over the overlay's backdrop
+     can drag the hidden content behind it, which feels like "scrolling
+     into nothing" once you close the overlay again. */
+  body.scroll-locked{ overflow: hidden; height: 100%; }
   body{
     background:
       radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
@@ -1045,7 +1050,9 @@
 
   .account-badge{
     display:flex;
+    flex-wrap: wrap;
     align-items:center;
+    justify-content: flex-end;
     gap: 10px;
   }
   .btn-signout{
@@ -1570,7 +1577,6 @@
       <button type="button" class="drawer-tab" data-tab="groups" data-active="true">Groups</button>
       <button type="button" class="drawer-tab" data-tab="members">Members</button>
       <button type="button" class="drawer-tab" data-tab="invite">Invite</button>
-      <button type="button" class="drawer-tab" data-tab="account">Account</button>
     </div>
 
     <div class="drawer-tab-panels">
@@ -1596,16 +1602,6 @@
         <div id="shareCodeArea"></div>
         <button type="button" class="btn-drawer-secondary" id="btnGenerateCode" style="display:none;">Generate Share Code</button>
         <p class="invite-hint" id="inviteNonLeaderHint" style="display:none;">Only the group leader can generate invite codes. Ask them to send you one from this tab.</p>
-      </div>
-
-      <div class="drawer-tab-panel" id="drawerPanelAccount" style="display:none;">
-        <div class="group-section-label">Account</div>
-        <p class="account-email" id="accountEmailLabel"></p>
-        <button type="button" class="btn-drawer-danger" id="btnDrawerSignOut">Sign Out</button>
-        <div class="account-danger-zone">
-          <p class="account-danger-hint">Permanently delete your account and everything tied to it. This can't be undone.</p>
-          <button type="button" class="btn-drawer-danger" id="btnDeleteAccount">Delete My Account</button>
-        </div>
       </div>
 
     </div>
@@ -1651,6 +1647,24 @@
   </div>
 </div>
 
+<!-- Profile overlay: reached by tapping your name in the top right.
+     Holds account-level things (sign out, delete account) that aren't
+     scoped to any one group. -->
+<div class="overlay" id="profileOverlay">
+  <div class="modal" id="profileModal" style="max-width:420px;" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="modal-body">
+      <button class="modal-close" id="profileModalClose" aria-label="Close profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h2 id="profileModalTitle">Profile</h2>
+      <p class="account-email" id="profileEmailLabel"></p>
+      <button type="button" class="btn-drawer-danger" id="btnProfileSignOut">Sign Out</button>
+      <div class="account-danger-zone">
+        <p class="account-danger-hint">Permanently delete your account and everything tied to it. This can't be undone.</p>
+        <button type="button" class="btn-drawer-danger" id="btnDeleteAccount">Delete My Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="wrap responsive-box" id="appRoot">
 
   <header>
@@ -1664,6 +1678,7 @@
     </div>
     <div class="account-badge">
       <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
+      <button class="group-chip" id="btnProfileChip" title="Your profile" aria-label="Your profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="profileNameLabel">Account</span></button>
       <button class="btn-new" id="btnNewDeck">+ New Deck</button>
     </div>
   </header>
@@ -1898,9 +1913,11 @@
   function showLoading(){
     $('loadingText').textContent = pickLoadingMessage();
     $('loadingOverlay').classList.add('show');
+    lockBodyScroll();
   }
   function hideLoading(){
     $('loadingOverlay').classList.remove('show');
+    unlockBodyScroll();
   }
   // Runs an async task. If it finishes quickly (under `showAfterMs`), the
   // spinner never appears at all, so fast local operations feel instant.
@@ -1953,6 +1970,20 @@
   const ICON_EDIT = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   const content = $('content');
 
+  // ---------- Background scroll lock ----------
+  // Reference-counted so that an overlay opening "on top of" another
+  // (e.g. Add Another Group over the group drawer) can't unlock scrolling
+  // early just because the first one underneath closed.
+  let scrollLockCount = 0;
+  function lockBodyScroll(){
+    scrollLockCount++;
+    document.body.classList.add('scroll-locked');
+  }
+  function unlockBodyScroll(){
+    scrollLockCount = Math.max(0, scrollLockCount - 1);
+    if(scrollLockCount === 0) document.body.classList.remove('scroll-locked');
+  }
+
   // ---------- Accessibility: focus memory + Escape-to-close + Tab trap ----------
   // Keyboard users shouldn't lose their place when a modal/drawer opens, and
   // Tab shouldn't be able to wander behind it into the page underneath.
@@ -1975,6 +2006,7 @@
     const candidates = [
       { el: $('addGroupModalOverlay'), close: ()=> returnToGroupMenu() },
       { el: $('groupDrawerOverlay'),   close: ()=> closeGroupDrawer() },
+      { el: $('profileOverlay'),       close: ()=> closeProfile() },
       { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
       { el: $('infoOverlay'),          close: ()=> closeInfo() },
       { el: $('formOverlay'),          close: ()=> closeForm() },
@@ -2286,6 +2318,7 @@
         } else {
           if(groupDrawerOverlay.classList.contains('show')) renderMemberList();
           updateHeaderLabel();
+          updateProfileNameLabel();
           render();
           if(!currentMember){
             clearSnapshotListeners();
@@ -2538,9 +2571,10 @@
   function openFilterModal(){
     rememberFocus();
     filterModalOverlay.classList.add('show');
+    lockBodyScroll();
     setTimeout(()=>{ const f = focusableIn(filterModal); if(f.length) f[0].focus(); }, 30);
   }
-  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); restoreFocus(); }
+  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); unlockBodyScroll(); restoreFocus(); }
   btnOpenFilters.addEventListener('click', openFilterModal);
   filterModalClose.addEventListener('click', closeFilterModal);
   filterModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'filterModalOverlay') closeFilterModal(); });
@@ -3029,11 +3063,13 @@
 
     rememberFocus();
     $('infoOverlay').classList.add('show');
+    lockBodyScroll();
     setTimeout(()=> $('infoClose').focus(), 30);
   }
 
   function closeInfo(){
     $('infoOverlay').classList.remove('show');
+    unlockBodyScroll();
     currentInfoId = null;
     restoreFocus();
   }
@@ -3285,11 +3321,13 @@
     buildColorPicker(selected);
     rememberFocus();
     $('formOverlay').classList.add('show');
+    lockBodyScroll();
     setTimeout(()=> $('formName').focus(), 50);
   }
 
   function closeForm(){
     $('formOverlay').classList.remove('show');
+    unlockBodyScroll();
     editingId = null;
     restoreFocus();
   }
@@ -3495,10 +3533,12 @@
     renderDrawer();
     $('addCollectionRow').style.display = isLeader() ? 'flex' : 'none';
     $('drawerOverlay').classList.add('show');
+    lockBodyScroll();
     setTimeout(()=> $('drawerClose').focus(), 30);
   }
   function closeDrawer(){
     $('drawerOverlay').classList.remove('show');
+    unlockBodyScroll();
     restoreFocus();
   }
 
@@ -3721,7 +3761,6 @@
   const memberList = $('memberList');
   const shareCodeArea = $('shareCodeArea');
   const btnGenerateCode = $('btnGenerateCode');
-  const btnDrawerSignOut = $('btnDrawerSignOut');
   const btnDeleteAccount = $('btnDeleteAccount');
   const myGroupsList = $('myGroupsList');
   const btnDrawerAddGroup = $('btnDrawerAddGroup');
@@ -3743,12 +3782,18 @@
   const drawerPanelGroups = $('drawerPanelGroups');
   const drawerPanelMembers = $('drawerPanelMembers');
   const drawerPanelInvite = $('drawerPanelInvite');
-  const drawerPanelAccount = $('drawerPanelAccount');
   const inviteNonLeaderHint = $('inviteNonLeaderHint');
-  const accountEmailLabel = $('accountEmailLabel');
+
+  const profileOverlay = $('profileOverlay');
+  const profileModal = $('profileModal');
+  const profileModalClose = $('profileModalClose');
+  const btnProfileChip = $('btnProfileChip');
+  const profileNameLabel = $('profileNameLabel');
+  const profileEmailLabel = $('profileEmailLabel');
+  const btnProfileSignOut = $('btnProfileSignOut');
 
   function setDrawerTab(tab){
-    const panels = { groups: drawerPanelGroups, members: drawerPanelMembers, invite: drawerPanelInvite, account: drawerPanelAccount };
+    const panels = { groups: drawerPanelGroups, members: drawerPanelMembers, invite: drawerPanelInvite };
     Object.keys(panels).forEach(key=>{
       panels[key].style.display = (key === tab) ? 'block' : 'none';
     });
@@ -3761,6 +3806,31 @@
     if(!btn) return;
     setDrawerTab(btn.dataset.tab);
   });
+
+  // Reflects the current user's display name (or email as a fallback
+  // before a group/member record is loaded) in the top-right profile chip.
+  function updateProfileNameLabel(){
+    profileNameLabel.textContent = currentMember
+      ? capitalizeName(currentMember.displayName)
+      : (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Account');
+  }
+
+  function openProfile(){
+    rememberFocus();
+    updateProfileNameLabel();
+    profileEmailLabel.textContent = currentUser ? (currentUser.email || '') : '';
+    profileOverlay.classList.add('show');
+    lockBodyScroll();
+    setTimeout(()=> profileModalClose.focus(), 30);
+  }
+  function closeProfile(){
+    profileOverlay.classList.remove('show');
+    unlockBodyScroll();
+    restoreFocus();
+  }
+  btnProfileChip.addEventListener('click', openProfile);
+  profileModalClose.addEventListener('click', closeProfile);
+  profileOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'profileOverlay') closeProfile(); });
 
   let shareCodeTimer = null;
 
@@ -3825,6 +3895,7 @@
       return;
     }
     groupChipName.textContent = group.name;
+    updateProfileNameLabel();
     groupSetupScreen.style.display = 'none';
     appRoot.style.display = 'block';
     init();
@@ -3867,7 +3938,7 @@
     try{ await signOut(auth); }catch(e){ console.error(e); }
   }
   btnGroupSetupSignOut.addEventListener('click', doSignOut);
-  btnDrawerSignOut.addEventListener('click', doSignOut);
+  btnProfileSignOut.addEventListener('click', doSignOut);
 
   // ---------- Account deletion ----------
   // Deletes every deck + collection this uid owns within one group, then
@@ -4111,14 +4182,17 @@
     closeGroupDrawer();
     rememberFocus();
     addGroupModalOverlay.classList.add('show');
+    lockBodyScroll();
     setTimeout(()=> drawerJoinCodeInput.focus(), 30);
   }
   function returnToGroupMenu(){
     addGroupModalOverlay.classList.remove('show');
+    unlockBodyScroll();
     openGroupDrawer();
   }
   function closeAddGroupModalForSuccess(){
     addGroupModalOverlay.classList.remove('show');
+    unlockBodyScroll();
     restoreFocus();
   }
 
@@ -4143,10 +4217,13 @@
     }catch(e){
       console.error(e);
       const needsIndex = e && (e.code === 'failed-precondition' || /index/i.test(e.message || ''));
+      const needsRules = e && (e.code === 'permission-denied' || /insufficient permissions/i.test(e.message || ''));
       myGroupsList.innerHTML = `<div style="color:#e77a6a;font-family:var(--font-ui);font-size:0.8rem;padding:6px 2px;line-height:1.5;">${
         needsIndex
           ? 'The server needs a one-time setup step for this. Open the browser console (F12) — a link was printed there that completes it in one click.'
-          : 'Could not load your groups. Please try again.'
+          : needsRules
+            ? "Your account doesn't have permission to read this yet — this is a Firestore security rules setup step, not something wrong with your account. Ask whoever set up the project's Firebase rules to allow this."
+            : 'Could not load your groups. Please try again.'
       }</div>`;
       return;
     }
@@ -4247,8 +4324,8 @@
     btnGenerateCode.style.display = isLeader() ? 'block' : 'none';
     btnGenerateCode.textContent = 'Generate Share Code';
     inviteNonLeaderHint.style.display = isLeader() ? 'none' : 'block';
-    accountEmailLabel.textContent = currentUser ? (currentUser.email || '') : '';
     groupDrawerOverlay.classList.add('show');
+    lockBodyScroll();
     setTimeout(()=> groupDrawerClose.focus(), 30);
 
     if(isLeader() && currentGroup){
@@ -4264,6 +4341,7 @@
   }
   function closeGroupDrawer(){
     groupDrawerOverlay.classList.remove('show');
+    unlockBodyScroll();
     stopShareCodeTimer();
     restoreFocus();
   }
