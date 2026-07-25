@@ -392,6 +392,17 @@
     box-shadow: 0 10px 20px -12px #00000090;
   }
   .deck-card{ touch-action: pan-y; z-index: 2; }
+  .deck-card:focus-visible, .deck-card-standalone:focus-visible{
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .menu-btn:focus-visible, .btn-filter:focus-visible, .btn-clear:focus-visible,
+  .drawer-close:focus-visible, .modal-close:focus-visible, .del-btn:focus-visible,
+  .edit-btn:focus-visible, .group-chip:focus-visible, .pip-toggle:focus-visible,
+  .build-filter-btn:focus-visible, .color-pick-btn:focus-visible{
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
   .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
 
@@ -1486,10 +1497,10 @@
 </div>
 
 <!-- Group Setup Screen (create or join) -->
-<div class="group-setup-screen" id="groupSetupScreen">
+<div class="group-setup-screen" id="groupSetupScreen" role="region" aria-labelledby="groupSetupTitle">
   <div class="group-setup-card">
-    <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
-    <h1>Join a <span>Group</span></h1>
+    <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app" aria-label="Back to app"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    <h1 id="groupSetupTitle">Join a <span>Group</span></h1>
     <p class="group-setup-sub">Decks are shared within a group. Join one with a code, or start your own.</p>
 
     <div class="group-setup-tabs">
@@ -1523,10 +1534,10 @@
 
 <!-- Group Management Drawer -->
 <div class="drawer-overlay" id="groupDrawerOverlay">
-  <div class="drawer-panel" id="groupDrawerPanel">
+  <div class="drawer-panel" id="groupDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="groupDrawerTitle">
     <div class="drawer-header">
-      <h3>Manage Group</h3>
-      <button class="drawer-close" id="groupDrawerClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h3 id="groupDrawerTitle">Manage Group</h3>
+      <button class="drawer-close" id="groupDrawerClose" aria-label="Close manage group panel"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
 
     <div class="drawer-tabs" id="drawerTabs">
@@ -1574,10 +1585,10 @@
 <!-- Add Another Group — popup (opens over the Manage Group menu; Cancel
      returns to that menu rather than just closing outright) -->
 <div class="overlay" id="addGroupModalOverlay">
-  <div class="modal" id="addGroupModal" style="max-width:420px;">
+  <div class="modal" id="addGroupModal" style="max-width:420px;" role="dialog" aria-modal="true" aria-labelledby="addGroupModalTitle">
     <div class="modal-body">
-      <button class="modal-close" id="addGroupModalClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
-      <h2>Add Another Group</h2>
+      <button class="modal-close" id="addGroupModalClose" aria-label="Cancel and go back"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h2 id="addGroupModalTitle">Add Another Group</h2>
       <p class="modal-subtitle">Join a group with a share code, or start a brand new one.</p>
 
       <div class="group-setup-tabs">
@@ -1614,7 +1625,7 @@
 
   <header>
     <div class="header-left">
-      <button class="menu-btn" id="btnMenu" title="Switch collection"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <button class="menu-btn" id="btnMenu" title="Switch collection" aria-label="Switch collection"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
       <div class="title-block">
         <h1>Deck <span>Codex</span></h1>
         <p id="activeCollectionLabel">Keep track of your decks in one place.</p>
@@ -1650,10 +1661,10 @@
        stays out in the main controls row on purpose, so it's a one-tap
        action that doesn't require opening this popup first. -->
   <div class="overlay" id="filterModalOverlay">
-    <div class="modal" id="filterModal" style="max-width:420px;">
+    <div class="modal" id="filterModal" style="max-width:420px;" role="dialog" aria-modal="true" aria-labelledby="filterModalTitle">
       <div class="modal-body">
-        <button class="modal-close" id="filterModalClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
-        <h3 class="filter-modal-title">Filters</h3>
+        <button class="modal-close" id="filterModalClose" aria-label="Close filters"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+        <h3 class="filter-modal-title" id="filterModalTitle">Filters</h3>
         <div class="filter-modal-section">
           <div class="filter-modal-label">Color identity</div>
           <div class="color-filters" id="colorFilters"></div>
@@ -1671,10 +1682,10 @@
 
 <!-- Info Modal -->
 <div class="overlay" id="infoOverlay">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="infoName">
     <div class="modal-stripe" id="infoStripe"></div>
     <div class="modal-body">
-      <button class="modal-close" id="infoClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <button class="modal-close" id="infoClose" aria-label="Close deck details"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="infoName"></h2>
       <p class="modal-subtitle" id="infoCollection"></p>
       <div class="identity-block">
@@ -1697,9 +1708,9 @@
 
 <!-- Add/Edit Modal -->
 <div class="overlay" id="formOverlay">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
     <div class="modal-body">
-      <button class="modal-close" id="formClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <button class="modal-close" id="formClose" aria-label="Cancel and close"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="formTitle">New Deck</h2>
       <div class="field">
         <label for="formCollection">Collection</label>
@@ -1745,10 +1756,10 @@
 
 <!-- Collections Drawer -->
 <div class="drawer-overlay" id="drawerOverlay">
-  <div class="drawer-panel" id="drawerPanel">
+  <div class="drawer-panel" id="drawerPanel" role="dialog" aria-modal="true" aria-labelledby="collectionsDrawerTitle">
     <div class="drawer-header">
-      <h3>Collections</h3>
-      <button class="drawer-close" id="drawerClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h3 id="collectionsDrawerTitle">Collections</h3>
+      <button class="drawer-close" id="drawerClose" aria-label="Close collections panel"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
     <div class="collection-list" id="collectionList"></div>
     <div class="add-collection-row" id="addCollectionRow">
@@ -1759,15 +1770,15 @@
 </div>
 
 <!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
+<div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
   <div class="loading-box">
-    <div class="spinner"></div>
+    <div class="spinner" aria-hidden="true"></div>
     <div id="loadingText">Getting caught up…</div>
   </div>
 </div>
 
 <!-- Undo banner: appears after swipe-deleting a deck -->
-<div class="undo-banner" id="undoBanner">
+<div class="undo-banner" id="undoBanner" role="status" aria-live="polite">
   <span class="undo-banner-text" id="undoBannerText"></span>
   <button type="button" class="undo-banner-btn" id="undoBannerBtn">Undo</button>
   <div class="undo-banner-bar-track"><div class="undo-banner-bar-fill" id="undoBannerBar"></div></div>
@@ -1910,6 +1921,56 @@
   const ICON_X = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
   const ICON_EDIT = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   const content = $('content');
+
+  // ---------- Accessibility: focus memory + Escape-to-close + Tab trap ----------
+  // Keyboard users shouldn't lose their place when a modal/drawer opens, and
+  // Tab shouldn't be able to wander behind it into the page underneath.
+  let lastFocusedBeforeOverlay = null;
+  function rememberFocus(){ lastFocusedBeforeOverlay = document.activeElement; }
+  function restoreFocus(){
+    const el = lastFocusedBeforeOverlay;
+    lastFocusedBeforeOverlay = null;
+    if(el && typeof el.focus === 'function' && document.contains(el)) el.focus();
+  }
+  function focusableIn(container){
+    return [...container.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(el => el.offsetParent !== null);
+  }
+  // Checked top-to-bottom; only one of these is ever actually visible at a
+  // time in normal use (opening one closes any other first), so the first
+  // match found with .show is treated as "the" open overlay.
+  function currentOpenOverlay(){
+    const candidates = [
+      { el: $('addGroupModalOverlay'), close: ()=> returnToGroupMenu() },
+      { el: $('groupDrawerOverlay'),   close: ()=> closeGroupDrawer() },
+      { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
+      { el: $('infoOverlay'),          close: ()=> closeInfo() },
+      { el: $('formOverlay'),          close: ()=> closeForm() },
+      { el: $('drawerOverlay'),        close: ()=> closeDrawer() }
+    ];
+    return candidates.find(c => c.el && c.el.classList.contains('show')) || null;
+  }
+  document.addEventListener('keydown', (e)=>{
+    const open = currentOpenOverlay();
+    if(!open) return;
+    if(e.key === 'Escape'){
+      e.preventDefault();
+      open.close();
+      return;
+    }
+    if(e.key === 'Tab'){
+      const container = open.el.querySelector('.modal, .drawer-panel') || open.el;
+      const items = focusableIn(container);
+      if(!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if(e.shiftKey && document.activeElement === first){
+        e.preventDefault(); last.focus();
+      } else if(!e.shiftKey && document.activeElement === last){
+        e.preventDefault(); first.focus();
+      }
+    }
+  });
 
   function cssColorVar(key){
     const c = COLORS.find(c => c.key === key);
@@ -2320,15 +2381,20 @@
   // generating a code is idempotent — leaders always get shown whichever
   // code is still live instead of accidentally invalidating one that group
   // members might already be typing in.
+  //
+  // This reads a single field off the group doc rather than querying the
+  // shareCodes collection directly — Firestore security rules can restrict
+  // a single-document get/write by exact ID cleanly, but can't safely scope
+  // an open-ended collection query (`list`) to "only the leader of the
+  // matching group" without letting anyone enumerate other groups' codes.
+  // Keeping the "what's currently active" pointer on the group doc (which
+  // already has clean leader-only rules) avoids needing that list access.
   async function getActiveShareCode(groupId){
-    const snap = await getDocs(query(SHARE_CODES_COL, where('groupId', '==', groupId)));
-    const now = Date.now();
-    let found = null;
-    snap.forEach(d=>{
-      const data = d.data();
-      if(data.expiresAt > now && (!found || data.expiresAt > found.expiresAt)) found = data;
-    });
-    return found;
+    const snap = await getDoc(doc(GROUPS_COL, groupId));
+    if(!snap.exists()) return null;
+    const active = snap.data().activeShareCode;
+    if(!active || !active.expiresAt || active.expiresAt <= Date.now()) return null;
+    return { code: active.code, groupId, createdAt: active.createdAt, expiresAt: active.expiresAt };
   }
 
   async function generateShareCode(groupId){
@@ -2346,6 +2412,9 @@
       if(!snap.exists() || snap.data().expiresAt < Date.now()){
         const data = { code: candidate, groupId, createdAt: Date.now(), expiresAt: Date.now() + 30 * 60 * 1000 };
         await setDoc(ref, data);
+        await updateDoc(doc(GROUPS_COL, groupId), {
+          activeShareCode: { code: candidate, createdAt: data.createdAt, expiresAt: data.expiresAt }
+        });
         return data;
       }
     }
@@ -2360,12 +2429,16 @@
     if(!snap.exists()) throw new Error("That code doesn't exist. Double-check it and try again.");
     const data = snap.data();
     if(data.expiresAt < Date.now()) throw new Error('That code has expired. Ask the group leader for a new one.');
-    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Player').split('@')[0]), email: user.email || '', role: 'member', joinedAt: Date.now() };
+    // viaCode is stored (not just checked) so the security rule granting this
+    // write can verify it against the shareCodes doc, and so there's an
+    // audit trail of which invite a member joined through.
+    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Player').split('@')[0]), email: user.email || '', role: 'member', joinedAt: Date.now(), viaCode: code };
     await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
     await setUserGroup(user.uid, data.groupId);
     // Single use: the code is spent the moment it's redeemed, so it can't
     // be shared onward or reused by anyone else.
     await deleteDoc(ref).catch(()=>{ /* non-fatal if this fails */ });
+    await updateDoc(doc(GROUPS_COL, data.groupId), { activeShareCode: null }).catch(()=>{ /* non-fatal */ });
     return data.groupId;
   }
 
@@ -2411,8 +2484,12 @@
     }
   }
 
-  function openFilterModal(){ filterModalOverlay.classList.add('show'); }
-  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); }
+  function openFilterModal(){
+    rememberFocus();
+    filterModalOverlay.classList.add('show');
+    setTimeout(()=>{ const f = focusableIn(filterModal); if(f.length) f[0].focus(); }, 30);
+  }
+  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); restoreFocus(); }
   btnOpenFilters.addEventListener('click', openFilterModal);
   filterModalClose.addEventListener('click', closeFilterModal);
   filterModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'filterModalOverlay') closeFilterModal(); });
@@ -2425,9 +2502,12 @@
       const btn = document.createElement('button');
       btn.className = 'pip-toggle' + (c.key === 'B' ? ' pip-toggle-black' : '');
       btn.textContent = c.key;
-      btn.dataset.active = activeFilters.has(c.key) ? 'true' : 'false';
+      const isActive = activeFilters.has(c.key);
+      btn.dataset.active = isActive ? 'true' : 'false';
       btn.style.setProperty('--pip-color', cssColorVar(c.key));
       btn.title = c.name;
+      btn.setAttribute('aria-label', `Filter by ${c.name}`);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       btn.addEventListener('click', ()=>{
         if(activeFilters.has(c.key)) activeFilters.delete(c.key);
         else activeFilters.add(c.key);
@@ -2446,7 +2526,9 @@
       const btn = document.createElement('button');
       btn.className = 'build-filter-btn';
       btn.textContent = b.name;
-      btn.dataset.active = activeBuildFilters.has(b.key) ? 'true' : 'false';
+      const isActive = activeBuildFilters.has(b.key);
+      btn.dataset.active = isActive ? 'true' : 'false';
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       btn.addEventListener('click', ()=>{
         if(activeBuildFilters.has(b.key)) activeBuildFilters.delete(b.key);
         else activeBuildFilters.add(b.key);
@@ -2532,6 +2614,9 @@
       const card = document.createElement('div');
       card.className = 'deck-card';
       card.style.setProperty('--stripe', stripeGradient(deck.colors));
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `View ${deck.name}`);
 
       const topRow = document.createElement('div');
       topRow.className = 'deck-top-row';
@@ -2610,6 +2695,9 @@
       } else {
         card.classList.add('deck-card-standalone');
         card.addEventListener('click', ()=> openInfo(deck.id));
+        card.addEventListener('keydown', (e)=>{
+          if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openInfo(deck.id); }
+        });
         grid.appendChild(card);
       }
     });
@@ -2752,6 +2840,15 @@
       vibrate(15);
       startDeleteWithUndo(deck);
     });
+
+    // Keyboard users never drag, so they need Enter/Space to open the info
+    // modal directly (from which Edit/Delete are both reachable by Tab).
+    card.addEventListener('keydown', (e)=>{
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      if(wrap.dataset.open === 'true'){ closeCard(true); return; }
+      openInfo(deck.id);
+    });
   }
 
   const undoBanner = $('undoBanner');
@@ -2879,12 +2976,15 @@
       descEl.classList.add('empty');
     }
 
+    rememberFocus();
     $('infoOverlay').classList.add('show');
+    setTimeout(()=> $('infoClose').focus(), 30);
   }
 
   function closeInfo(){
     $('infoOverlay').classList.remove('show');
     currentInfoId = null;
+    restoreFocus();
   }
 
   $('infoClose').addEventListener('click', closeInfo);
@@ -2913,10 +3013,14 @@
     function refreshStates(){
       COLORS.forEach(c=>{
         const btn = wrap.querySelector(`[data-key="${c.key}"]`);
-        btn.dataset.active = selected.has(c.key) ? 'true' : 'false';
+        const isActive = selected.has(c.key);
+        btn.dataset.active = isActive ? 'true' : 'false';
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       });
       const colorlessBtn = wrap.querySelector('[data-key="C"]');
-      colorlessBtn.dataset.active = selected.has('C') ? 'true' : 'false';
+      const clActive = selected.has('C');
+      colorlessBtn.dataset.active = clActive ? 'true' : 'false';
+      colorlessBtn.setAttribute('aria-pressed', clActive ? 'true' : 'false');
     }
 
     COLORS.forEach(c=>{
@@ -2962,7 +3066,9 @@
     function refresh(){
       BUILD_TYPES.forEach(b=>{
         const btn = wrap.querySelector(`[data-key="${b.key}"]`);
-        btn.dataset.active = (current === b.key) ? 'true' : 'false';
+        const isActive = current === b.key;
+        btn.dataset.active = isActive ? 'true' : 'false';
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       });
     }
 
@@ -3126,6 +3232,7 @@
     }
 
     buildColorPicker(selected);
+    rememberFocus();
     $('formOverlay').classList.add('show');
     setTimeout(()=> $('formName').focus(), 50);
   }
@@ -3133,6 +3240,7 @@
   function closeForm(){
     $('formOverlay').classList.remove('show');
     editingId = null;
+    restoreFocus();
   }
 
   $('btnNewDeck').addEventListener('click', ()=> openForm(null));
@@ -3246,10 +3354,14 @@
       const item = document.createElement('div');
       item.className = 'collection-item';
       item.dataset.active = col.id === activeCollectionId ? 'true' : 'false';
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-pressed', col.id === activeCollectionId ? 'true' : 'false');
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'name';
       nameSpan.textContent = collectionDisplayName(col);
+      item.setAttribute('aria-label', `Switch to ${collectionDisplayName(col)}`);
       item.appendChild(nameSpan);
 
       if(isLeader() && !col.ownerUid){
@@ -3257,6 +3369,7 @@
         editBtn.className = 'edit-btn';
         editBtn.innerHTML = ICON_EDIT;
         editBtn.title = 'Rename this collection';
+        editBtn.setAttribute('aria-label', `Rename ${collectionDisplayName(col)}`);
         editBtn.addEventListener('click', async (e)=>{
           e.stopPropagation();
           const current = collectionDisplayName(col);
@@ -3281,6 +3394,7 @@
         delBtn.className = 'del-btn';
         delBtn.innerHTML = ICON_X;
         delBtn.title = 'Delete this collection';
+        delBtn.setAttribute('aria-label', `Delete ${collectionDisplayName(col)}`);
         delBtn.addEventListener('click', async (e)=>{
           e.stopPropagation();
           if(collections.length <= 1){
@@ -3312,18 +3426,29 @@
         renderDrawer();
         closeDrawer();
       });
+      item.addEventListener('keydown', (e)=>{
+        if(e.key !== 'Enter' && e.key !== ' ') return;
+        if(e.target !== item) return; // don't hijack Enter/Space typed into a nested edit/delete button
+        e.preventDefault();
+        setActiveCollection(col.id);
+        renderDrawer();
+        closeDrawer();
+      });
 
       listEl.appendChild(item);
     });
   }
 
   function openDrawer(){
+    rememberFocus();
     renderDrawer();
     $('addCollectionRow').style.display = isLeader() ? 'flex' : 'none';
     $('drawerOverlay').classList.add('show');
+    setTimeout(()=> $('drawerClose').focus(), 30);
   }
   function closeDrawer(){
     $('drawerOverlay').classList.remove('show');
+    restoreFocus();
   }
 
   $('btnMenu').addEventListener('click', openDrawer);
@@ -3776,6 +3901,7 @@
       nameInput.type = 'text';
       const displayValue = capitalizeName(m.displayName);
       nameInput.value = displayValue;
+      nameInput.setAttribute('aria-label', `Display name for ${displayValue}`);
       const canRename = isLeader() || m.uid === currentUser.uid;
       nameInput.disabled = !canRename;
       nameInput.addEventListener('change', async ()=>{
@@ -3805,6 +3931,7 @@
         delBtn.className = 'del-btn';
         delBtn.innerHTML = ICON_X;
         delBtn.title = 'Remove from group';
+        delBtn.setAttribute('aria-label', `Remove ${capitalizeName(m.displayName)} from group`);
         delBtn.addEventListener('click', async ()=>{
           if(!confirm(`Remove ${capitalizeName(m.displayName)} from the group? They'll lose access, but their decks stay in the group.`)) return;
           try{
@@ -3852,6 +3979,7 @@
     setDrawerAddGroupTab('join');
     resetDrawerGroupForms();
     closeGroupDrawer();
+    rememberFocus();
     addGroupModalOverlay.classList.add('show');
     setTimeout(()=> drawerJoinCodeInput.focus(), 30);
   }
@@ -3861,6 +3989,7 @@
   }
   function closeAddGroupModalForSuccess(){
     addGroupModalOverlay.classList.remove('show');
+    restoreFocus();
   }
 
   async function switchToGroup(groupId){
@@ -3907,7 +4036,12 @@
     rows.forEach(r=>{
       const item = document.createElement('div');
       item.className = 'collection-item my-group-item';
-      item.dataset.active = (currentGroup && r.groupId === currentGroup.id) ? 'true' : 'false';
+      const isActiveGroup = !!(currentGroup && r.groupId === currentGroup.id);
+      item.dataset.active = isActiveGroup ? 'true' : 'false';
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-pressed', isActiveGroup ? 'true' : 'false');
+      item.setAttribute('aria-label', `Switch to ${r.name} (${r.role === 'leader' ? 'Leader' : 'Member'})`);
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'name';
@@ -3920,6 +4054,11 @@
       item.appendChild(roleHint);
 
       item.addEventListener('click', ()=> switchToGroup(r.groupId));
+      item.addEventListener('keydown', (e)=>{
+        if(e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        switchToGroup(r.groupId);
+      });
       myGroupsList.appendChild(item);
     });
   }
@@ -3967,6 +4106,7 @@
   drawerJoinCodeInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnDrawerConfirmJoinGroup.click(); });
 
   function openGroupDrawer(){
+    rememberFocus();
     setDrawerTab('groups');
     groupNameInput.value = currentGroup ? currentGroup.name : '';
     groupNameInput.disabled = !isLeader();
@@ -3979,6 +4119,7 @@
     inviteNonLeaderHint.style.display = isLeader() ? 'none' : 'block';
     accountEmailLabel.textContent = currentUser ? (currentUser.email || '') : '';
     groupDrawerOverlay.classList.add('show');
+    setTimeout(()=> groupDrawerClose.focus(), 30);
 
     if(isLeader() && currentGroup){
       const groupIdAtOpen = currentGroup.id;
@@ -3994,6 +4135,7 @@
   function closeGroupDrawer(){
     groupDrawerOverlay.classList.remove('show');
     stopShareCodeTimer();
+    restoreFocus();
   }
 
   btnGroupChip.addEventListener('click', openGroupDrawer);
