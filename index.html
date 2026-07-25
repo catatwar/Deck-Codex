@@ -143,7 +143,7 @@
      be scrollable — otherwise touch-scrolling over the overlay's backdrop
      can drag the hidden content behind it, which feels like "scrolling
      into nothing" once you close the overlay again. */
-  body.scroll-locked{ overflow: hidden; height: 100%; }
+  body.scroll-locked, body.content-fits{ overflow: hidden; height: 100%; }
   body{
     background:
       radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
@@ -1666,6 +1666,15 @@
       <button class="modal-close" id="profileModalClose" aria-label="Close profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="profileModalTitle">Profile</h2>
       <p class="account-email" id="profileEmailLabel"></p>
+
+      <div class="group-section-label">Display Name</div>
+      <p class="invite-hint">This is the name other members of your groups see on your decks. Changing it updates every group you're in.</p>
+      <div class="group-name-row">
+        <input type="text" id="profileNameInput" placeholder="Your name">
+        <button type="button" id="btnSaveProfileName">Save</button>
+      </div>
+      <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
+
       <button type="button" class="btn-drawer-danger" id="btnProfileSignOut">Sign Out</button>
       <div class="account-danger-zone">
         <p class="account-danger-hint">Permanently delete your account and everything tied to it. This can't be undone.</p>
@@ -2413,6 +2422,20 @@
     return results;
   }
 
+  // ---------- Shared text-input validation ----------
+  // None of these characters are allowed in any free-text field the user
+  // types into (deck names/descriptions, collection/series/group names,
+  // display names) — they can look like markup or collide with characters
+  // the app itself uses as delimiters/formatting elsewhere.
+  const FORBIDDEN_CHARS = /[:"{}\[\]<>]/;
+  function forbiddenCharIn(str){
+    const m = (str || '').match(FORBIDDEN_CHARS);
+    return m ? m[0] : null;
+  }
+  function forbiddenCharMessage(ch){
+    return `Can't use the character "${ch}" here. Avoid : " { } [ ] < >`;
+  }
+
   // Player names are always shown with a capitalized first letter, no
   // matter how they were typed or derived from an email address.
   function capitalizeName(name){
@@ -2681,6 +2704,21 @@
     return list;
   }
 
+  // ---------- Whole-page scroll lock when there's nothing to scroll to ----------
+  // If every deck already fits on screen, the page shouldn't be scrollable
+  // at all — this locks it to one fixed position instead of leaving a
+  // sliver of rubber-band play with nothing below the fold. Re-checked
+  // after every render (deck count/filters changed) and on resize
+  // (rotation, keyboard, browser chrome collapsing).
+  function updateScrollability(){
+    requestAnimationFrame(()=>{
+      const fits = document.documentElement.scrollHeight <= window.innerHeight + 1;
+      document.body.classList.toggle('content-fits', fits);
+    });
+  }
+  window.addEventListener('resize', updateScrollability);
+  window.addEventListener('orientationchange', updateScrollability);
+
   function render(){
     const decksInCollection = decks.filter(d => d.collectionId === activeCollectionId && !pendingDeleteIds.has(d.id));
     const list = getFilteredSorted();
@@ -2691,6 +2729,7 @@
         <h2>No decks yet</h2>
         <p>Add your first deck to this collection using "New Deck" above.</p>
       </div>`;
+      updateScrollability();
       return;
     }
 
@@ -2699,6 +2738,7 @@
         <h2>No matches</h2>
         <p>Nothing fits that search or filter. Try clearing one.</p>
       </div>`;
+      updateScrollability();
       return;
     }
 
@@ -2798,6 +2838,7 @@
     });
 
     content.appendChild(grid);
+    updateScrollability();
   }
 
   // ---------- Swipe-to-delete + undo ----------
@@ -3287,6 +3328,8 @@
   $('btnConfirmAddSeries').addEventListener('click', async ()=>{
     const name = $('newSeriesInput').value.trim();
     if(!name) return;
+    const badChar = forbiddenCharIn(name);
+    if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnConfirmAddSeries');
     btn.disabled = true;
     try{
@@ -3370,6 +3413,13 @@
 
     if(!name){
       errorEl.textContent = 'Give this deck a name before saving.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const deckBadChar = forbiddenCharIn(name) || forbiddenCharIn(description);
+    if(deckBadChar){
+      errorEl.textContent = forbiddenCharMessage(deckBadChar);
       errorEl.style.display = 'block';
       return;
     }
@@ -3488,6 +3538,8 @@
           if(next === null) return;
           const trimmed = next.trim();
           if(!trimmed || trimmed === current) return;
+          const badChar = forbiddenCharIn(trimmed);
+          if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
           try{
             await renameCollection(col.id, trimmed);
             renderDrawer();
@@ -3574,6 +3626,8 @@
     const input = $('newCollectionInput');
     const name = input.value.trim();
     if(!name) return;
+    const badChar = forbiddenCharIn(name);
+    if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnAddCollection');
     btn.disabled = true;
     try{
@@ -3813,6 +3867,9 @@
   const profileNameLabel = $('profileNameLabel');
   const profileEmailLabel = $('profileEmailLabel');
   const btnProfileSignOut = $('btnProfileSignOut');
+  const profileNameInput = $('profileNameInput');
+  const btnSaveProfileName = $('btnSaveProfileName');
+  const profileNameError = $('profileNameError');
 
   function setDrawerTab(tab){
     const panels = { groups: drawerPanelGroups, members: drawerPanelMembers, invite: drawerPanelInvite };
@@ -3841,6 +3898,10 @@
     rememberFocus();
     updateProfileNameLabel();
     profileEmailLabel.textContent = currentUser ? (currentUser.email || '') : '';
+    profileNameInput.value = currentMember
+      ? capitalizeName(currentMember.displayName)
+      : (currentUser && currentUser.email ? capitalizeName(currentUser.email.split('@')[0]) : '');
+    profileNameError.style.display = 'none';
     profileOverlay.classList.add('show');
     lockBodyScroll();
     setTimeout(()=> profileModalClose.focus(), 30);
@@ -3886,6 +3947,7 @@
     // first-time setup there's nowhere valid to go back to yet.
     btnGroupSetupClose.style.display = (currentGroup && currentMember) ? 'flex' : 'none';
     groupSetupScreen.style.display = 'flex';
+    updateScrollability();
   }
 
   btnGroupSetupClose.addEventListener('click', ()=>{
@@ -3927,6 +3989,8 @@
     const name = createGroupNameInput.value.trim();
     clearGroupSetupError();
     if(!name){ showGroupSetupError('Give your group a name.'); return; }
+    const groupBadChar = forbiddenCharIn(name);
+    if(groupBadChar){ showGroupSetupError(forbiddenCharMessage(groupBadChar)); return; }
     btnCreateGroup.disabled = true;
     try{
       const groupId = await Promise.race([createGroup(name, currentUser), timeout(15000, 'Creating the group')]);
@@ -3961,6 +4025,53 @@
   }
   btnGroupSetupSignOut.addEventListener('click', doSignOut);
   btnProfileSignOut.addEventListener('click', doSignOut);
+
+  // ---------- Profile: renaming yourself everywhere ----------
+  // Unlike the per-group rename in the Members tab (which only ever
+  // touches the group currently open), this updates the member doc in
+  // EVERY group the user belongs to, plus their own account-level doc, so
+  // "your name" means one consistent thing across the whole app.
+  async function renameSelfEverywhere(newNameRaw){
+    const trimmed = (newNameRaw || '').trim();
+    if(!trimmed) throw new Error('Enter a name.');
+    const badChar = forbiddenCharIn(trimmed);
+    if(badChar) throw new Error(forbiddenCharMessage(badChar));
+    const newName = capitalizeName(trimmed);
+
+    const memberships = await listMyGroups(currentUser.uid);
+    for(const m of memberships){
+      await renameMember(m.groupId, currentUser.uid, newName).catch(()=>{ /* keep going for other groups */ });
+    }
+    await updateDoc(doc(USERS_COL, currentUser.uid), { displayName: newName }).catch(()=>{ /* non-fatal */ });
+
+    if(currentMember) currentMember.displayName = newName;
+    const meInMembers = members.find(m => m.uid === currentUser.uid);
+    if(meInMembers) meInMembers.displayName = newName;
+
+    updateProfileNameLabel();
+    if(groupDrawerOverlay.classList.contains('show')) renderMemberList();
+    render();
+    return newName;
+  }
+
+  btnSaveProfileName.addEventListener('click', async ()=>{
+    profileNameError.style.display = 'none';
+    btnSaveProfileName.disabled = true;
+    const prevLabel = btnSaveProfileName.textContent;
+    btnSaveProfileName.textContent = 'Saving…';
+    try{
+      const newName = await renameSelfEverywhere(profileNameInput.value);
+      profileNameInput.value = newName;
+    }catch(e){
+      profileNameError.textContent = e.message || 'Could not update your name. Please try again.';
+      profileNameError.style.display = 'block';
+      console.error(e);
+    }finally{
+      btnSaveProfileName.disabled = false;
+      btnSaveProfileName.textContent = prevLabel;
+    }
+  });
+  profileNameInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnSaveProfileName.click(); });
 
   // ---------- Account deletion ----------
   // Deletes every deck + collection this uid owns within one group, then
@@ -4130,6 +4241,8 @@
       nameInput.addEventListener('change', async ()=>{
         const newName = capitalizeName(nameInput.value.trim());
         if(!newName || newName === displayValue){ nameInput.value = displayValue; return; }
+        const badChar = forbiddenCharIn(newName);
+        if(badChar){ alert(forbiddenCharMessage(badChar)); nameInput.value = displayValue; return; }
         try{
           await renameMember(currentGroup.id, m.uid, newName);
           m.displayName = newName;
@@ -4302,6 +4415,8 @@
     const name = drawerNewGroupInput.value.trim();
     drawerGroupError.style.display = 'none';
     if(!name){ showDrawerGroupError('Give your new group a name.'); return; }
+    const newGroupBadChar = forbiddenCharIn(name);
+    if(newGroupBadChar){ showDrawerGroupError(forbiddenCharMessage(newGroupBadChar)); return; }
     btnDrawerConfirmNewGroup.disabled = true;
     try{
       const groupId = await Promise.race([createGroup(name, currentUser), timeout(15000, 'Creating the group')]);
@@ -4377,6 +4492,8 @@
     if(!isLeader()) return;
     const name = groupNameInput.value.trim();
     if(!name) return;
+    const badChar = forbiddenCharIn(name);
+    if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     btnSaveGroupName.disabled = true;
     try{
       await renameGroup(currentGroup.id, name);
@@ -4443,6 +4560,7 @@
       authScreen.style.display = 'flex';
       authEmail.value = '';
       authPassword.value = '';
+      updateScrollability();
     }
    }catch(e){
       console.error('Unexpected error handling auth state', e);
