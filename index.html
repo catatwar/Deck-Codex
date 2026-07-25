@@ -1164,53 +1164,6 @@
     margin: 4px 0 0;
   }
 
-  /* Compact, flush "add another group" form — sits right under the button
-     it expands from, no bulky card, no extra shadow, no wasted space. */
-  .inline-add-group{
-    padding: 12px 0 4px;
-    margin-bottom: 8px;
-  }
-  .inline-add-group-tabs{
-    display:flex;
-    align-items:center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .inline-tab-link{
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--muted);
-    font-family: var(--font-ui);
-    font-weight: 600;
-    font-size: 0.8rem;
-  }
-  .inline-tab-link[data-active="true"]{ color: var(--gold); }
-  .inline-tab-link:hover{ color: var(--ink); }
-  .inline-tab-sep{ color: var(--muted-2); font-size: 0.8rem; }
-  .inline-add-group .field-row{ display:flex; gap: 8px; }
-  .inline-add-group input{
-    flex:1; min-width: 0; background: var(--surface-3); border: 1px solid var(--line);
-    color: var(--ink); padding: 9px 11px; border-radius: 8px;
-    font-family: var(--font-ui); font-size: 0.88rem; outline: none;
-  }
-  .inline-add-group input:focus{ border-color: var(--gold); }
-  .inline-add-group button{
-    background: var(--gold); color: #0f1115; border: none;
-    padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
-    white-space: nowrap;
-  }
-  .inline-add-group button:disabled{ opacity: 0.6; }
-  .inline-add-group .group-setup-error{
-    color: #e77a6a; font-family: var(--font-ui); font-size: 0.8rem;
-    margin: 8px 0 0; display:none;
-  }
-  .btn-text-cancel{
-    background: none; border: none; color: var(--muted);
-    padding: 8px 2px 0; font-size: 0.82rem;
-  }
-  .btn-text-cancel:hover{ color: var(--ink); }
-
   /* ---------- Collection edit (rename) button ---------- */
   .collection-item .edit-btn{
     background: none; border: none; color: var(--muted-2);
@@ -1386,28 +1339,6 @@
         <div class="collection-list" id="myGroupsList"></div>
         <button type="button" class="btn-drawer-secondary" id="btnDrawerAddGroup">+ Add Another Group</button>
 
-        <div class="inline-add-group" id="drawerAddGroupPanel" style="display:none;">
-          <div class="inline-add-group-tabs">
-            <button type="button" class="inline-tab-link" id="drawerTabJoin" data-active="true">Join with code</button>
-            <span class="inline-tab-sep">·</span>
-            <button type="button" class="inline-tab-link" id="drawerTabCreate" data-active="false">Create new</button>
-          </div>
-          <div id="drawerJoinPanel">
-            <div class="field-row">
-              <input type="text" id="drawerJoinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
-              <button type="button" id="btnDrawerConfirmJoinGroup">Join</button>
-            </div>
-          </div>
-          <div id="drawerCreatePanel" style="display:none;">
-            <div class="field-row">
-              <input type="text" id="drawerNewGroupInput" placeholder="New group name…">
-              <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
-            </div>
-          </div>
-          <div class="group-setup-error" id="drawerGroupError"></div>
-          <button type="button" class="btn-text-cancel" id="btnDrawerCancelAddGroup">Cancel</button>
-        </div>
-
         <div class="group-name-row">
           <input type="text" id="groupNameInput" placeholder="Group name">
           <button type="button" id="btnSaveGroupName">Save</button>
@@ -1432,6 +1363,45 @@
         <button type="button" class="btn-drawer-danger" id="btnDrawerSignOut">Sign Out</button>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- Add Another Group — popup (opens over the Manage Group menu; Cancel
+     returns to that menu rather than just closing outright) -->
+<div class="overlay" id="addGroupModalOverlay">
+  <div class="modal" id="addGroupModal" style="max-width:420px;">
+    <div class="modal-body">
+      <button class="modal-close" id="addGroupModalClose">✕</button>
+      <h2>Add Another Group</h2>
+      <p class="modal-subtitle">Join a group with a share code, or start a brand new one.</p>
+
+      <div class="group-setup-tabs">
+        <button type="button" class="group-setup-tab" id="drawerTabJoin" data-active="true">Join a Group</button>
+        <button type="button" class="group-setup-tab" id="drawerTabCreate" data-active="false">Create a Group</button>
+      </div>
+
+      <div class="group-setup-panel" id="drawerJoinPanel">
+        <p>Ask the group leader for their 6-character share code.</p>
+        <div class="field-row">
+          <input type="text" id="drawerJoinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
+          <button type="button" id="btnDrawerConfirmJoinGroup">Join</button>
+        </div>
+      </div>
+
+      <div class="group-setup-panel" id="drawerCreatePanel" style="display:none;">
+        <p>You'll be this group's leader, with editing rights over every member's decks.</p>
+        <div class="field-row">
+          <input type="text" id="drawerNewGroupInput" placeholder="e.g. The Smith Family">
+          <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
+        </div>
+      </div>
+
+      <div class="group-setup-error" id="drawerGroupError"></div>
+
+      <div class="modal-actions" style="border-top:none; padding-top:0;">
+        <button type="button" class="btn-secondary" id="btnDrawerCancelAddGroup">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2975,7 +2945,9 @@
   const btnDrawerSignOut = $('btnDrawerSignOut');
   const myGroupsList = $('myGroupsList');
   const btnDrawerAddGroup = $('btnDrawerAddGroup');
-  const drawerAddGroupPanel = $('drawerAddGroupPanel');
+  const addGroupModalOverlay = $('addGroupModalOverlay');
+  const addGroupModal = $('addGroupModal');
+  const addGroupModalClose = $('addGroupModalClose');
   const drawerTabJoin = $('drawerTabJoin');
   const drawerTabCreate = $('drawerTabCreate');
   const drawerJoinPanel = $('drawerJoinPanel');
@@ -3205,8 +3177,7 @@
     });
   }
 
-  function hideDrawerGroupForms(){
-    drawerAddGroupPanel.style.display = 'none';
+  function resetDrawerGroupForms(){
     drawerGroupError.style.display = 'none';
     drawerNewGroupInput.value = '';
     drawerJoinCodeInput.value = '';
@@ -3226,6 +3197,24 @@
   function showDrawerGroupError(msg){
     drawerGroupError.textContent = msg;
     drawerGroupError.style.display = 'block';
+  }
+
+  // Opens the "Add Another Group" popup, closing the Manage Group menu
+  // behind it. Cancelling brings the menu back; succeeding closes the
+  // popup for good and drops the person straight into their new group.
+  function openAddGroupModal(){
+    setDrawerAddGroupTab('join');
+    resetDrawerGroupForms();
+    closeGroupDrawer();
+    addGroupModalOverlay.classList.add('show');
+    setTimeout(()=> drawerJoinCodeInput.focus(), 30);
+  }
+  function returnToGroupMenu(){
+    addGroupModalOverlay.classList.remove('show');
+    openGroupDrawer();
+  }
+  function closeAddGroupModalForSuccess(){
+    addGroupModalOverlay.classList.remove('show');
   }
 
   async function switchToGroup(groupId){
@@ -3289,12 +3278,11 @@
     });
   }
 
-  btnDrawerAddGroup.addEventListener('click', ()=>{
-    setDrawerAddGroupTab('join');
-    drawerAddGroupPanel.style.display = 'block';
-    setTimeout(()=> drawerJoinCodeInput.focus(), 30);
-  });
-  btnDrawerCancelAddGroup.addEventListener('click', hideDrawerGroupForms);
+  btnDrawerAddGroup.addEventListener('click', openAddGroupModal);
+  addGroupModalClose.addEventListener('click', returnToGroupMenu);
+  btnDrawerCancelAddGroup.addEventListener('click', returnToGroupMenu);
+  addGroupModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'addGroupModalOverlay') returnToGroupMenu(); });
+  addGroupModal.addEventListener('click', (e)=> e.stopPropagation());
 
   btnDrawerConfirmNewGroup.addEventListener('click', async ()=>{
     const name = drawerNewGroupInput.value.trim();
@@ -3303,8 +3291,7 @@
     btnDrawerConfirmNewGroup.disabled = true;
     try{
       const groupId = await Promise.race([createGroup(name, currentUser), timeout(15000, 'Creating the group')]);
-      hideDrawerGroupForms();
-      closeGroupDrawer();
+      closeAddGroupModalForSuccess();
       appInitialized = false;
       await enterGroup(groupId);
     }catch(e){
@@ -3321,8 +3308,7 @@
     btnDrawerConfirmJoinGroup.disabled = true;
     try{
       const groupId = await Promise.race([redeemShareCode(drawerJoinCodeInput.value, currentUser), timeout(15000, 'Joining the group')]);
-      hideDrawerGroupForms();
-      closeGroupDrawer();
+      closeAddGroupModalForSuccess();
       appInitialized = false;
       await enterGroup(groupId);
     }catch(e){
@@ -3340,7 +3326,6 @@
     groupNameInput.disabled = !isLeader();
     btnSaveGroupName.style.display = isLeader() ? 'inline-block' : 'none';
     renderMemberList();
-    hideDrawerGroupForms();
     renderMyGroupsList();
     shareCodeArea.innerHTML = '';
     btnGenerateCode.style.display = isLeader() ? 'block' : 'none';
