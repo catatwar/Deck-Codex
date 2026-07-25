@@ -23,6 +23,7 @@
   import {
     getFirestore,
     collection,
+    collectionGroup,
     doc,
     getDoc,
     getDocs,
@@ -30,6 +31,7 @@
     updateDoc,
     deleteDoc,
     query,
+    where,
     orderBy,
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
@@ -64,6 +66,7 @@
     createUserWithEmailAndPassword,
     signOut,
     collection,
+    collectionGroup,
     doc,
     getDoc,
     getDocs,
@@ -71,6 +74,7 @@
     updateDoc,
     deleteDoc,
     query,
+    where,
     orderBy,
     onSnapshot
   };
@@ -908,31 +912,49 @@
     font-size: 0.9rem;
     text-align:center;
   }
-  .group-setup-block{
+  .group-setup-tabs{
+    display:flex;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 18px;
+  }
+  .group-setup-tab{
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 9px 10px;
+    border-radius: 7px;
+    transition: all 0.15s ease;
+  }
+  .group-setup-tab[data-active="true"]{
+    background: var(--gold);
+    color: #0f1115;
+  }
+  .group-setup-panel{
     background: var(--surface-2);
     border: 1px solid var(--line);
     border-radius: 16px;
-    padding: 22px 20px;
-    margin-bottom: 18px;
+    padding: 20px;
+    margin-bottom: 14px;
   }
-  .group-setup-block h2{
-    font-family: var(--font-display);
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin: 0 0 4px;
-    color: var(--ink);
-  }
-  .group-setup-block p{
+  .group-setup-panel p{
     margin: 0 0 16px;
     color: var(--muted);
     font-family: var(--font-body);
     font-size: 0.86rem;
+    line-height: 1.5;
   }
-  .group-setup-block .field-row{
+  .group-setup-panel .field-row{
     display:flex;
     gap: 8px;
   }
-  .group-setup-block input{
+  .group-setup-panel input{
     flex:1;
     min-width: 0;
     background: var(--surface-3);
@@ -944,14 +966,14 @@
     font-size: 0.94rem;
     outline: none;
   }
-  .group-setup-block input:focus{ border-color: var(--gold); }
+  .group-setup-panel input:focus{ border-color: var(--gold); }
   input.code-input{
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-family: var(--font-display);
     font-weight: 700;
   }
-  .group-setup-block button{
+  .group-setup-panel button{
     background: var(--gold);
     color: #0f1115;
     border: none;
@@ -961,16 +983,7 @@
     font-size: 0.88rem;
     white-space: nowrap;
   }
-  .group-setup-block button:disabled{ opacity: 0.6; }
-  .group-setup-divider{
-    text-align:center;
-    color: var(--muted-2);
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin: 6px 0 18px;
-  }
+  .group-setup-panel button:disabled{ opacity: 0.6; }
   .group-setup-error{
     color: #e77a6a;
     font-family: var(--font-ui);
@@ -1080,17 +1093,8 @@
     margin-bottom: 8px;
   }
   .btn-drawer-secondary:hover{ border-color: var(--gold-soft); }
-  .group-switch-row{
-    display:flex;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .group-switch-row .btn-drawer-secondary{
-    width: auto;
-    flex: 1;
-    margin-bottom: 0;
-    font-size: 0.8rem;
-    padding: 9px 6px;
+  #drawerAddGroupPanel{
+    background: var(--surface-3);
   }
   .my-group-item .role-hint{
     font-size: 0.7rem;
@@ -1158,12 +1162,14 @@
   <div class="group-setup-card">
     <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app">✕</button>
     <h1>Join a <span>Group</span></h1>
-    <p class="group-setup-sub">Decks are shared within a group. Create one, or join with a share code.</p>
+    <p class="group-setup-sub">Decks are shared within a group. Join one with a code, or start your own.</p>
 
-    <div class="group-setup-error" id="groupSetupError"></div>
+    <div class="group-setup-tabs">
+      <button type="button" class="group-setup-tab" id="tabJoinGroup" data-active="true">Join a Group</button>
+      <button type="button" class="group-setup-tab" id="tabCreateGroup" data-active="false">Create a Group</button>
+    </div>
 
-    <div class="group-setup-block">
-      <h2>Join a group</h2>
+    <div class="group-setup-panel" id="panelJoinGroup">
       <p>Ask the group leader for their 6-character share code.</p>
       <div class="field-row">
         <input type="text" id="joinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
@@ -1171,16 +1177,15 @@
       </div>
     </div>
 
-    <div class="group-setup-divider">— or —</div>
-
-    <div class="group-setup-block">
-      <h2>Create a new group</h2>
+    <div class="group-setup-panel" id="panelCreateGroup" style="display:none;">
       <p>You'll be the group's leader, with editing rights over every member's decks.</p>
       <div class="field-row">
         <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family">
         <button type="button" id="btnCreateGroup">Create</button>
       </div>
     </div>
+
+    <div class="group-setup-error" id="groupSetupError"></div>
 
     <div class="group-setup-footer">
       <button type="button" id="btnGroupSetupSignOut">Sign out</button>
@@ -1198,21 +1203,28 @@
 
     <div class="group-section-label">Your Groups</div>
     <div class="collection-list" id="myGroupsList"></div>
-    <div class="group-switch-row">
-      <button type="button" class="btn-drawer-secondary" id="btnDrawerNewGroup">+ Create</button>
-      <button type="button" class="btn-drawer-secondary" id="btnDrawerJoinGroup">+ Join with code</button>
+    <button type="button" class="btn-drawer-secondary" id="btnDrawerAddGroup">+ Add Another Group</button>
+
+    <div class="group-setup-panel" id="drawerAddGroupPanel" style="display:none;">
+      <div class="group-setup-tabs">
+        <button type="button" class="group-setup-tab" id="drawerTabJoin" data-active="true">Join with Code</button>
+        <button type="button" class="group-setup-tab" id="drawerTabCreate" data-active="false">Create New</button>
+      </div>
+      <div id="drawerJoinPanel">
+        <div class="field-row">
+          <input type="text" id="drawerJoinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
+          <button type="button" id="btnDrawerConfirmJoinGroup">Join</button>
+        </div>
+      </div>
+      <div id="drawerCreatePanel" style="display:none;">
+        <div class="field-row">
+          <input type="text" id="drawerNewGroupInput" placeholder="New group name…">
+          <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
+        </div>
+      </div>
+      <div class="group-setup-error" id="drawerGroupError" style="margin-top:12px;"></div>
+      <button type="button" class="btn-text-cancel" id="btnDrawerCancelAddGroup" style="margin-top:8px;">Cancel</button>
     </div>
-    <div class="inline-add-row" id="drawerNewGroupRow" style="display:none;">
-      <input type="text" id="drawerNewGroupInput" placeholder="New group name…">
-      <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
-      <button type="button" class="btn-text-cancel" id="btnDrawerCancelNewGroup">Cancel</button>
-    </div>
-    <div class="inline-add-row" id="drawerJoinGroupRow" style="display:none;">
-      <input type="text" id="drawerJoinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
-      <button type="button" id="btnDrawerConfirmJoinGroup">Join</button>
-      <button type="button" class="btn-text-cancel" id="btnDrawerCancelJoinGroup">Cancel</button>
-    </div>
-    <div class="group-setup-error" id="drawerGroupError"></div>
 
     <div class="group-name-row">
       <input type="text" id="groupNameInput" placeholder="Group name">
@@ -1404,7 +1416,8 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          signOut, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } = fb;
+          signOut, collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+          query, where, orderBy, onSnapshot } = fb;
 
   const USERS_COL = collection(db, 'users');
   const GROUPS_COL = collection(db, 'groups');
@@ -1718,35 +1731,21 @@
     MEMBERS_COL = groupSubcollection(groupId, 'members');
   }
 
-  // ---------- Storage: this user's own list of groups (for switching) ----------
-  function membershipsCol(uid){
-    return collection(db, 'users', uid, 'memberships');
-  }
-
-  async function addMembershipRecord(uid, groupId, role){
-    await setDoc(doc(membershipsCol(uid), groupId), { groupId, role, joinedAt: Date.now() });
-  }
-
-  async function removeMembershipRecord(uid, groupId){
-    try{ await deleteDoc(doc(membershipsCol(uid), groupId)); }catch(e){ /* non-fatal */ }
-  }
-
-  async function listMyMemberships(uid){
-    const snap = await getDocs(membershipsCol(uid));
+  // ---------- Storage: this user's list of groups (for switching) ----------
+  // Rather than keep a separate index of "which groups am I in" that could
+  // drift out of sync with reality, this queries the actual members
+  // subcollections directly across every group, via a collectionGroup query
+  // filtered to this user's uid. There's nothing to desync or accidentally
+  // delete — it always reflects exactly what's really in Firestore.
+  async function listMyGroups(uid){
+    const q = query(collectionGroup(db, 'members'), where('uid', '==', uid));
+    const snap = await getDocs(q);
     const results = [];
-    snap.forEach(d => results.push(d.data()));
+    snap.forEach(d => {
+      const groupId = d.ref.parent.parent.id;
+      results.push({ groupId, role: d.data().role });
+    });
     return results;
-  }
-
-  // Confirms we're still actually listed as a member of a group (the source
-  // of truth), self-healing our own membership record if we've been removed.
-  async function verifyMembership(groupId, uid){
-    try{
-      const snap = await getDoc(doc(groupSubcollection(groupId, 'members'), uid));
-      if(snap.exists()) return true;
-    }catch(e){ /* fall through — treat as no longer a member */ }
-    await removeMembershipRecord(uid, groupId);
-    return false;
   }
 
   async function createGroup(name, user){
@@ -1755,7 +1754,6 @@
     await setDoc(doc(GROUPS_COL, groupId), groupData);
     const memberData = { uid: user.uid, displayName: (user.email || 'Leader').split('@')[0], email: user.email || '', role: 'leader', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(groupId, 'members'), user.uid), memberData);
-    await addMembershipRecord(user.uid, groupId, 'leader');
     await setUserGroup(user.uid, groupId);
     return groupId;
   }
@@ -1818,7 +1816,6 @@
     if(data.expiresAt < Date.now()) throw new Error('That code has expired. Ask the group leader for a new one.');
     const memberData = { uid: user.uid, displayName: (user.email || 'Player').split('@')[0], email: user.email || '', role: 'member', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
-    await addMembershipRecord(user.uid, data.groupId, 'member');
     await setUserGroup(user.uid, data.groupId);
     return data.groupId;
   }
@@ -2679,6 +2676,10 @@
   const groupSetupScreen = $('groupSetupScreen');
   const groupSetupError = $('groupSetupError');
   const btnGroupSetupClose = $('btnGroupSetupClose');
+  const tabJoinGroup = $('tabJoinGroup');
+  const tabCreateGroup = $('tabCreateGroup');
+  const panelJoinGroup = $('panelJoinGroup');
+  const panelCreateGroup = $('panelCreateGroup');
   const joinCodeInput = $('joinCodeInput');
   const btnJoinGroup = $('btnJoinGroup');
   const createGroupNameInput = $('createGroupNameInput');
@@ -2698,16 +2699,17 @@
   const btnGenerateCode = $('btnGenerateCode');
   const btnDrawerSignOut = $('btnDrawerSignOut');
   const myGroupsList = $('myGroupsList');
-  const btnDrawerNewGroup = $('btnDrawerNewGroup');
-  const btnDrawerJoinGroup = $('btnDrawerJoinGroup');
-  const drawerNewGroupRow = $('drawerNewGroupRow');
+  const btnDrawerAddGroup = $('btnDrawerAddGroup');
+  const drawerAddGroupPanel = $('drawerAddGroupPanel');
+  const drawerTabJoin = $('drawerTabJoin');
+  const drawerTabCreate = $('drawerTabCreate');
+  const drawerJoinPanel = $('drawerJoinPanel');
+  const drawerCreatePanel = $('drawerCreatePanel');
   const drawerNewGroupInput = $('drawerNewGroupInput');
   const btnDrawerConfirmNewGroup = $('btnDrawerConfirmNewGroup');
-  const btnDrawerCancelNewGroup = $('btnDrawerCancelNewGroup');
-  const drawerJoinGroupRow = $('drawerJoinGroupRow');
   const drawerJoinCodeInput = $('drawerJoinCodeInput');
   const btnDrawerConfirmJoinGroup = $('btnDrawerConfirmJoinGroup');
-  const btnDrawerCancelJoinGroup = $('btnDrawerCancelJoinGroup');
+  const btnDrawerCancelAddGroup = $('btnDrawerCancelAddGroup');
   const drawerGroupError = $('drawerGroupError');
 
   let shareCodeTimer = null;
@@ -2720,10 +2722,21 @@
     groupSetupError.style.display = 'none';
   }
 
+  function setGroupSetupTab(tab){
+    const joinActive = tab === 'join';
+    tabJoinGroup.dataset.active = joinActive ? 'true' : 'false';
+    tabCreateGroup.dataset.active = joinActive ? 'false' : 'true';
+    panelJoinGroup.style.display = joinActive ? 'block' : 'none';
+    panelCreateGroup.style.display = joinActive ? 'none' : 'block';
+    clearGroupSetupError();
+  }
+  tabJoinGroup.addEventListener('click', ()=> setGroupSetupTab('join'));
+  tabCreateGroup.addEventListener('click', ()=> setGroupSetupTab('create'));
+
   function showGroupSetupScreen(){
     authScreen.style.display = 'none';
     appRoot.style.display = 'none';
-    clearGroupSetupError();
+    setGroupSetupTab('join');
     joinCodeInput.value = '';
     createGroupNameInput.value = '';
     // Only offer a way back if we already have a loaded group to return
@@ -2895,12 +2908,22 @@
   }
 
   function hideDrawerGroupForms(){
-    drawerNewGroupRow.style.display = 'none';
-    drawerJoinGroupRow.style.display = 'none';
+    drawerAddGroupPanel.style.display = 'none';
     drawerGroupError.style.display = 'none';
     drawerNewGroupInput.value = '';
     drawerJoinCodeInput.value = '';
   }
+
+  function setDrawerAddGroupTab(tab){
+    const joinActive = tab === 'join';
+    drawerTabJoin.dataset.active = joinActive ? 'true' : 'false';
+    drawerTabCreate.dataset.active = joinActive ? 'false' : 'true';
+    drawerJoinPanel.style.display = joinActive ? 'block' : 'none';
+    drawerCreatePanel.style.display = joinActive ? 'none' : 'block';
+    drawerGroupError.style.display = 'none';
+  }
+  drawerTabJoin.addEventListener('click', ()=> setDrawerAddGroupTab('join'));
+  drawerTabCreate.addEventListener('click', ()=> setDrawerAddGroupTab('create'));
 
   function showDrawerGroupError(msg){
     drawerGroupError.textContent = msg;
@@ -2924,24 +2947,30 @@
     myGroupsList.innerHTML = '<div style="color:var(--muted-2);font-family:var(--font-ui);font-size:0.82rem;padding:6px 2px;">Loading…</div>';
     let memberships = [];
     try{
-      memberships = await listMyMemberships(currentUser.uid);
+      memberships = await listMyGroups(currentUser.uid);
     }catch(e){
       console.error(e);
-      myGroupsList.innerHTML = '';
+      const needsIndex = e && (e.code === 'failed-precondition' || /index/i.test(e.message || ''));
+      myGroupsList.innerHTML = `<div style="color:#e77a6a;font-family:var(--font-ui);font-size:0.8rem;padding:6px 2px;line-height:1.5;">${
+        needsIndex
+          ? 'Firestore needs a one-time index for this. Open the browser console (F12) — Firestore printed a link there that creates it in one click.'
+          : 'Could not load your groups. Please try again.'
+      }</div>`;
       return;
     }
 
     const rows = [];
     for(const m of memberships){
-      const stillIn = await verifyMembership(m.groupId, currentUser.uid);
-      if(!stillIn) continue;
       let group = null;
-      try{ group = await loadGroup(m.groupId); }catch(e){ /* skip */ }
+      try{ group = await loadGroup(m.groupId); }catch(e){ /* skip if unreadable */ }
       if(!group) continue;
       rows.push({ groupId: m.groupId, name: group.name, role: m.role });
     }
 
     myGroupsList.innerHTML = '';
+    if(rows.length === 0){
+      myGroupsList.innerHTML = '<div style="color:var(--muted-2);font-family:var(--font-ui);font-size:0.82rem;padding:6px 2px;">No groups yet.</div>';
+    }
     rows.forEach(r=>{
       const item = document.createElement('div');
       item.className = 'collection-item my-group-item';
@@ -2962,19 +2991,12 @@
     });
   }
 
-  btnDrawerNewGroup.addEventListener('click', ()=>{
-    hideDrawerGroupForms();
-    drawerNewGroupRow.style.display = 'flex';
-    setTimeout(()=> drawerNewGroupInput.focus(), 30);
-  });
-  btnDrawerCancelNewGroup.addEventListener('click', hideDrawerGroupForms);
-
-  btnDrawerJoinGroup.addEventListener('click', ()=>{
-    hideDrawerGroupForms();
-    drawerJoinGroupRow.style.display = 'flex';
+  btnDrawerAddGroup.addEventListener('click', ()=>{
+    setDrawerAddGroupTab('join');
+    drawerAddGroupPanel.style.display = 'block';
     setTimeout(()=> drawerJoinCodeInput.focus(), 30);
   });
-  btnDrawerCancelJoinGroup.addEventListener('click', hideDrawerGroupForms);
+  btnDrawerCancelAddGroup.addEventListener('click', hideDrawerGroupForms);
 
   btnDrawerConfirmNewGroup.addEventListener('click', async ()=>{
     const name = drawerNewGroupInput.value.trim();
