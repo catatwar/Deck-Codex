@@ -221,18 +221,57 @@
     gap: 14px;
     align-items:center;
   }
-  /* Filters get their own row, own padded surface, and generous internal
-     gaps so pips/buttons don't feel like they're jammed together — and the
-     clear button is pushed to the far edge so the row reads balanced
-     instead of everything clumping toward the left. */
-  .controls-row.filters-row{
-    gap: 18px;
-    padding: 14px 16px;
+
+  .btn-filter{
+    display:flex;
+    align-items:center;
+    gap: 8px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 10px 16px;
+    border-radius: 10px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
   }
-  .btn-clear{ margin-left: auto; }
+  .btn-filter:hover{ border-color: var(--gold-soft); }
+  .btn-filter.has-active{ border-color: var(--gold-soft); color: var(--gold); }
+  .btn-filter .icon-svg{ width: 16px; height: 16px; }
+  .filter-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #14101f;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .filter-modal-title{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--ink);
+    margin: 0 0 20px;
+  }
+  .filter-modal-section{ margin-bottom: 22px; }
+  .filter-modal-section:last-child{ margin-bottom: 0; }
+  .filter-modal-label{
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-2);
+    margin-bottom: 12px;
+  }
 
   .search-input{
     flex: 1 1 220px;
@@ -349,8 +388,9 @@
     border-color: var(--gold-soft);
     box-shadow: 0 10px 20px -12px #00000090;
   }
-  .deck-card{ touch-action: pan-y; }
+  .deck-card{ touch-action: pan-y; z-index: 2; }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
+  .deck-card.swipe-snap{ transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
   .deck-card-wrap{
     position: relative;
@@ -361,6 +401,7 @@
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: 84px;
+    z-index: 1;
     border: none;
     background: #b5675a;
     color: #fff;
@@ -815,7 +856,7 @@
     /* Hidden above the viewport; sliding is done purely via transform so
        it stays smooth (GPU-composited) both in and out. */
     transform: translate(-50%, -140%);
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     pointer-events: none;
     overflow: hidden;
   }
@@ -1569,6 +1610,12 @@
   <div class="controls">
     <div class="controls-row">
       <input class="search-input" id="searchInput" type="text" placeholder="Search decks by name…">
+      <button type="button" class="btn-filter" id="btnOpenFilters">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filter
+        <span class="filter-badge" id="filterBadge" style="display:none;">0</span>
+      </button>
+      <button class="btn-clear" id="btnClearFilters">Clear filters</button>
       <select class="sort-select" id="sortSelect">
         <option value="name">Sort: Name (A–Z)</option>
         <option value="colors">Sort: Color identity</option>
@@ -1577,10 +1624,25 @@
         <option value="oldest">Sort: Oldest first</option>
       </select>
     </div>
-    <div class="controls-row filters-row">
-      <div class="color-filters" id="colorFilters"></div>
-      <div class="build-filters" id="buildFilters"></div>
-      <button class="btn-clear" id="btnClearFilters">Clear filters</button>
+  </div>
+
+  <!-- Filter popup: color identity + build type live in here; Clear filters
+       stays out in the main controls row on purpose, so it's a one-tap
+       action that doesn't require opening this popup first. -->
+  <div class="overlay" id="filterModalOverlay">
+    <div class="modal" id="filterModal" style="max-width:420px;">
+      <div class="modal-body">
+        <button class="modal-close" id="filterModalClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+        <h3 class="filter-modal-title">Filters</h3>
+        <div class="filter-modal-section">
+          <div class="filter-modal-label">Color identity</div>
+          <div class="color-filters" id="colorFilters"></div>
+        </div>
+        <div class="filter-modal-section">
+          <div class="filter-modal-label">Build type</div>
+          <div class="build-filters" id="buildFilters"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2311,6 +2373,31 @@
   }
 
   // ---------- Color filter chips ----------
+  const btnOpenFilters = $('btnOpenFilters');
+  const filterBadge = $('filterBadge');
+  const filterModalOverlay = $('filterModalOverlay');
+  const filterModal = $('filterModal');
+  const filterModalClose = $('filterModalClose');
+
+  function updateFilterBadge(){
+    const count = activeFilters.size + activeBuildFilters.size;
+    if(count > 0){
+      filterBadge.textContent = String(count);
+      filterBadge.style.display = 'inline-flex';
+      btnOpenFilters.classList.add('has-active');
+    } else {
+      filterBadge.style.display = 'none';
+      btnOpenFilters.classList.remove('has-active');
+    }
+  }
+
+  function openFilterModal(){ filterModalOverlay.classList.add('show'); }
+  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); }
+  btnOpenFilters.addEventListener('click', openFilterModal);
+  filterModalClose.addEventListener('click', closeFilterModal);
+  filterModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'filterModalOverlay') closeFilterModal(); });
+  filterModal.addEventListener('click', (e)=> e.stopPropagation());
+
   function buildColorFilterChips(){
     const wrap = $('colorFilters');
     wrap.innerHTML = '';
@@ -2325,6 +2412,7 @@
         if(activeFilters.has(c.key)) activeFilters.delete(c.key);
         else activeFilters.add(c.key);
         buildColorFilterChips();
+        updateFilterBadge();
         render();
       });
       wrap.appendChild(btn);
@@ -2343,6 +2431,7 @@
         if(activeBuildFilters.has(b.key)) activeBuildFilters.delete(b.key);
         else activeBuildFilters.add(b.key);
         buildBuildFilterChips();
+        updateFilterBadge();
         render();
       });
       wrap.appendChild(btn);
@@ -2359,6 +2448,7 @@
     $('searchInput').value = '';
     buildColorFilterChips();
     buildBuildFilterChips();
+    updateFilterBadge();
     render();
   });
 
@@ -2519,33 +2609,43 @@
     let dragging = false;
     let axisLocked = null; // 'x' | 'y' | null
     let startX = 0, startY = 0, baseOffset = 0, currentTranslate = 0;
+    let pastThreshold = false;
+
+    function vibrate(ms){
+      if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){ /* ignore */ } }
+    }
 
     function setTransform(x){
       currentTranslate = x;
       card.style.transform = `translateX(${x}px)`;
     }
 
+    function animateTo(x, onDone){
+      card.classList.remove('swipe-dragging');
+      card.classList.add('swipe-snap');
+      setTransform(x);
+      const handler = (e)=>{
+        if(e && e.propertyName !== 'transform') return;
+        card.removeEventListener('transitionend', handler);
+        card.classList.remove('swipe-snap');
+        if(onDone) onDone();
+      };
+      card.addEventListener('transitionend', handler);
+    }
+
     function closeCard(animate){
       wrap.dataset.open = 'false';
       if(animate === false){
-        card.classList.remove('swipe-dragging');
+        card.classList.remove('swipe-dragging', 'swipe-snap');
         card.style.transform = '';
         return;
       }
-      card.classList.remove('swipe-dragging');
-      setTransform(0);
-      const clearInline = (e)=>{
-        if(e && e.propertyName !== 'transform') return;
-        card.removeEventListener('transitionend', clearInline);
-        if(wrap.dataset.open === 'false') card.style.transform = '';
-      };
-      card.addEventListener('transitionend', clearInline);
+      animateTo(0, ()=>{ if(wrap.dataset.open === 'false') card.style.transform = ''; });
     }
 
     function openCard(){
       wrap.dataset.open = 'true';
-      card.classList.remove('swipe-dragging');
-      setTransform(SWIPE_OPEN_OFFSET);
+      animateTo(SWIPE_OPEN_OFFSET);
     }
 
     wrap._closeSwipe = ()=> closeCard(true);
@@ -2554,9 +2654,11 @@
       if(e.pointerType === 'mouse' && e.button !== 0) return;
       dragging = true;
       axisLocked = null;
+      pastThreshold = wrap.dataset.open === 'true';
       startX = e.clientX;
       startY = e.clientY;
       baseOffset = wrap.dataset.open === 'true' ? SWIPE_OPEN_OFFSET : 0;
+      card.classList.remove('swipe-snap');
       card.classList.add('swipe-dragging');
       try{ card.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
     });
@@ -2575,6 +2677,14 @@
       e.preventDefault();
       const next = Math.max(SWIPE_OPEN_OFFSET, Math.min(0, baseOffset + dx));
       setTransform(next);
+      // A light tick right as the swipe crosses the reveal threshold, in
+      // either direction — mirrors the little "catch" feeling of native
+      // swipe actions instead of only buzzing once you let go.
+      const nowPast = next < SWIPE_OPEN_OFFSET / 2;
+      if(nowPast !== pastThreshold){
+        pastThreshold = nowPast;
+        vibrate(6);
+      }
     });
 
     function endDrag(){
@@ -2584,7 +2694,6 @@
       if(axisLocked !== 'x'){ axisLocked = null; return; }
       if(currentTranslate < SWIPE_OPEN_OFFSET / 2){
         openCard();
-        if(navigator.vibrate) navigator.vibrate(8);
       } else {
         closeCard(true);
       }
@@ -2605,7 +2714,7 @@
 
     deleteBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      if(navigator.vibrate) navigator.vibrate(15);
+      vibrate(15);
       startDeleteWithUndo(deck);
     });
   }
@@ -3247,6 +3356,7 @@
     appInitialized = true;
     buildColorFilterChips();
     buildBuildFilterChips();
+    updateFilterBadge();
     clearSnapshotListeners();
 
     showLoading();
