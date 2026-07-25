@@ -1795,10 +1795,13 @@
   }
 
   // Only the leader can create general/shared collections (ownerUid null).
+  // Firestore's live listener (attachLiveCollections) is what actually
+  // keeps `collections` in sync — it usually reflects this write before
+  // the write's own promise even resolves, so we don't touch the local
+  // array here (doing so was causing the new collection to show up twice).
   async function addCollection(name){
     const col = { id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, ownerUid: null, createdAt: Date.now() };
     await setDoc(doc(COLLECTIONS_COL, col.id), col);
-    collections.push(col);
     return col;
   }
 
@@ -1845,10 +1848,11 @@
     });
   }
 
+  // Same story as addCollection — attachLiveSeries keeps `seriesList` live,
+  // so pushing here on top of that was double-adding the entry.
   async function addSeriesEntry(name){
     const entry = { id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
     await setDoc(doc(SERIES_COL, entry.id), entry);
-    seriesList.push(entry);
     return entry;
   }
 
@@ -2695,7 +2699,10 @@
           createdAt: Date.now()
         };
         await saveDeck(deck);
-        decks.push(deck);
+        // Not pushing to `decks` here on purpose — attachLiveDecks' live
+        // listener already adds it (often before this line even runs),
+        // and pushing again here was what caused the deck to show up
+        // twice for whoever just created it.
       }
       closeForm();
       render();
