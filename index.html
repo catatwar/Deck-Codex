@@ -138,20 +138,24 @@
 
   *{ box-sizing: border-box; }
   html, body{ margin:0; padding:0; overscroll-behavior-y: none; }
-  html{ background: var(--bg); }
+  /* The root element's background paints the whole canvas regardless of
+     content height — this is what keeps the gradient filling the screen
+     on short pages, with no need to force body/html taller than their
+     actual content (which was the real cause of the phantom scroll). */
+  html{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
+      radial-gradient(1000px 500px at 90% 10%, #3a1f4020 0%, transparent 55%),
+      var(--bg);
+  }
   /* Whenever any modal/drawer/overlay is open, the page underneath must not
      be scrollable — otherwise touch-scrolling over the overlay's backdrop
      can drag the hidden content behind it, which feels like "scrolling
      into nothing" once you close the overlay again. */
   body.scroll-locked, body.content-fits{ overflow: hidden; height: 100%; }
   body{
-    background:
-      radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
-      radial-gradient(1000px 500px at 90% 10%, #3a1f4020 0%, transparent 55%),
-      var(--bg);
     color: var(--ink);
     font-family: var(--font-body);
-    min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -965,6 +969,7 @@
 
   .auth-screen{
     min-height: 100vh;
+    min-height: 100dvh;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -1103,6 +1108,7 @@
   /* ---------- Group setup screen (create / join) ---------- */
   .group-setup-screen{
     min-height: 100vh;
+    min-height: 100dvh;
     display:none;
     align-items:center;
     justify-content:center;
