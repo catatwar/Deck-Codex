@@ -824,15 +824,6 @@
     align-items:center;
     gap: 10px;
   }
-  .account-email{
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
-    color: var(--muted);
-    max-width: 160px;
-    overflow:hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .btn-signout{
     background: var(--surface);
     border: 1px solid var(--line);
@@ -846,6 +837,168 @@
     transition: all 0.15s ease;
   }
   .btn-signout:hover{ border-color: var(--gold-soft); color: var(--ink); }
+
+  /* ---------- Profile chip (header) ---------- */
+  .profile-chip{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 5px 12px 5px 5px;
+    border-radius: 999px;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease;
+    white-space: nowrap;
+  }
+  .profile-chip:hover{ border-color: var(--gold-soft); }
+  .profile-avatar{
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #0f1115;
+    flex-shrink: 0;
+  }
+
+  /* ---------- Profile picker screen ---------- */
+  .profile-screen{
+    min-height: 100vh;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+  }
+  .profile-screen-card{
+    width: 100%;
+    max-width: 520px;
+    text-align:center;
+  }
+  .profile-screen-card h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.6rem;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .profile-screen-card h1 span{ color: var(--gold); }
+  .profile-screen-card p.profile-sub{
+    margin: 0 0 30px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+  }
+  .profile-grid{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content:center;
+    margin-bottom: 26px;
+  }
+  .profile-tile{
+    position: relative;
+    width: 108px;
+    background: none;
+    border: none;
+    color: var(--ink);
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .profile-tile:hover{ transform: translateY(-2px); }
+  .profile-tile .profile-avatar-lg{
+    width: 76px; height: 76px;
+    border-radius: 18px;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: #0f1115;
+    border: 2px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  .profile-tile:hover .profile-avatar-lg{ border-color: var(--gold); }
+  .profile-tile .profile-tile-name{
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    color: var(--muted);
+    max-width: 100px;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .profile-tile:hover .profile-tile-name{ color: var(--ink); }
+  .profile-tile .profile-del-btn{
+    position:absolute;
+    top: -4px; right: 10px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--muted-2);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    display:flex; align-items:center; justify-content:center;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+  .profile-tile:hover .profile-del-btn{ opacity: 1; }
+  .profile-del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
+
+  .profile-add-row{
+    display:flex;
+    gap: 8px;
+    max-width: 340px;
+    margin: 0 auto 22px;
+  }
+  .profile-add-row input{
+    flex:1;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .profile-add-row input:focus{ border-color: var(--gold); }
+  .profile-add-row button{
+    background: var(--gold);
+    color: #0f1115;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 0.86rem;
+    white-space: nowrap;
+  }
+
+  .profile-screen-footer{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 16px;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+  }
+  .profile-back-link{
+    background:none; border:none; color: var(--muted); text-decoration: underline;
+  }
+  .profile-back-link:hover{ color: var(--ink); }
+  .profile-signout-link{
+    background:none; border:none; color: var(--muted-2); text-decoration: underline;
+  }
+  .profile-signout-link:hover{ color: #e77a6a; }
 </style>
 </head>
 <body>
@@ -874,6 +1027,26 @@
   </div>
 </div>
 
+<!-- Profile Picker Screen -->
+<div class="profile-screen" id="profileScreen">
+  <div class="profile-screen-card">
+    <h1>Who's <span>playing?</span></h1>
+    <p class="profile-sub" id="profileSub">Pick a profile, or add a new one for the family.</p>
+
+    <div class="profile-grid" id="profileGrid"></div>
+
+    <div class="profile-add-row">
+      <input type="text" id="newProfileInput" placeholder="New profile name…">
+      <button type="button" id="btnAddProfile">Add</button>
+    </div>
+
+    <div class="profile-screen-footer">
+      <button type="button" class="profile-back-link" id="btnProfileBack" style="display:none;">Back to app</button>
+      <button type="button" class="profile-signout-link" id="btnProfileSignOut">Sign out</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap" id="appRoot">
   <header>
     <div class="header-left">
@@ -881,11 +1054,14 @@
       <div class="title-block">
         <h1>Deck <span>Codex</span></h1>
         <p id="activeCollectionLabel">Keep track of your decks in one place.</p>
+
       </div>
     </div>
     <div class="account-badge">
-      <span class="account-email" id="accountEmail"></span>
-      <button class="btn-signout" id="btnSignOut">Sign Out</button>
+      <button class="profile-chip" id="btnProfileChip" title="Switch profile or sign out">
+        <span class="profile-avatar" id="profileChipAvatar"></span>
+        <span id="profileChipName">Profile</span>
+      </button>
       <button class="btn-new" id="btnNewDeck">+ New Deck</button>
     </div>
   </header>
@@ -1051,6 +1227,7 @@
   const COLLECTIONS_COL = collection(db, 'familyData', 'shared', 'collections');
   const SERIES_COL = collection(db, 'familyData', 'shared', 'series');
   const DECKS_COL = collection(db, 'familyData', 'shared', 'decks');
+  const PROFILES_COL = collection(db, 'familyData', 'shared', 'profiles');
 
   const COLORS = [
     { key:'W', name:'White', varName:'--w' },
@@ -1102,6 +1279,8 @@
   let decks = [];
   let collections = [];
   let seriesList = [];
+  let profiles = [];
+  let activeProfileId = null;
   let activeCollectionId = null;
   let activeFilters = new Set(); // color keys only (W/U/B/R/G)
   let activeBuildFilters = new Set(); // build type keys: homemade/precon/edited
@@ -1260,6 +1439,33 @@
 
   async function deleteDeck(id){
     await deleteDoc(doc(DECKS_COL, id));
+  }
+
+  // ---------- Storage: profiles (Firestore) ----------
+  const PROFILE_COLORS = ['var(--gold)', 'var(--u)', 'var(--g)', 'var(--r)', 'var(--w)', 'var(--b)'];
+
+  async function loadProfiles(){
+    const snap = await getDocs(query(PROFILES_COL, orderBy('createdAt')));
+    const results = [];
+    snap.forEach(d => results.push(d.data()));
+    profiles = results;
+  }
+
+  async function addProfile(name){
+    const color = PROFILE_COLORS[profiles.length % PROFILE_COLORS.length];
+    const entry = { id: 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, color, createdAt: Date.now() };
+    await setDoc(doc(PROFILES_COL, entry.id), entry);
+    profiles.push(entry);
+    return entry;
+  }
+
+  async function deleteProfile(id){
+    await deleteDoc(doc(PROFILES_COL, id));
+    profiles = profiles.filter(p => p.id !== id);
+  }
+
+  function profileInitial(name){
+    return (name || '?').trim().charAt(0).toUpperCase() || '?';
   }
 
   // ---------- Header ----------
@@ -2036,25 +2242,168 @@
   authPassword.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submitAuth(); });
   authEmail.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') authPassword.focus(); });
 
-  $('btnSignOut').addEventListener('click', async ()=>{
+  setAuthMode('signin');
+
+  // ---------- Profiles ----------
+  const ACTIVE_PROFILE_KEY = 'ui:active-profile';
+  const profileScreen = $('profileScreen');
+  const profileGrid = $('profileGrid');
+  const profileSub = $('profileSub');
+  const newProfileInput = $('newProfileInput');
+  const btnAddProfile = $('btnAddProfile');
+  const btnProfileBack = $('btnProfileBack');
+  const btnProfileSignOut = $('btnProfileSignOut');
+  const btnProfileChip = $('btnProfileChip');
+  const profileChipAvatar = $('profileChipAvatar');
+  const profileChipName = $('profileChipName');
+
+  function updateProfileScreenChrome(){
+    profileSub.textContent = profiles.length
+      ? 'Pick a profile, or add a new one for the family.'
+      : 'Add the first profile to get started.';
+    btnProfileBack.style.display = (appInitialized && activeProfileId) ? 'inline' : 'none';
+  }
+
+  function renderProfileGrid(){
+    profileGrid.innerHTML = '';
+    profiles.forEach(p=>{
+      const tile = document.createElement('div');
+      tile.className = 'profile-tile';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'profile-avatar-lg';
+      avatar.style.background = p.color || 'var(--gold)';
+      avatar.textContent = profileInitial(p.name);
+      tile.appendChild(avatar);
+
+      const name = document.createElement('div');
+      name.className = 'profile-tile-name';
+      name.textContent = p.name;
+      tile.appendChild(name);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'profile-del-btn';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete this profile';
+      delBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        if(!confirm(`Delete the "${p.name}" profile?`)) return;
+        try{
+          await deleteProfile(p.id);
+          if(activeProfileId === p.id){
+            activeProfileId = null;
+            try{ localStorage.removeItem(ACTIVE_PROFILE_KEY); }catch(err){ /* non-fatal */ }
+          }
+          renderProfileGrid();
+          updateProfileScreenChrome();
+        }catch(err){
+          alert('Could not delete that profile. Please try again.');
+          console.error(err);
+        }
+      });
+      tile.appendChild(delBtn);
+
+      tile.addEventListener('click', ()=> chooseProfile(p.id));
+      profileGrid.appendChild(tile);
+    });
+  }
+
+  function showProfileScreen(){
+    authScreen.style.display = 'none';
+    appRoot.style.display = 'none';
+    renderProfileGrid();
+    updateProfileScreenChrome();
+    profileScreen.style.display = 'flex';
+  }
+
+  function updateProfileChip(){
+    const p = profiles.find(x => x.id === activeProfileId);
+    if(p){
+      profileChipAvatar.style.background = p.color || 'var(--gold)';
+      profileChipAvatar.textContent = profileInitial(p.name);
+      profileChipName.textContent = p.name;
+    }
+  }
+
+  function showApp(){
+    profileScreen.style.display = 'none';
+    appRoot.style.display = 'block';
+    updateProfileChip();
+    init();
+  }
+
+  function chooseProfile(id){
+    activeProfileId = id;
+    try{ localStorage.setItem(ACTIVE_PROFILE_KEY, id); }catch(e){ /* non-fatal */ }
+    showApp();
+  }
+
+  btnAddProfile.addEventListener('click', async ()=>{
+    const name = newProfileInput.value.trim();
+    if(!name) return;
+    btnAddProfile.disabled = true;
+    try{
+      const entry = await addProfile(name);
+      newProfileInput.value = '';
+      chooseProfile(entry.id);
+    }catch(e){
+      alert('Could not add that profile. Please try again.');
+      console.error(e);
+    }finally{
+      btnAddProfile.disabled = false;
+    }
+  });
+  newProfileInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnAddProfile.click(); });
+
+  btnProfileChip.addEventListener('click', ()=>{
+    showProfileScreen();
+  });
+
+  btnProfileBack.addEventListener('click', ()=>{
+    if(appInitialized && activeProfileId){
+      profileScreen.style.display = 'none';
+      appRoot.style.display = 'block';
+    }
+  });
+
+  async function doSignOut(){
     try{
       await signOut(auth);
     }catch(e){
       console.error(e);
     }
-  });
-
-  setAuthMode('signin');
+  }
+  btnProfileSignOut.addEventListener('click', doSignOut);
 
   onAuthStateChanged(auth, (user)=>{
     if(user){
       authScreen.style.display = 'none';
-      appRoot.style.display = 'block';
-      $('accountEmail').textContent = user.email || '';
-      init();
+      (async ()=>{
+        try{
+          await Promise.race([loadProfiles(), timeout(15000, 'Loading profiles')]);
+        }catch(e){
+          console.error(e);
+        }
+        let stored = null;
+        try{ stored = localStorage.getItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
+        if(stored && profiles.some(p => p.id === stored)){
+          activeProfileId = stored;
+          showApp();
+        } else {
+          showProfileScreen();
+        }
+      })();
     } else {
+      // Signed out: reset everything so the next person who signs in on
+      // this device gets a clean profile picker rather than the last
+      // person's session.
       appInitialized = false;
+      activeProfileId = null;
+      profiles = [];
+      try{ localStorage.removeItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
       appRoot.style.display = 'none';
+      profileScreen.style.display = 'none';
       authScreen.style.display = 'flex';
       authEmail.value = '';
       authPassword.value = '';
