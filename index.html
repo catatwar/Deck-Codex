@@ -1917,18 +1917,38 @@
 
   // ---------- Init ----------
   let appInitialized = false;
+  function timeout(ms, label){
+    return new Promise((_, reject) => setTimeout(()=> reject(new Error(`${label} took too long (over ${ms/1000}s) — check your internet connection and Firestore setup.`)), ms));
+  }
   async function init(){
     if(appInitialized) return;
     appInitialized = true;
     buildColorFilterChips();
     buildBuildFilterChips();
-    await withLoading(async ()=>{
-      await loadCollections();
-      await loadSeriesList();
-      await loadDecks();
-      updateHeaderLabel();
-      render();
-    }, 450);
+    try{
+      await withLoading(async ()=>{
+        await Promise.race([
+          (async ()=>{
+            await loadCollections();
+            await loadSeriesList();
+            await loadDecks();
+          })(),
+          timeout(15000, 'Loading your decks')
+        ]);
+        updateHeaderLabel();
+        render();
+      }, 450);
+    }catch(e){
+      console.error('Startup error', e);
+      appInitialized = false;
+      const isPermissionError = e && (e.code === 'permission-denied' || /permission/i.test(e.message||''));
+      content.innerHTML = `<div class="empty-state">
+        <h2>Couldn't load your family data</h2>
+        <p>${isPermissionError
+          ? 'Firestore rejected the request. Make sure your Firestore security rules allow signed-in users to read and write under familyData/shared, and that you\'ve saved/published those rules.'
+          : 'Something went wrong talking to Firebase. Check the browser console (F12) for the exact error, then refresh the page to try again.'}</p>
+      </div>`;
+    }
   }
 
   // ---------- Auth ----------
@@ -1996,15 +2016,14 @@
     btnAuthSubmit.textContent = authMode === 'signup' ? 'Creating…' : 'Signing in…';
 
     try{
-      if(authMode === 'signup'){
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      const authCall = authMode === 'signup'
+        ? createUserWithEmailAndPassword(auth, email, password)
+        : signInWithEmailAndPassword(auth, email, password);
+      await Promise.race([authCall, timeout(15000, 'Signing in')]);
       authPassword.value = '';
       // onAuthStateChanged below takes it from here.
     }catch(e){
-      authError.textContent = friendlyAuthError(e.code);
+      authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
       authError.style.display = 'block';
       console.error(e);
     }finally{
