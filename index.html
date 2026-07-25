@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deck Codex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Firebase v10 (modular CDN build) — App, Auth, Firestore -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getAuth,
+    setPersistence,
+    browserLocalPersistence,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    doc,
+    getDocs,
+    setDoc,
+    deleteDoc,
+    query,
+    orderBy
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDb3arF_8bSV3Ga83Zx-m7KuP0P9tN26xc",
+    authDomain: "deck-codex.firebaseapp.com",
+    projectId: "deck-codex",
+    storageBucket: "deck-codex.firebasestorage.app",
+    messagingSenderId: "1086947063600",
+    appId: "1:1086947063600:web:8a940708cacee4fbaabaf5",
+    measurementId: "G-8370EN67DG"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  const db = getFirestore(firebaseApp);
+
+  // Family members log in once and stay logged in on that device/browser.
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.error("Could not set auth persistence", err);
+  });
+
+  // Expose everything the rest of the app (loaded as a second module script
+  // further down the page) needs, without polluting the global namespace
+  // with the whole SDK.
+  window.__fb = {
+    auth,
+    db,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    collection,
+    doc,
+    getDocs,
+    setDoc,
+    deleteDoc,
+    query,
+    orderBy
+  };
+
+  // Let any listeners know the SDK is ready (used defensively — the main
+  // module script below runs after this one regardless, since module
+  // scripts execute in document order once parsing finishes).
+  window.dispatchEvent(new Event("fb-ready"));
+</script>
+
+<style>
+  :root{
+    --bg: #121316;
+    --surface: #1b1c21;
+    --surface-2: #202126;
+    --surface-3: #2a2c33;
+    --gold: #5b9bd5;
+    --gold-soft: #5b9bd533;
+    --ink: #e7e8ea;
+    --muted: #9a9ca3;
+    --muted-2: #6b6d74;
+    --line: #33353b;
+
+    --w: #d8d9dc;
+    --u: #4f8fd1;
+    --b: #8a8d95;
+    --r: #b5675a;
+    --g: #5c8f6f;
+    --c: #6f7178;
+
+    --radius: 12px;
+    --font-display: 'Inter', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-ui: 'Inter', sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #26204020 0%, transparent 60%),
+      radial-gradient(1000px 500px at 90% 10%, #3a1f4020 0%, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap{
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .header-left{ display:flex; align-items:center; gap: 14px; }
+
+  .menu-btn{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    transition: border-color 0.15s ease;
+  }
+  .menu-btn:hover{ border-color: var(--gold-soft); }
+
+  .title-block h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.7rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+    color: var(--ink);
+  }
+  .title-block h1 span{ color: var(--gold); }
+  .title-block p{
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+  }
+
+  button{ font-family: var(--font-ui); cursor: pointer; }
+
+  .btn-new{
+    background: var(--gold);
+    color: #0f1115;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 10px 18px;
+    border-radius: 8px;
+    transition: filter 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn-new:hover{ filter: brightness(1.1); }
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items:center;
+    margin-bottom: 28px;
+  }
+  .search-input{
+    flex: 1 1 220px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .search-input::placeholder{ color: var(--muted-2); }
+  .search-input:focus{ border-color: var(--gold); }
+
+  select.sort-select{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    padding: 10px 12px;
+    border-radius: 10px;
+    outline: none;
+  }
+
+  .color-filters{
+    display:flex;
+    gap: 6px;
+  }
+  .pip-toggle{
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    background: var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    color: var(--muted);
+    transition: all 0.15s ease;
+    padding: 0;
+  }
+  .pip-toggle[data-active="true"]{
+    border-color: var(--pip-color, var(--gold));
+    color: #0d0b16;
+    background: var(--pip-color, var(--gold));
+    box-shadow: 0 0 12px -2px var(--pip-color, var(--gold));
+  }
+
+  .build-filters{ display:flex; gap: 6px; }
+  .build-filter-btn{
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .build-filter-btn[data-active="true"]{
+    border-color: var(--gold-soft);
+    color: var(--ink);
+    background: var(--gold-soft);
+  }
+
+  .btn-clear{
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.82rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn-clear:hover{ border-color: var(--gold-soft); color: var(--ink); }
+
+  /* ---------- Grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+  }
+
+  .deck-card{
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 16px 16px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 150px;
+  }
+  .deck-card::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0;
+    height: 6px;
+    background: var(--stripe, var(--c));
+  }
+  .deck-card:hover{
+    transform: translateY(-2px);
+    border-color: var(--gold-soft);
+    box-shadow: 0 10px 20px -12px #00000090;
+  }
+
+  .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
+
+  .meta-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
+
+  .deck-meta{
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--muted-2);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .build-tag{
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+
+  .deck-name{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .pip-row{ display:flex; gap: 5px; }
+  .pip{
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.62rem;
+    color: #14101f;
+    border: 1px solid #00000030;
+  }
+  .pip.colorless{ background: var(--c); color: #fff; }
+
+  .deck-desc-preview{
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+    flex: 1;
+  }
+
+  .deck-price-tag{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+
+  /* ---------- Empty state ---------- */
+  .empty-state{
+    text-align:center;
+    padding: 70px 20px;
+    color: var(--muted);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+  }
+  .empty-state h2{
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+  }
+  .empty-state p{ font-family: var(--font-ui); font-size: 0.92rem; }
+
+  /* ---------- Overlay / Modal ---------- */
+  .overlay{
+    position: fixed; inset:0;
+    background: #08070edd;
+    display:flex; align-items:center; justify-content:center;
+    padding: 20px;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+
+  .modal{
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 86vh;
+    overflow-y: auto;
+    position: relative;
+    padding: 0;
+    transform: translateY(10px) scale(0.98);
+    transition: transform 0.18s ease;
+  }
+  .overlay.show .modal{ transform: translateY(0) scale(1); }
+
+  .modal-stripe{
+    height: 8px;
+    background: var(--stripe, var(--c));
+  }
+
+  .modal-body{ padding: 28px 28px 26px; }
+
+  .modal-close{
+    position:absolute; top:16px; right:16px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{ color: var(--ink); border-color: var(--gold-soft); }
+
+  .modal h2{
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+    padding-right: 30px;
+    color: var(--ink);
+  }
+  .modal .modal-subtitle{
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--muted-2);
+    margin: 0 0 18px;
+  }
+
+  .identity-block{ margin-bottom: 20px; }
+  .identity-label{
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+  .identity-pips{ display:flex; gap: 10px; flex-wrap: wrap; }
+  .identity-pip{
+    display:flex; align-items:center; gap:8px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    padding: 6px 12px 6px 6px;
+    border-radius: 999px;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--ink);
+  }
+  .identity-pip .pip{ width: 22px; height: 22px; font-size: 0.68rem; }
+
+  .price-block{ margin-bottom: 20px; }
+  .price-value{
+    font-family: var(--font-ui);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .desc-label{
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .desc-text{
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    margin: 0 0 26px;
+  }
+  .desc-text.empty{ color: var(--muted-2); }
+
+  .modal-actions{
+    display:flex; gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .btn-secondary, .btn-danger, .btn-primary{
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 10px 16px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--surface-3);
+    color: var(--ink);
+  }
+  .btn-secondary:hover{ border-color: var(--gold-soft); }
+  .btn-danger{ color: #e77a6a; }
+  .btn-danger:hover{ border-color: #e77a6a; background: #e77a6a18; }
+  .btn-primary{
+    background: var(--gold);
+    color: #0f1115;
+    border: none;
+    margin-left: auto;
+  }
+  .btn-primary:hover{ filter: brightness(1.1); }
+
+  /* ---------- Form ---------- */
+  .field{ margin-bottom: 18px; }
+  .field label{
+    display:block;
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .field label .optional-tag{
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--muted-2);
+    font-weight: 400;
+  }
+  .field input[type="text"], .field input[type="number"], .field textarea, .field select{
+    width: 100%;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    padding: 10px 12px;
+    border-radius: 9px;
+    outline: none;
+    resize: vertical;
+  }
+  .field select{ font-family: var(--font-ui); font-size: 0.94rem; }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color: var(--gold); }
+  .field textarea{ min-height: 90px; }
+
+  .color-picker{ display:flex; gap: 10px; flex-wrap: wrap; }
+  .color-pick-btn{
+    display:flex; align-items:center; gap:8px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+    color: var(--muted);
+    transition: all 0.15s ease;
+  }
+  .color-pick-btn .pip{ width: 22px; height: 22px; font-size: 0.68rem; opacity: 0.55; transition: opacity 0.15s ease; }
+  .color-pick-btn[data-active="true"]{ color: var(--ink); border-color: var(--gold-soft); background: var(--gold-soft); }
+  .color-pick-btn[data-active="true"] .pip{ opacity: 1; }
+  .color-pick-btn[disabled]{ opacity: 0.4; cursor: not-allowed; }
+
+  .form-error{
+    color: #e77a6a;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    margin: -8px 0 16px;
+  }
+
+  .loading-note{
+    text-align:center;
+    color: var(--muted-2);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    padding: 60px 0;
+  }
+
+  /* ---------- Drawer ---------- */
+  .drawer-overlay{
+    position: fixed; inset:0;
+    background: #08070ecc;
+    z-index: 70;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .drawer-overlay.show{ opacity:1; pointer-events:auto; }
+
+  .drawer-panel{
+    position: fixed; top:0; left:0; bottom:0;
+    width: 300px;
+    max-width: 84vw;
+    background: var(--surface-2);
+    border-right: 1px solid var(--line);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    display:flex; flex-direction: column;
+    padding: 22px 18px;
+  }
+  .drawer-overlay.show .drawer-panel{ transform: translateX(0); }
+
+  .drawer-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 18px;
+  }
+  .drawer-header h3{
+    margin:0; font-family: var(--font-display);
+    font-size: 1.05rem; font-weight: 600; color: var(--ink);
+  }
+  .drawer-close{
+    background: var(--surface-3); border: 1px solid var(--line); color: var(--muted);
+    width: 30px; height: 30px; border-radius: 50%;
+    display:flex; align-items:center; justify-content:center; font-size: 0.9rem;
+  }
+  .drawer-close:hover{ color: var(--ink); border-color: var(--gold-soft); }
+
+  .collection-list{
+    flex: 1; overflow-y: auto;
+    display:flex; flex-direction: column; gap: 6px;
+    margin-bottom: 16px;
+  }
+  .collection-item{
+    display:flex; align-items:center; justify-content:space-between; gap: 8px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .collection-item span.name{ overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .collection-item[data-active="true"]{
+    border-color: var(--gold-soft);
+    color: var(--ink);
+    background: var(--gold-soft);
+  }
+  .collection-item .del-btn{
+    background: none; border: none; color: var(--muted-2);
+    font-size: 0.85rem; padding: 3px 7px; border-radius: 6px; flex-shrink: 0;
+  }
+  .collection-item .del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
+
+  .add-collection-row{ display:flex; gap: 8px; }
+  .add-collection-row input{
+    flex:1; background: var(--surface-3); border: 1px solid var(--line);
+    color: var(--ink); padding: 9px 11px; border-radius: 8px;
+    font-family: var(--font-ui); font-size: 0.88rem; outline: none;
+  }
+  .add-collection-row input:focus{ border-color: var(--gold); }
+  .add-collection-row button{
+    background: var(--gold); color: #0f1115; border: none;
+    padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .inline-add-row{ display:flex; gap: 8px; margin-top: 8px; }
+  .inline-add-row input{
+    flex:1; background: var(--surface-3); border: 1px solid var(--line);
+    color: var(--ink); padding: 9px 11px; border-radius: 8px;
+    font-family: var(--font-ui); font-size: 0.88rem; outline: none;
+  }
+  .inline-add-row input:focus{ border-color: var(--gold); }
+  .inline-add-row button{
+    background: var(--gold); color: #0f1115; border: none;
+    padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .inline-add-row .btn-text-cancel{
+    background: none; border: none; color: var(--muted);
+    padding: 9px 6px; font-size: 0.85rem;
+  }
+  .inline-add-row .btn-text-cancel:hover{ color: var(--ink); }
+
+  /* ---------- Loading overlay ---------- */
+  .loading-overlay{
+    position: fixed; inset:0;
+    background: #08070ecc;
+    z-index: 90;
+    display:flex; align-items:center; justify-content:center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .loading-overlay.show{ opacity:1; pointer-events:auto; }
+
+  .loading-box{
+    display:flex; flex-direction: column; align-items:center; gap: 14px;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+  }
+
+  .spinner{
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 3px solid var(--line);
+    border-top-color: var(--gold);
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin{
+    to{ transform: rotate(360deg); }
+  }
+
+  @media (max-width: 520px){
+    .title-block h1{ font-size: 1.5rem; }
+    .modal-body{ padding: 22px 18px 20px; }
+  }
+
+  /* ---------- Auth / Login ---------- */
+  #appRoot{ display:none; }
+
+  .auth-screen{
+    min-height: 100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+  }
+
+  .auth-card{
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 32px 28px 28px;
+  }
+
+  .auth-card h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .auth-card h1 span{ color: var(--gold); }
+
+  .auth-card p.auth-sub{
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+  }
+
+  .auth-field{ margin-bottom: 16px; }
+  .auth-field label{
+    display:block;
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .auth-field input{
+    width: 100%;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    padding: 10px 12px;
+    border-radius: 9px;
+    outline: none;
+  }
+  .auth-field input:focus{ border-color: var(--gold); }
+
+  .auth-error{
+    color: #e77a6a;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    margin: -4px 0 16px;
+    display:none;
+  }
+
+  .btn-auth-primary{
+    width: 100%;
+    background: var(--gold);
+    color: #0f1115;
+    border: none;
+    font-weight: 600;
+    font-size: 0.94rem;
+    padding: 12px 18px;
+    border-radius: 9px;
+    transition: filter 0.15s ease;
+    margin-bottom: 14px;
+  }
+  .btn-auth-primary:hover{ filter: brightness(1.1); }
+  .btn-auth-primary:disabled{ opacity: 0.6; cursor: default; }
+
+  .auth-toggle{
+    text-align:center;
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    color: var(--muted);
+  }
+  .auth-toggle button{
+    background:none;
+    border:none;
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .account-badge{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+  .account-email{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--muted);
+    max-width: 160px;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .btn-signout{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .btn-signout:hover{ border-color: var(--gold-soft); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <h1>Deck <span>Codex</span></h1>
+    <p class="auth-sub" id="authSub">Sign in to your family account to see your decks.</p>
+
+    <div class="auth-field">
+      <label for="authEmail">Email</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@family.com">
+    </div>
+    <div class="auth-field">
+      <label for="authPassword">Password</label>
+      <input type="password" id="authPassword" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <div class="auth-error" id="authError"></div>
+
+    <button class="btn-auth-primary" id="btnAuthSubmit">Sign In</button>
+    <div class="auth-toggle">
+      <span id="authToggleText">New to this family collection?</span>
+      <button type="button" id="btnAuthToggleMode">Create an account</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="appRoot">
+  <header>
+    <div class="header-left">
+      <button class="menu-btn" id="btnMenu" title="Switch collection">☰</button>
+      <div class="title-block">
+        <h1>Deck <span>Codex</span></h1>
+        <p id="activeCollectionLabel">Keep track of your decks in one place.</p>
+      </div>
+    </div>
+    <div class="account-badge">
+      <span class="account-email" id="accountEmail"></span>
+      <button class="btn-signout" id="btnSignOut">Sign Out</button>
+      <button class="btn-new" id="btnNewDeck">+ New Deck</button>
+    </div>
+  </header>
+
+  <div class="controls">
+    <input class="search-input" id="searchInput" type="text" placeholder="Search decks by name…">
+    <div class="color-filters" id="colorFilters"></div>
+    <div class="build-filters" id="buildFilters"></div>
+    <button class="btn-clear" id="btnClearFilters">Clear filters</button>
+    <select class="sort-select" id="sortSelect">
+      <option value="name">Sort: Name (A–Z)</option>
+      <option value="colors">Sort: Color identity</option>
+      <option value="buildType">Sort: Build type</option>
+      <option value="newest">Sort: Newest first</option>
+      <option value="oldest">Sort: Oldest first</option>
+    </select>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- Info Modal -->
+<div class="overlay" id="infoOverlay">
+  <div class="modal">
+    <div class="modal-stripe" id="infoStripe"></div>
+    <div class="modal-body">
+      <button class="modal-close" id="infoClose">✕</button>
+      <h2 id="infoName"></h2>
+      <p class="modal-subtitle" id="infoCollection"></p>
+      <div class="identity-block">
+        <div class="identity-label">Color Identity</div>
+        <div class="identity-pips" id="infoIdentity"></div>
+      </div>
+      <div class="price-block" id="infoPriceBlock" style="display:none;">
+        <div class="desc-label">Price</div>
+        <div class="price-value" id="infoPrice"></div>
+      </div>
+      <div class="desc-label">Description</div>
+      <p class="desc-text" id="infoDesc"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="infoEdit">Edit</button>
+        <button class="btn-danger" id="infoDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="overlay" id="formOverlay">
+  <div class="modal">
+    <div class="modal-body">
+      <button class="modal-close" id="formClose">✕</button>
+      <h2 id="formTitle">New Deck</h2>
+      <div class="field">
+        <label for="formCollection">Collection</label>
+        <select id="formCollection"></select>
+      </div>
+      <div class="field">
+        <label for="formSeries">Series <span class="optional-tag">(optional)</span></label>
+        <select id="formSeries"></select>
+        <div class="inline-add-row" id="seriesAddRow" style="display:none;">
+          <input type="text" id="newSeriesInput" placeholder="New series name…">
+          <button type="button" id="btnConfirmAddSeries">Add</button>
+          <button type="button" class="btn-text-cancel" id="btnCancelAddSeries">Cancel</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="formName">Deck name <span class="optional-tag">(required)</span></label>
+        <input type="text" id="formName" placeholder="e.g. Mono-Red Aggro">
+      </div>
+      <div class="field">
+        <label>Color identity <span class="optional-tag">(required)</span></label>
+        <div class="color-picker" id="formColorPicker"></div>
+      </div>
+      <div class="field">
+        <label>Build <span class="optional-tag">(optional)</span></label>
+        <div class="color-picker" id="formBuildType"></div>
+      </div>
+      <div class="field">
+        <label for="formPrice">Price <span class="optional-tag">(optional)</span></label>
+        <input type="number" id="formPrice" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="field">
+        <label for="formDesc">Description <span class="optional-tag">(optional)</span></label>
+        <textarea id="formDesc" placeholder="What's the plan? Key cards, strategy, notes…"></textarea>
+      </div>
+      <div class="form-error" id="formError" style="display:none;"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="formCancel">Cancel</button>
+        <button class="btn-primary" id="formSave">Save Deck</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Collections Drawer -->
+<div class="drawer-overlay" id="drawerOverlay">
+  <div class="drawer-panel" id="drawerPanel">
+    <div class="drawer-header">
+      <h3>Collections</h3>
+      <button class="drawer-close" id="drawerClose">✕</button>
+    </div>
+    <div class="collection-list" id="collectionList"></div>
+    <div class="add-collection-row">
+      <input type="text" id="newCollectionInput" placeholder="New collection name…">
+      <button id="btnAddCollection">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText">Getting caught up…</div>
+  </div>
+</div>
+
+<script type="module">
+(function(){
+
+  // The Firebase SDK is set up by the module script in <head>, which runs
+  // as a separate module graph and may still be fetching its imports from
+  // www.gstatic.com when this script starts executing. Rather than assume
+  // window.__fb is already populated, wait for it (it fires an 'fb-ready'
+  // event once ready), with a friendly error if it never shows up — e.g.
+  // because the page isn't being served over http(s), or because gstatic.com
+  // is blocked in the current environment.
+  function waitForFirebase(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      if(window.__fb){ resolve(window.__fb); return; }
+      let done = false;
+      function onReady(){
+        if(done) return;
+        done = true;
+        clearTimeout(timer);
+        window.removeEventListener('fb-ready', onReady);
+        resolve(window.__fb);
+      }
+      const timer = setTimeout(()=>{
+        if(done) return;
+        done = true;
+        window.removeEventListener('fb-ready', onReady);
+        reject(new Error('Firebase never finished loading. Make sure this page is served over http:// or https:// (not opened as a local file), and that www.gstatic.com and Firebase\'s servers are reachable from this browser.'));
+      }, timeoutMs || 8000);
+      window.addEventListener('fb-ready', onReady);
+    });
+  }
+
+  waitForFirebase(8000).then(boot).catch((err)=>{
+    console.error(err);
+    const errBox = document.getElementById('authError');
+    if(errBox){
+      errBox.textContent = err.message;
+      errBox.style.display = 'block';
+    }
+  });
+
+  function boot(fb){
+  const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+          signOut, collection, doc, getDocs, setDoc, deleteDoc, query, orderBy } = fb;
+
+  const COLLECTIONS_COL = collection(db, 'familyData', 'shared', 'collections');
+  const SERIES_COL = collection(db, 'familyData', 'shared', 'series');
+  const DECKS_COL = collection(db, 'familyData', 'shared', 'decks');
+
+  const COLORS = [
+    { key:'W', name:'White', varName:'--w' },
+    { key:'U', name:'Blue',  varName:'--u' },
+    { key:'B', name:'Black', varName:'--b' },
+    { key:'R', name:'Red',   varName:'--r' },
+    { key:'G', name:'Green', varName:'--g' },
+  ];
+  const COLOR_ORDER = { W:0, U:1, B:2, R:3, G:4 };
+  const BUILD_TYPES = [
+    { key:'homemade', name:'Homemade' },
+    { key:'precon', name:'Precon' },
+    { key:'edited', name:'Edited' },
+  ];
+  const BUILD_TYPE_ORDER = { homemade:0, precon:1, edited:2 };
+  function buildTypeName(key){
+    const b = BUILD_TYPES.find(b => b.key === key);
+    return b ? b.name : null;
+  }
+  const ACTIVE_COLLECTION_KEY = 'ui:active-collection';
+  const LOADING_MESSAGES = ['Shuffling the cards…', 'Sorting decks…', 'Getting caught up…'];
+
+  function pickLoadingMessage(){
+    return LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+  }
+
+  function showLoading(){
+    $('loadingText').textContent = pickLoadingMessage();
+    $('loadingOverlay').classList.add('show');
+  }
+  function hideLoading(){
+    $('loadingOverlay').classList.remove('show');
+  }
+  // Runs an async task. If it finishes quickly (under `showAfterMs`), the
+  // spinner never appears at all, so fast local operations feel instant.
+  // It only shows up for tasks that are actually slow.
+  async function withLoading(task, showAfterMs){
+    if(showAfterMs === undefined) showAfterMs = 150;
+    let shown = false;
+    const timer = setTimeout(()=>{ shown = true; showLoading(); }, showAfterMs);
+    try{
+      return await task();
+    } finally {
+      clearTimeout(timer);
+      if(shown) hideLoading();
+    }
+  }
+
+  let decks = [];
+  let collections = [];
+  let seriesList = [];
+  let activeCollectionId = null;
+  let activeFilters = new Set(); // color keys only (W/U/B/R/G)
+  let activeBuildFilters = new Set(); // build type keys: homemade/precon/edited
+  let searchTerm = '';
+  let sortMode = 'name';
+  let editingId = null; // null = new deck
+
+  const $ = (id) => document.getElementById(id);
+  const content = $('content');
+
+  function cssColorVar(key){
+    const c = COLORS.find(c => c.key === key);
+    return c ? `var(${c.varName})` : 'var(--c)';
+  }
+
+  function stripeGradient(colorArr){
+    if(!colorArr || colorArr.length === 0) return 'var(--c)';
+    if(colorArr.length === 1) return cssColorVar(colorArr[0]);
+    const sorted = [...colorArr].sort((a,b)=>COLOR_ORDER[a]-COLOR_ORDER[b]);
+    const stops = sorted.map(cssColorVar);
+    const step = 100 / stops.length;
+    const parts = stops.map((c,i)=> `${c} ${Math.round(i*step)}%, ${c} ${Math.round((i+1)*step)}%`);
+    return `linear-gradient(90deg, ${parts.join(', ')})`;
+  }
+
+  function makePip(key){
+    const span = document.createElement('span');
+    span.className = 'pip' + (key === 'C' ? ' colorless' : '');
+    if(key !== 'C'){
+      span.style.background = cssColorVar(key);
+    }
+    span.textContent = key;
+    return span;
+  }
+
+  function colorSortKey(colorArr){
+    if(!colorArr || colorArr.length === 0) return '6-colorless';
+    const sorted = [...colorArr].sort((a,b)=>COLOR_ORDER[a]-COLOR_ORDER[b]);
+    return `${sorted.length}-${sorted.join('')}`;
+  }
+
+  // Returns the ordered list of pip keys to display for a deck: its colors,
+  // plus 'C' if it's marked colorless (or, for decks saved before colorless
+  // was tracked separately, if it simply has no colors at all).
+  function pipsForDeck(deck){
+    const pips = deck.colors && deck.colors.length
+      ? [...deck.colors].sort((a,b)=>COLOR_ORDER[a]-COLOR_ORDER[b])
+      : [];
+    const showColorless = deck.colorless || !deck.colors || deck.colors.length === 0;
+    if(showColorless) pips.push('C');
+    return pips;
+  }
+
+  function formatPrice(p){
+    if(p === null || p === undefined || p === '') return null;
+    const n = Number(p);
+    if(Number.isNaN(n)) return null;
+    return '$' + n.toFixed(2);
+  }
+
+  // ---------- Storage: collections (Firestore) ----------
+  async function loadCollections(){
+    const snap = await getDocs(query(COLLECTIONS_COL, orderBy('createdAt')));
+    const results = [];
+    snap.forEach(d => results.push(d.data()));
+
+    if(results.length === 0){
+      const defaultCollection = { id: 'p_' + Date.now(), name: 'My Collection', createdAt: Date.now() };
+      await setDoc(doc(COLLECTIONS_COL, defaultCollection.id), defaultCollection);
+      results.push(defaultCollection);
+    }
+    collections = results;
+
+    let stored = null;
+    try{
+      stored = localStorage.getItem(ACTIVE_COLLECTION_KEY);
+    }catch(e){ /* no active collection set yet */ }
+
+    if(stored && collections.some(c => c.id === stored)){
+      activeCollectionId = stored;
+    } else {
+      activeCollectionId = collections[0].id;
+    }
+  }
+
+  async function setActiveCollection(id){
+    await withLoading(async ()=>{
+      activeCollectionId = id;
+      try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, id); }catch(e){ /* non-fatal */ }
+      updateHeaderLabel();
+      render();
+    }, 450);
+  }
+
+  async function addCollection(name){
+    const col = { id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
+    await setDoc(doc(COLLECTIONS_COL, col.id), col);
+    collections.push(col);
+    return col;
+  }
+
+  async function deleteCollection(id){
+    await deleteDoc(doc(COLLECTIONS_COL, id));
+    const deckIds = decks.filter(d => d.collectionId === id).map(d => d.id);
+    for(const did of deckIds){
+      await deleteDoc(doc(DECKS_COL, did));
+    }
+    decks = decks.filter(d => d.collectionId !== id);
+    collections = collections.filter(c => c.id !== id);
+  }
+
+  // ---------- Storage: series (Firestore) ----------
+  async function loadSeriesList(){
+    const snap = await getDocs(query(SERIES_COL, orderBy('createdAt')));
+    const results = [];
+    snap.forEach(d => results.push(d.data()));
+    seriesList = results;
+  }
+
+  async function addSeriesEntry(name){
+    const entry = { id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
+    await setDoc(doc(SERIES_COL, entry.id), entry);
+    seriesList.push(entry);
+    return entry;
+  }
+
+  // ---------- Storage: decks (Firestore) ----------
+  async function loadDecks(){
+    try{
+      const snap = await getDocs(DECKS_COL);
+      const results = [];
+      snap.forEach(d => results.push(d.data()));
+      decks = results;
+
+      // Migrate any decks saved before collections existed.
+      const fallbackId = collections[0] ? collections[0].id : null;
+      if(fallbackId){
+        for(const deck of decks){
+          if(!deck.collectionId){
+            deck.collectionId = fallbackId;
+            try{ await saveDeck(deck); }catch(e){ /* non-fatal */ }
+          }
+        }
+      }
+    }catch(e){
+      decks = [];
+      content.innerHTML = `<div class="empty-state"><h2>Couldn't load your decks</h2><p>Something went wrong. Try refreshing the page.</p></div>`;
+      console.error('Load error', e);
+      return;
+    }
+  }
+
+  async function saveDeck(deck){
+    await setDoc(doc(DECKS_COL, deck.id), deck);
+  }
+
+  async function deleteDeck(id){
+    await deleteDoc(doc(DECKS_COL, id));
+  }
+
+  // ---------- Header ----------
+  function updateHeaderLabel(){
+    const col = collections.find(c => c.id === activeCollectionId);
+    $('activeCollectionLabel').textContent = col ? `Viewing: ${col.name}` : 'Keep track of your decks in one place.';
+  }
+
+  // ---------- Color filter chips ----------
+  function buildColorFilterChips(){
+    const wrap = $('colorFilters');
+    wrap.innerHTML = '';
+    COLORS.forEach(c=>{
+      const btn = document.createElement('button');
+      btn.className = 'pip-toggle';
+      btn.textContent = c.key;
+      btn.dataset.active = activeFilters.has(c.key) ? 'true' : 'false';
+      btn.style.setProperty('--pip-color', cssColorVar(c.key));
+      btn.title = c.name;
+      btn.addEventListener('click', ()=>{
+        if(activeFilters.has(c.key)) activeFilters.delete(c.key);
+        else activeFilters.add(c.key);
+        buildColorFilterChips();
+        render();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function buildBuildFilterChips(){
+    const wrap = $('buildFilters');
+    wrap.innerHTML = '';
+    BUILD_TYPES.forEach(b=>{
+      const btn = document.createElement('button');
+      btn.className = 'build-filter-btn';
+      btn.textContent = b.name;
+      btn.dataset.active = activeBuildFilters.has(b.key) ? 'true' : 'false';
+      btn.addEventListener('click', ()=>{
+        if(activeBuildFilters.has(b.key)) activeBuildFilters.delete(b.key);
+        else activeBuildFilters.add(b.key);
+        buildBuildFilterChips();
+        render();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  $('btnClearFilters').addEventListener('click', ()=>{
+    activeFilters.clear();
+    activeBuildFilters.clear();
+    searchTerm = '';
+    $('searchInput').value = '';
+    buildColorFilterChips();
+    buildBuildFilterChips();
+    render();
+  });
+
+  // ---------- Deck list rendering ----------
+  function getFilteredSorted(){
+    let list = decks.filter(d => d.collectionId === activeCollectionId);
+
+    list = list.filter(d => {
+      if(searchTerm && !d.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if(activeFilters.size > 0){
+        const colors = d.colors || [];
+        const matchesAll = [...activeFilters].every(f => colors.includes(f));
+        if(!matchesAll) return false;
+      }
+      if(activeBuildFilters.size > 0){
+        if(!d.buildType || !activeBuildFilters.has(d.buildType)) return false;
+      }
+      return true;
+    });
+
+    list.sort((a,b)=>{
+      if(sortMode === 'name') return a.name.localeCompare(b.name);
+      if(sortMode === 'colors') return colorSortKey(a.colors).localeCompare(colorSortKey(b.colors)) || a.name.localeCompare(b.name);
+      if(sortMode === 'buildType'){
+        const ao = a.buildType ? BUILD_TYPE_ORDER[a.buildType] : 3;
+        const bo = b.buildType ? BUILD_TYPE_ORDER[b.buildType] : 3;
+        return ao - bo || a.name.localeCompare(b.name);
+      }
+      if(sortMode === 'newest') return (b.createdAt||0) - (a.createdAt||0);
+      if(sortMode === 'oldest') return (a.createdAt||0) - (b.createdAt||0);
+      return 0;
+    });
+    return list;
+  }
+
+  function render(){
+    const decksInCollection = decks.filter(d => d.collectionId === activeCollectionId);
+    const list = getFilteredSorted();
+    content.innerHTML = '';
+
+    if(decksInCollection.length === 0){
+      content.innerHTML = `<div class="empty-state">
+        <h2>No decks yet</h2>
+        <p>Add your first deck to this collection using "New Deck" above.</p>
+      </div>`;
+      return;
+    }
+
+    if(list.length === 0){
+      content.innerHTML = `<div class="empty-state">
+        <h2>No matches</h2>
+        <p>Nothing fits that search or filter. Try clearing one.</p>
+      </div>`;
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
+    list.forEach(deck=>{
+      const card = document.createElement('div');
+      card.className = 'deck-card';
+      card.style.setProperty('--stripe', stripeGradient(deck.colors));
+
+      const topRow = document.createElement('div');
+      topRow.className = 'deck-top-row';
+
+      const name = document.createElement('div');
+      name.className = 'deck-name';
+      name.textContent = deck.name;
+      topRow.appendChild(name);
+
+      const priceStr = formatPrice(deck.price);
+      if(priceStr){
+        const priceTag = document.createElement('div');
+        priceTag.className = 'deck-price-tag';
+        priceTag.textContent = priceStr;
+        topRow.appendChild(priceTag);
+      }
+      card.appendChild(topRow);
+
+      const metaRow = document.createElement('div');
+      metaRow.className = 'meta-row';
+
+      if(deck.seriesId){
+        const series = seriesList.find(s => s.id === deck.seriesId);
+        if(series){
+          const seriesTag = document.createElement('div');
+          seriesTag.className = 'deck-meta';
+          seriesTag.textContent = series.name;
+          metaRow.appendChild(seriesTag);
+        }
+      }
+
+      if(deck.buildType){
+        const buildTag = document.createElement('div');
+        buildTag.className = 'build-tag';
+        buildTag.textContent = buildTypeName(deck.buildType);
+        metaRow.appendChild(buildTag);
+      }
+
+      if(metaRow.children.length) card.appendChild(metaRow);
+
+      const pipRow = document.createElement('div');
+      pipRow.className = 'pip-row';
+      pipsForDeck(deck).forEach(key => pipRow.appendChild(makePip(key)));
+      card.appendChild(pipRow);
+
+      const desc = document.createElement('p');
+      desc.className = 'deck-desc-preview';
+      desc.textContent = deck.description ? deck.description : 'No description yet.';
+      card.appendChild(desc);
+
+      card.addEventListener('click', ()=> openInfo(deck.id));
+      grid.appendChild(card);
+    });
+
+    content.appendChild(grid);
+  }
+
+  // ---------- Info modal ----------
+  let currentInfoId = null;
+
+  function openInfo(id){
+    const deck = decks.find(d => d.id === id);
+    if(!deck) return;
+    currentInfoId = id;
+    $('infoStripe').style.setProperty('--stripe', stripeGradient(deck.colors));
+    $('infoName').textContent = deck.name;
+
+    const col = collections.find(c => c.id === deck.collectionId);
+    const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
+    const subtitleParts = [];
+    if(deck.buildType) subtitleParts.push(buildTypeName(deck.buildType));
+    if(series) subtitleParts.push(series.name);
+    if(col) subtitleParts.push(col.name);
+    $('infoCollection').textContent = subtitleParts.join(' • ');
+
+    const identityWrap = $('infoIdentity');
+    identityWrap.innerHTML = '';
+    pipsForDeck(deck).forEach(key=>{
+      const pill = document.createElement('div');
+      pill.className = 'identity-pip';
+      pill.appendChild(makePip(key));
+      const label = document.createElement('span');
+      label.textContent = key === 'C' ? 'Colorless' : COLORS.find(c=>c.key===key).name;
+      pill.appendChild(label);
+      identityWrap.appendChild(pill);
+    });
+
+    const priceStr = formatPrice(deck.price);
+    if(priceStr){
+      $('infoPriceBlock').style.display = 'block';
+      $('infoPrice').textContent = priceStr;
+    } else {
+      $('infoPriceBlock').style.display = 'none';
+    }
+
+    const descEl = $('infoDesc');
+    if(deck.description){
+      descEl.textContent = deck.description;
+      descEl.classList.remove('empty');
+    } else {
+      descEl.textContent = 'No description written for this deck yet.';
+      descEl.classList.add('empty');
+    }
+
+    $('infoOverlay').classList.add('show');
+  }
+
+  function closeInfo(){
+    $('infoOverlay').classList.remove('show');
+    currentInfoId = null;
+  }
+
+  $('infoClose').addEventListener('click', closeInfo);
+  $('infoOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'infoOverlay') closeInfo(); });
+
+  $('infoDelete').addEventListener('click', async ()=>{
+    if(!currentInfoId) return;
+    const deck = decks.find(d=>d.id===currentInfoId);
+    if(!deck) return;
+    if(!confirm(`Delete "${deck.name}"? This can't be undone.`)) return;
+    try{
+      await deleteDeck(currentInfoId);
+      decks = decks.filter(d=>d.id!==currentInfoId);
+      closeInfo();
+      render();
+    }catch(e){
+      alert('Could not delete this deck. Please try again.');
+      console.error(e);
+    }
+  });
+
+  $('infoEdit').addEventListener('click', ()=>{
+    const id = currentInfoId;
+    closeInfo();
+    openForm(id);
+  });
+
+  // ---------- Add/Edit form modal ----------
+  function buildColorPicker(selected){
+    const wrap = $('formColorPicker');
+    wrap.innerHTML = '';
+
+    function refreshStates(){
+      COLORS.forEach(c=>{
+        const btn = wrap.querySelector(`[data-key="${c.key}"]`);
+        btn.dataset.active = selected.has(c.key) ? 'true' : 'false';
+      });
+      const colorlessBtn = wrap.querySelector('[data-key="C"]');
+      colorlessBtn.dataset.active = selected.has('C') ? 'true' : 'false';
+    }
+
+    COLORS.forEach(c=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-pick-btn';
+      btn.dataset.key = c.key;
+      btn.appendChild(makePip(c.key));
+      const label = document.createElement('span');
+      label.textContent = c.name;
+      btn.appendChild(label);
+      btn.addEventListener('click', ()=>{
+        if(selected.has(c.key)) selected.delete(c.key);
+        else selected.add(c.key);
+        refreshStates();
+      });
+      wrap.appendChild(btn);
+    });
+
+    const colorlessBtn = document.createElement('button');
+    colorlessBtn.type = 'button';
+    colorlessBtn.className = 'color-pick-btn';
+    colorlessBtn.dataset.key = 'C';
+    colorlessBtn.appendChild(makePip('C'));
+    const clLabel = document.createElement('span');
+    clLabel.textContent = 'Colorless';
+    colorlessBtn.appendChild(clLabel);
+    colorlessBtn.addEventListener('click', ()=>{
+      if(selected.has('C')) selected.delete('C');
+      else selected.add('C');
+      refreshStates();
+    });
+    wrap.appendChild(colorlessBtn);
+
+    refreshStates();
+  }
+
+  function buildBuildTypeSelector(selectedKey){
+    const wrap = $('formBuildType');
+    wrap.innerHTML = '';
+    let current = selectedKey || null;
+
+    function refresh(){
+      BUILD_TYPES.forEach(b=>{
+        const btn = wrap.querySelector(`[data-key="${b.key}"]`);
+        btn.dataset.active = (current === b.key) ? 'true' : 'false';
+      });
+    }
+
+    BUILD_TYPES.forEach(b=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-pick-btn';
+      btn.dataset.key = b.key;
+      const label = document.createElement('span');
+      label.textContent = b.name;
+      btn.appendChild(label);
+      btn.addEventListener('click', ()=>{
+        current = (current === b.key) ? null : b.key;
+        refresh();
+      });
+      wrap.appendChild(btn);
+    });
+
+    refresh();
+  }
+
+  function getSelectedBuildType(){
+    const active = document.querySelector('#formBuildType .color-pick-btn[data-active="true"]');
+    return active ? active.dataset.key : null;
+  }
+
+  function buildCollectionSelect(selectedId){
+    const sel = $('formCollection');
+    sel.innerHTML = '';
+    collections.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+    sel.value = selectedId || activeCollectionId;
+  }
+
+  const ADD_NEW_SERIES_VALUE = '__add_new_series__';
+
+  function buildSeriesSelect(selectedId){
+    const sel = $('formSeries');
+    sel.innerHTML = '';
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'No series';
+    sel.appendChild(noneOpt);
+
+    seriesList.forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+
+    const addOpt = document.createElement('option');
+    addOpt.value = ADD_NEW_SERIES_VALUE;
+    addOpt.textContent = '+ Add new series…';
+    sel.appendChild(addOpt);
+
+    sel.value = selectedId || '';
+    hideSeriesAddRow();
+  }
+
+  function showSeriesAddRow(){
+    $('seriesAddRow').style.display = 'flex';
+    $('newSeriesInput').value = '';
+    setTimeout(()=> $('newSeriesInput').focus(), 30);
+  }
+  function hideSeriesAddRow(){
+    $('seriesAddRow').style.display = 'none';
+  }
+
+  $('formSeries').addEventListener('change', (e)=>{
+    if(e.target.value === ADD_NEW_SERIES_VALUE){
+      showSeriesAddRow();
+    } else {
+      hideSeriesAddRow();
+    }
+  });
+
+  $('btnCancelAddSeries').addEventListener('click', ()=>{
+    hideSeriesAddRow();
+    $('formSeries').value = '';
+  });
+
+  $('btnConfirmAddSeries').addEventListener('click', async ()=>{
+    const name = $('newSeriesInput').value.trim();
+    if(!name) return;
+    const btn = $('btnConfirmAddSeries');
+    btn.disabled = true;
+    try{
+      const entry = await addSeriesEntry(name);
+      buildSeriesSelect(entry.id);
+    }catch(e){
+      alert('Could not add that series. Please try again.');
+      console.error(e);
+    }finally{
+      btn.disabled = false;
+    }
+  });
+  $('newSeriesInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); $('btnConfirmAddSeries').click(); }
+  });
+
+  function openForm(idToEdit){
+    editingId = idToEdit || null;
+    $('formError').style.display = 'none';
+    const selected = new Set();
+
+    if(editingId){
+      const deck = decks.find(d=>d.id===editingId);
+      $('formTitle').textContent = 'Edit Deck';
+      $('formName').value = deck.name;
+      $('formDesc').value = deck.description || '';
+      $('formPrice').value = (deck.price !== null && deck.price !== undefined) ? deck.price : '';
+      if(deck.colors && deck.colors.length){
+        deck.colors.forEach(c=>selected.add(c));
+      }
+      if(deck.colorless || !deck.colors || deck.colors.length === 0){
+        selected.add('C');
+      }
+      buildCollectionSelect(deck.collectionId);
+      buildSeriesSelect(deck.seriesId || '');
+      buildBuildTypeSelector(deck.buildType || null);
+    } else {
+      $('formTitle').textContent = 'New Deck';
+      $('formName').value = '';
+      $('formDesc').value = '';
+      $('formPrice').value = '';
+      buildCollectionSelect(activeCollectionId);
+      buildSeriesSelect('');
+      buildBuildTypeSelector(null);
+    }
+
+    buildColorPicker(selected);
+    $('formOverlay').classList.add('show');
+    setTimeout(()=> $('formName').focus(), 50);
+  }
+
+  function closeForm(){
+    $('formOverlay').classList.remove('show');
+    editingId = null;
+  }
+
+  $('btnNewDeck').addEventListener('click', ()=> openForm(null));
+  $('formClose').addEventListener('click', closeForm);
+  $('formCancel').addEventListener('click', closeForm);
+  $('formOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'formOverlay') closeForm(); });
+
+  $('formSave').addEventListener('click', async ()=>{
+    const name = $('formName').value.trim();
+    const description = $('formDesc').value.trim();
+    const priceRaw = $('formPrice').value;
+    const collectionId = $('formCollection').value;
+    const seriesRaw = $('formSeries').value;
+    const errorEl = $('formError');
+    errorEl.style.display = 'none';
+
+    if(!name){
+      errorEl.textContent = 'Give this deck a name before saving.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if(seriesRaw === ADD_NEW_SERIES_VALUE){
+      errorEl.textContent = 'Finish adding the new series (or cancel) before saving.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    const seriesId = seriesRaw || null;
+
+    const activeButtons = [...document.querySelectorAll('#formColorPicker .color-pick-btn[data-active="true"]')].map(b=>b.dataset.key);
+    if(activeButtons.length === 0){
+      errorEl.textContent = 'Choose a color identity — pick one or more colors, or Colorless.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    const selectedColors = activeButtons.filter(k => k !== 'C');
+    const isColorless = activeButtons.includes('C');
+    const buildType = getSelectedBuildType();
+
+    let price = null;
+    if(priceRaw !== ''){
+      const n = Number(priceRaw);
+      if(Number.isNaN(n) || n < 0){
+        errorEl.textContent = 'Price must be a positive number.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      price = n;
+    }
+
+    const saveBtn = $('formSave');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
+    try{
+      if(editingId){
+        const deck = decks.find(d=>d.id===editingId);
+        deck.name = name;
+        deck.description = description;
+        deck.colors = selectedColors;
+        deck.colorless = isColorless;
+        deck.price = price;
+        deck.collectionId = collectionId;
+        deck.seriesId = seriesId;
+        deck.buildType = buildType;
+        await saveDeck(deck);
+      } else {
+        const deck = {
+          id: 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+          name, description,
+          colors: selectedColors,
+          colorless: isColorless,
+          price: price,
+          collectionId: collectionId,
+          seriesId: seriesId,
+          buildType: buildType,
+          createdAt: Date.now()
+        };
+        await saveDeck(deck);
+        decks.push(deck);
+      }
+      closeForm();
+      render();
+    }catch(e){
+      errorEl.textContent = 'Could not save this deck. Please try again.';
+      errorEl.style.display = 'block';
+      console.error(e);
+    }finally{
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Deck';
+    }
+  });
+
+  // ---------- Drawer ----------
+  function renderDrawer(){
+    const listEl = $('collectionList');
+    listEl.innerHTML = '';
+    collections.forEach(col=>{
+      const item = document.createElement('div');
+      item.className = 'collection-item';
+      item.dataset.active = col.id === activeCollectionId ? 'true' : 'false';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'name';
+      nameSpan.textContent = col.name;
+      item.appendChild(nameSpan);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'del-btn';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete this collection';
+      delBtn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        if(collections.length <= 1){
+          alert("You need at least one collection.");
+          return;
+        }
+        const deckCount = decks.filter(d=>d.collectionId===col.id).length;
+        const msg = deckCount > 0
+          ? `Delete "${col.name}" and its ${deckCount} deck${deckCount===1?'':'s'}? This can't be undone.`
+          : `Delete "${col.name}"?`;
+        if(!confirm(msg)) return;
+        await withLoading(async ()=>{
+          await deleteCollection(col.id);
+          if(activeCollectionId === col.id){
+            activeCollectionId = collections[0].id;
+            try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, activeCollectionId); }catch(e){ /* non-fatal */ }
+          }
+          renderDrawer();
+          updateHeaderLabel();
+          render();
+        }, 450);
+      });
+      item.appendChild(delBtn);
+
+      item.addEventListener('click', ()=>{
+        setActiveCollection(col.id);
+        renderDrawer();
+        closeDrawer();
+      });
+
+      listEl.appendChild(item);
+    });
+  }
+
+  function openDrawer(){
+    renderDrawer();
+    $('drawerOverlay').classList.add('show');
+  }
+  function closeDrawer(){
+    $('drawerOverlay').classList.remove('show');
+  }
+
+  $('btnMenu').addEventListener('click', openDrawer);
+  $('drawerClose').addEventListener('click', closeDrawer);
+  $('drawerOverlay').addEventListener('click', closeDrawer);
+  $('drawerPanel').addEventListener('click', (e)=> e.stopPropagation());
+
+  $('btnAddCollection').addEventListener('click', async ()=>{
+    const input = $('newCollectionInput');
+    const name = input.value.trim();
+    if(!name) return;
+    const btn = $('btnAddCollection');
+    btn.disabled = true;
+    try{
+      const col = await addCollection(name);
+      input.value = '';
+      renderDrawer();
+    }catch(e){
+      alert('Could not add that collection. Please try again.');
+      console.error(e);
+    }finally{
+      btn.disabled = false;
+    }
+  });
+  $('newCollectionInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') $('btnAddCollection').click();
+  });
+
+  // ---------- Controls ----------
+  let searchDebounceTimer = null;
+  $('searchInput').addEventListener('input', (e)=>{
+    searchTerm = e.target.value;
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(render, 120);
+  });
+  $('sortSelect').addEventListener('change', (e)=>{
+    sortMode = e.target.value;
+    render();
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      closeInfo();
+      closeForm();
+      closeDrawer();
+    }
+  });
+
+  // ---------- Init ----------
+  let appInitialized = false;
+  async function init(){
+    if(appInitialized) return;
+    appInitialized = true;
+    buildColorFilterChips();
+    buildBuildFilterChips();
+    await withLoading(async ()=>{
+      await loadCollections();
+      await loadSeriesList();
+      await loadDecks();
+      updateHeaderLabel();
+      render();
+    }, 450);
+  }
+
+  // ---------- Auth ----------
+  const authScreen = $('authScreen');
+  const appRoot = $('appRoot');
+  const authEmail = $('authEmail');
+  const authPassword = $('authPassword');
+  const authError = $('authError');
+  const btnAuthSubmit = $('btnAuthSubmit');
+  const btnAuthToggleMode = $('btnAuthToggleMode');
+  const authSub = $('authSub');
+  const authToggleText = $('authToggleText');
+
+  let authMode = 'signin'; // 'signin' | 'signup'
+
+  function setAuthMode(mode){
+    authMode = mode;
+    authError.style.display = 'none';
+    if(mode === 'signup'){
+      btnAuthSubmit.textContent = 'Create Account';
+      authSub.textContent = 'Set up the family login for Deck Codex.';
+      authToggleText.textContent = 'Already have an account?';
+      btnAuthToggleMode.textContent = 'Sign in instead';
+      authPassword.setAttribute('autocomplete', 'new-password');
+    } else {
+      btnAuthSubmit.textContent = 'Sign In';
+      authSub.textContent = 'Sign in to your family account to see your decks.';
+      authToggleText.textContent = 'New to this family collection?';
+      btnAuthToggleMode.textContent = 'Create an account';
+      authPassword.setAttribute('autocomplete', 'current-password');
+    }
+  }
+
+  btnAuthToggleMode.addEventListener('click', ()=>{
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  });
+
+  function friendlyAuthError(code){
+    switch(code){
+      case 'auth/invalid-email': return 'That email address doesn\'t look right.';
+      case 'auth/missing-password':
+      case 'auth/weak-password': return 'Password must be at least 6 characters.';
+      case 'auth/email-already-in-use': return 'An account already exists for that email — try signing in instead.';
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found': return 'Incorrect email or password.';
+      case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
+      default: return 'Something went wrong. Please try again.';
+    }
+  }
+
+  async function submitAuth(){
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    authError.style.display = 'none';
+
+    if(!email || !password){
+      authError.textContent = 'Enter both an email and a password.';
+      authError.style.display = 'block';
+      return;
+    }
+
+    btnAuthSubmit.disabled = true;
+    const prevLabel = btnAuthSubmit.textContent;
+    btnAuthSubmit.textContent = authMode === 'signup' ? 'Creating…' : 'Signing in…';
+
+    try{
+      if(authMode === 'signup'){
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      authPassword.value = '';
+      // onAuthStateChanged below takes it from here.
+    }catch(e){
+      authError.textContent = friendlyAuthError(e.code);
+      authError.style.display = 'block';
+      console.error(e);
+    }finally{
+      btnAuthSubmit.disabled = false;
+      btnAuthSubmit.textContent = prevLabel;
+    }
+  }
+
+  btnAuthSubmit.addEventListener('click', submitAuth);
+  authPassword.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submitAuth(); });
+  authEmail.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') authPassword.focus(); });
+
+  $('btnSignOut').addEventListener('click', async ()=>{
+    try{
+      await signOut(auth);
+    }catch(e){
+      console.error(e);
+    }
+  });
+
+  setAuthMode('signin');
+
+  onAuthStateChanged(auth, (user)=>{
+    if(user){
+      authScreen.style.display = 'none';
+      appRoot.style.display = 'block';
+      $('accountEmail').textContent = user.email || '';
+      init();
+    } else {
+      appInitialized = false;
+      appRoot.style.display = 'none';
+      authScreen.style.display = 'flex';
+      authEmail.value = '';
+      authPassword.value = '';
+    }
+  });
+  } // end boot()
+})();
+</script>
+
+</body>
+</html>
