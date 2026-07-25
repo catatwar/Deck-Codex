@@ -1083,7 +1083,8 @@
   .btn-drawer-secondary{
     width: 100%;
     background: var(--surface-3);
-    border: 1px solid var(--line);
+    border: 1px solid #454750;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
     color: var(--ink);
     font-family: var(--font-ui);
     font-weight: 600;
@@ -1105,8 +1106,8 @@
   }
   .btn-drawer-danger{
     width: 100%;
-    background: none;
-    border: 1px solid var(--line);
+    background: #e77a6a14;
+    border: 1px solid #e77a6a55;
     color: #e77a6a;
     font-family: var(--font-ui);
     font-weight: 600;
@@ -1129,9 +1130,78 @@
     border: 1px solid var(--line);
     color: var(--muted-2);
   }
+
+  /* ---------- Splash screen ---------- */
+  #splashScreen{
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+  #splashScreen.fade-out{
+    opacity: 0;
+    pointer-events: none;
+  }
+  .splash-inner h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: var(--ink);
+    margin: 0;
+  }
+  .splash-inner h1 span{ color: var(--gold); }
+
+  /* ---------- Responsive layout ---------- */
+  /* A single centering box every screen's content sits inside, so the app
+     reads consistently from a phone up through an ultra-wide monitor. */
+  .responsive-box{
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  @media (min-width: 720px){
+    /* On wide screens, let inputs/buttons in a row grow to fill the space
+       evenly instead of hugging their intrinsic content width. */
+    .controls .search-input{ flex: 2 1 320px; }
+    .controls select.sort-select{ flex: 1 1 220px; }
+    .field-row input, .field-row button,
+    .group-name-row input, .group-name-row button,
+    .add-collection-row input, .add-collection-row button,
+    .inline-add-row input, .inline-add-row button{
+      flex: 1 1 0;
+    }
+    .field-row button, .group-name-row button,
+    .add-collection-row button, .inline-add-row button{
+      flex-grow: 0.6;
+    }
+  }
 </style>
 </head>
 <body>
+
+<!-- Splash Screen: covers the brief sign-in flash while Firebase auth resolves -->
+<div id="splashScreen">
+  <div class="splash-inner">
+    <h1>Deck <span>Codex</span></h1>
+  </div>
+</div>
+<script>
+  // Plain, dependency-free timer — doesn't wait on Firebase/module loading,
+  // so it behaves the same regardless of network speed.
+  setTimeout(function(){
+    var el = document.getElementById('splashScreen');
+    if(!el) return;
+    el.classList.add('fade-out');
+    setTimeout(function(){ el.style.display = 'none'; }, 220);
+  }, 2000);
+</script>
 
 <!-- Login Screen -->
 <div class="auth-screen" id="authScreen">
@@ -1243,7 +1313,7 @@
   </div>
 </div>
 
-<div class="wrap" id="appRoot">
+<div class="wrap responsive-box" id="appRoot">
 
   <header>
     <div class="header-left">
@@ -1359,7 +1429,7 @@
       <button class="drawer-close" id="drawerClose">✕</button>
     </div>
     <div class="collection-list" id="collectionList"></div>
-    <div class="add-collection-row">
+    <div class="add-collection-row" id="addCollectionRow">
       <input type="text" id="newCollectionInput" placeholder="New collection name…">
       <button id="btnAddCollection">Add</button>
     </div>
@@ -1553,7 +1623,36 @@
   }
 
   // ---------- Storage: collections (Firestore, live) ----------
-  let defaultCollectionEnsured = false;
+  function personalCollectionId(uid){
+    return 'personal_' + uid;
+  }
+
+  // Every member (leader included) gets their own personal collection where
+  // their own new decks land by default. Regular members can only file new
+  // decks into this one; the leader can also create general/shared
+  // collections and can file decks anywhere.
+  async function ensurePersonalCollection(){
+    if(!currentUser) return;
+    const id = personalCollectionId(currentUser.uid);
+    if(collections.some(c => c.id === id)) return;
+    const col = { id, ownerUid: currentUser.uid, name: null, createdAt: Date.now() };
+    try{
+      await setDoc(doc(COLLECTIONS_COL, id), col);
+    }catch(e){ console.error('Could not create personal collection', e); }
+  }
+
+  // Collections owned by a specific person show as "My Collection" to that
+  // person and "(Name)'s Collection" to everyone else. Shared collections
+  // (no owner — created by the leader) just show their stored name.
+  function collectionDisplayName(col){
+    if(!col) return '';
+    if(col.ownerUid){
+      if(currentUser && col.ownerUid === currentUser.uid) return 'My Collection';
+      const name = ownerDisplayName(col.ownerUid);
+      return name ? `${name}'s Collection` : "Member's Collection";
+    }
+    return col.name || 'Collection';
+  }
 
   function attachLiveCollections(){
     return new Promise((resolve, reject)=>{
@@ -1563,17 +1662,6 @@
         const results = [];
         snap.forEach(d => results.push(d.data()));
         collections = results;
-
-        if(collections.length === 0 && !defaultCollectionEnsured){
-          defaultCollectionEnsured = true;
-          try{
-            const defaultCollection = { id: 'p_' + Date.now(), name: 'My Collection', createdAt: Date.now() };
-            await setDoc(doc(COLLECTIONS_COL, defaultCollection.id), defaultCollection);
-          }catch(e){ console.error('Could not create default collection', e); }
-          // The write above triggers another snapshot shortly with the new
-          // collection included — wait for that pass instead of resolving now.
-          return;
-        }
 
         // Keep the active collection pointed at something real as the
         // list changes (e.g. someone else adds/removes a collection).
@@ -1609,8 +1697,9 @@
     }, 450);
   }
 
+  // Only the leader can create general/shared collections (ownerUid null).
   async function addCollection(name){
-    const col = { id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
+    const col = { id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, ownerUid: null, createdAt: Date.now() };
     await setDoc(doc(COLLECTIONS_COL, col.id), col);
     collections.push(col);
     return col;
@@ -1840,7 +1929,7 @@
   // ---------- Header ----------
   function updateHeaderLabel(){
     const col = collections.find(c => c.id === activeCollectionId);
-    $('activeCollectionLabel').textContent = col ? `Viewing: ${col.name}` : 'Keep track of your decks in one place.';
+    $('activeCollectionLabel').textContent = col ? `Viewing: ${collectionDisplayName(col)}` : 'Keep track of your decks in one place.';
   }
 
   // ---------- Color filter chips ----------
@@ -2037,7 +2126,7 @@
     const subtitleParts = [];
     if(deck.buildType) subtitleParts.push(buildTypeName(deck.buildType));
     if(series) subtitleParts.push(series.name);
-    if(col) subtitleParts.push(col.name);
+    if(col) subtitleParts.push(collectionDisplayName(col));
     if(deck.ownerUid){
       const ownerName = ownerDisplayName(deck.ownerUid) || deck.ownerName;
       if(ownerName) subtitleParts.push(deck.ownerUid === (currentUser && currentUser.uid) ? 'Your deck' : `${ownerName}'s deck`);
@@ -2198,10 +2287,29 @@
   function buildCollectionSelect(selectedId){
     const sel = $('formCollection');
     sel.innerHTML = '';
+
+    if(!isLeader()){
+      // Regular members can only file NEW decks into their own personal
+      // collection. If they're editing a deck that's already filed
+      // somewhere else (the leader may have moved it), leave it be rather
+      // than silently reshuffling it back.
+      const myId = personalCollectionId(currentUser.uid);
+      const fixedId = (selectedId && collections.some(c => c.id === selectedId)) ? selectedId : myId;
+      const fixedCol = collections.find(c => c.id === fixedId);
+      const opt = document.createElement('option');
+      opt.value = fixedId;
+      opt.textContent = fixedCol ? collectionDisplayName(fixedCol) : 'My Collection';
+      sel.appendChild(opt);
+      sel.value = fixedId;
+      sel.disabled = true;
+      return;
+    }
+
+    sel.disabled = false;
     collections.forEach(c=>{
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.name;
+      opt.textContent = collectionDisplayName(c);
       sel.appendChild(opt);
     });
     sel.value = selectedId || activeCollectionId;
@@ -2307,7 +2415,7 @@
       $('formName').value = '';
       $('formDesc').value = '';
       $('formPrice').value = '';
-      buildCollectionSelect(activeCollectionId);
+      buildCollectionSelect(isLeader() ? activeCollectionId : null);
       buildSeriesSelect('');
       buildBuildTypeSelector(null);
     }
@@ -2331,7 +2439,7 @@
     const name = $('formName').value.trim();
     const description = $('formDesc').value.trim();
     const priceRaw = $('formPrice').value;
-    const collectionId = $('formCollection').value;
+    const collectionId = isLeader() ? $('formCollection').value : (editingId ? $('formCollection').value : personalCollectionId(currentUser.uid));
     const seriesRaw = $('formSeries').value;
     const errorEl = $('formError');
     errorEl.style.display = 'none';
@@ -2433,36 +2541,39 @@
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'name';
-      nameSpan.textContent = col.name;
+      nameSpan.textContent = collectionDisplayName(col);
       item.appendChild(nameSpan);
 
-      const delBtn = document.createElement('button');
-      delBtn.className = 'del-btn';
-      delBtn.textContent = '✕';
-      delBtn.title = 'Delete this collection';
-      delBtn.addEventListener('click', async (e)=>{
-        e.stopPropagation();
-        if(collections.length <= 1){
-          alert("You need at least one collection.");
-          return;
-        }
-        const deckCount = decks.filter(d=>d.collectionId===col.id).length;
-        const msg = deckCount > 0
-          ? `Delete "${col.name}" and its ${deckCount} deck${deckCount===1?'':'s'}? This can't be undone.`
-          : `Delete "${col.name}"?`;
-        if(!confirm(msg)) return;
-        await withLoading(async ()=>{
-          await deleteCollection(col.id);
-          if(activeCollectionId === col.id){
-            activeCollectionId = collections[0].id;
-            try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, activeCollectionId); }catch(e){ /* non-fatal */ }
+      if(isLeader()){
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Delete this collection';
+        delBtn.addEventListener('click', async (e)=>{
+          e.stopPropagation();
+          if(collections.length <= 1){
+            alert("You need at least one collection.");
+            return;
           }
-          renderDrawer();
-          updateHeaderLabel();
-          render();
-        }, 450);
-      });
-      item.appendChild(delBtn);
+          const deckCount = decks.filter(d=>d.collectionId===col.id).length;
+          const label = collectionDisplayName(col);
+          const msg = deckCount > 0
+            ? `Delete "${label}" and its ${deckCount} deck${deckCount===1?'':'s'}? This can't be undone.`
+            : `Delete "${label}"?`;
+          if(!confirm(msg)) return;
+          await withLoading(async ()=>{
+            await deleteCollection(col.id);
+            if(activeCollectionId === col.id){
+              activeCollectionId = collections[0].id;
+              try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, activeCollectionId); }catch(e){ /* non-fatal */ }
+            }
+            renderDrawer();
+            updateHeaderLabel();
+            render();
+          }, 450);
+        });
+        item.appendChild(delBtn);
+      }
 
       item.addEventListener('click', ()=>{
         setActiveCollection(col.id);
@@ -2476,6 +2587,7 @@
 
   function openDrawer(){
     renderDrawer();
+    $('addCollectionRow').style.display = isLeader() ? 'flex' : 'none';
     $('drawerOverlay').classList.add('show');
   }
   function closeDrawer(){
@@ -2488,6 +2600,7 @@
   $('drawerPanel').addEventListener('click', (e)=> e.stopPropagation());
 
   $('btnAddCollection').addEventListener('click', async ()=>{
+    if(!isLeader()) return;
     const input = $('newCollectionInput');
     const name = input.value.trim();
     if(!name) return;
@@ -2560,6 +2673,7 @@
         ]),
         timeout(15000, 'Loading your decks')
       ]);
+      await ensurePersonalCollection();
       await migrateDeckCollectionIds();
 
       // Keep the spinner up for a beat even on a fast connection, so the
