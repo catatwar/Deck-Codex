@@ -449,12 +449,22 @@
   }
   .deck-delete-action{
     position: absolute;
-    top: 0; right: 0; bottom: 0;
-    width: 84px;
+    inset: 0;
     z-index: 1;
     border: none;
     background: #b5675a;
     color: #fff;
+    padding: 0;
+  }
+  /* The button itself now covers the whole card (see .deck-delete-action)
+     so a swipe that bounces past the button's true width still only ever
+     reveals more red, never the card wrap's plain background peeking
+     through — only this inner content stays pinned to the right 84px,
+     matching SWIPE_OPEN_OFFSET. */
+  .deck-delete-action-content{
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 84px;
     display:flex;
     flex-direction: column;
     align-items:center;
@@ -2772,7 +2782,7 @@
         deleteBtn.type = 'button';
         deleteBtn.className = 'deck-delete-action';
         deleteBtn.setAttribute('aria-label', `Delete ${deck.name}`);
-        deleteBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span>Delete</span>';
+        deleteBtn.innerHTML = '<span class="deck-delete-action-content"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span>Delete</span></span>';
         cardWrap.appendChild(deleteBtn);
 
         attachSwipeToDelete(cardWrap, card, deleteBtn, deck);
@@ -2812,6 +2822,18 @@
 
     function vibrate(ms){
       if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){ /* ignore */ } }
+    }
+
+    // A light rubber-band "give" once a drag pulls past either end, instead
+    // of hitting a dead stop — the extra distance is heavily dampened so it
+    // still reads as bounded, not a full free drag. The delete button's
+    // background now covers the whole card (see .deck-delete-action CSS),
+    // so however far this stretches, there's nothing behind it but red.
+    function applyDragResistance(raw){
+      const min = SWIPE_OPEN_OFFSET, max = 0;
+      if(raw < min) return min - (min - raw) * 0.3;
+      if(raw > max) return max + (raw - max) * 0.3;
+      return raw;
     }
 
     function setTransform(x){
@@ -2877,7 +2899,7 @@
       }
       if(axisLocked !== 'x') return;
       e.preventDefault();
-      const next = Math.max(SWIPE_OPEN_OFFSET, Math.min(0, baseOffset + dx));
+      const next = applyDragResistance(baseOffset + dx);
       setTransform(next);
       // A light tick right as the swipe crosses the reveal threshold, in
       // either direction — mirrors the little "catch" feeling of native
