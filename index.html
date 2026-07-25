@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Deck Codex</title>
+
+<!-- Site icon — files live alongside this index.html in the repo, so
+     GitHub Pages serves them at the site root exactly as referenced here. -->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#121316">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -155,6 +166,15 @@
     transition: border-color 0.15s ease;
   }
   .menu-btn:hover{ border-color: var(--gold-soft); }
+
+  /* Every icon in the app is a plain inline SVG using currentColor —
+     never emoji or platform dingbats, so it looks identical on every
+     OS/browser instead of being swapped out for a platform emoji font. */
+  .icon-svg{
+    width: 1em; height: 1em;
+    display: block;
+    flex-shrink: 0;
+  }
 
   .title-block h1{
     font-family: var(--font-display);
@@ -663,6 +683,7 @@
   .collection-item .del-btn{
     background: none; border: none; color: var(--muted-2);
     font-size: 0.85rem; padding: 3px 7px; border-radius: 6px; flex-shrink: 0;
+    display:inline-flex; align-items:center; justify-content:center;
   }
   .collection-item .del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
 
@@ -1059,6 +1080,7 @@
   .member-row .del-btn{
     background: none; border: none; color: var(--muted-2);
     font-size: 0.85rem; padding: 3px 7px; border-radius: 6px; flex-shrink: 0;
+    display:inline-flex; align-items:center; justify-content:center;
   }
   .member-row .del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
   .share-code-box{
@@ -1168,6 +1190,7 @@
   .collection-item .edit-btn{
     background: none; border: none; color: var(--muted-2);
     font-size: 0.8rem; padding: 3px 6px; border-radius: 6px; flex-shrink: 0;
+    display:inline-flex; align-items:center; justify-content:center;
   }
   .collection-item .edit-btn:hover{ color: var(--gold); background: var(--gold-soft); }
 
@@ -1284,7 +1307,7 @@
 <!-- Group Setup Screen (create or join) -->
 <div class="group-setup-screen" id="groupSetupScreen">
   <div class="group-setup-card">
-    <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app">✕</button>
+    <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     <h1>Join a <span>Group</span></h1>
     <p class="group-setup-sub">Decks are shared within a group. Join one with a code, or start your own.</p>
 
@@ -1322,7 +1345,7 @@
   <div class="drawer-panel" id="groupDrawerPanel">
     <div class="drawer-header">
       <h3>Manage Group</h3>
-      <button class="drawer-close" id="groupDrawerClose">✕</button>
+      <button class="drawer-close" id="groupDrawerClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
 
     <div class="drawer-tabs" id="drawerTabs">
@@ -1372,7 +1395,7 @@
 <div class="overlay" id="addGroupModalOverlay">
   <div class="modal" id="addGroupModal" style="max-width:420px;">
     <div class="modal-body">
-      <button class="modal-close" id="addGroupModalClose">✕</button>
+      <button class="modal-close" id="addGroupModalClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2>Add Another Group</h2>
       <p class="modal-subtitle">Join a group with a share code, or start a brand new one.</p>
 
@@ -1410,7 +1433,7 @@
 
   <header>
     <div class="header-left">
-      <button class="menu-btn" id="btnMenu" title="Switch collection">☰</button>
+      <button class="menu-btn" id="btnMenu" title="Switch collection"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
       <div class="title-block">
         <h1>Deck <span>Codex</span></h1>
         <p id="activeCollectionLabel">Keep track of your decks in one place.</p>
@@ -1418,7 +1441,7 @@
       </div>
     </div>
     <div class="account-badge">
-      <button class="group-chip" id="btnGroupChip" title="Manage group">👥 <span id="groupChipName">Group</span></button>
+      <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
       <button class="btn-new" id="btnNewDeck">+ New Deck</button>
     </div>
   </header>
@@ -1445,7 +1468,7 @@
   <div class="modal">
     <div class="modal-stripe" id="infoStripe"></div>
     <div class="modal-body">
-      <button class="modal-close" id="infoClose">✕</button>
+      <button class="modal-close" id="infoClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="infoName"></h2>
       <p class="modal-subtitle" id="infoCollection"></p>
       <div class="identity-block">
@@ -1470,7 +1493,7 @@
 <div class="overlay" id="formOverlay">
   <div class="modal">
     <div class="modal-body">
-      <button class="modal-close" id="formClose">✕</button>
+      <button class="modal-close" id="formClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="formTitle">New Deck</h2>
       <div class="field">
         <label for="formCollection">Collection</label>
@@ -1519,7 +1542,7 @@
   <div class="drawer-panel" id="drawerPanel">
     <div class="drawer-header">
       <h3>Collections</h3>
-      <button class="drawer-close" id="drawerClose">✕</button>
+      <button class="drawer-close" id="drawerClose"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
     <div class="collection-list" id="collectionList"></div>
     <div class="add-collection-row" id="addCollectionRow">
@@ -1663,6 +1686,12 @@
   }
 
   const $ = (id) => document.getElementById(id);
+
+  // Inline SVG icons (never emoji or platform dingbats) so every icon
+  // renders identically across OS/browser instead of falling back to
+  // whatever emoji font a given platform happens to substitute.
+  const ICON_X = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
+  const ICON_EDIT = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   const content = $('content');
 
   function cssColorVar(key){
@@ -2733,7 +2762,7 @@
       if(isLeader() && !col.ownerUid){
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-btn';
-        editBtn.textContent = '✎';
+        editBtn.innerHTML = ICON_EDIT;
         editBtn.title = 'Rename this collection';
         editBtn.addEventListener('click', async (e)=>{
           e.stopPropagation();
@@ -2757,7 +2786,7 @@
       if(isLeader()){
         const delBtn = document.createElement('button');
         delBtn.className = 'del-btn';
-        delBtn.textContent = '✕';
+        delBtn.innerHTML = ICON_X;
         delBtn.title = 'Delete this collection';
         delBtn.addEventListener('click', async (e)=>{
           e.stopPropagation();
@@ -3238,7 +3267,7 @@
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'del-btn';
-        delBtn.textContent = '✕';
+        delBtn.innerHTML = ICON_X;
         delBtn.title = 'Remove from group';
         delBtn.addEventListener('click', async ()=>{
           if(!confirm(`Remove ${capitalizeName(m.displayName)} from the group? They'll lose access, but their decks stay in the group.`)) return;
