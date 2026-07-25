@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Deck Codex</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,8 @@
     updateDoc,
     deleteDoc,
     query,
-    orderBy
+    orderBy,
+    onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -70,7 +71,8 @@
     updateDoc,
     deleteDoc,
     query,
-    orderBy
+    orderBy,
+    onSnapshot
   };
 
   // Let any listeners know the SDK is ready (used defensively — the main
@@ -273,7 +275,7 @@
   /* ---------- Grid ---------- */
   .grid{
     display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 18px;
   }
 
@@ -874,7 +876,22 @@
   .group-setup-card{
     width: 100%;
     max-width: 420px;
+    position: relative;
   }
+  .group-setup-close{
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .group-setup-close:hover{ color: var(--ink); border-color: var(--gold-soft); }
   .group-setup-card h1{
     font-family: var(--font-display);
     font-weight: 700;
@@ -917,6 +934,7 @@
   }
   .group-setup-block input{
     flex:1;
+    min-width: 0;
     background: var(--surface-3);
     border: 1px solid var(--line);
     color: var(--ink);
@@ -927,7 +945,7 @@
     outline: none;
   }
   .group-setup-block input:focus{ border-color: var(--gold); }
-  .group-setup-block input.code-input{
+  input.code-input{
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-family: var(--font-display);
@@ -976,7 +994,7 @@
     display:flex; gap: 8px; margin-bottom: 18px;
   }
   .group-name-row input{
-    flex:1; background: var(--surface-3); border: 1px solid var(--line);
+    flex:1; min-width: 0; background: var(--surface-3); border: 1px solid var(--line);
     color: var(--ink); padding: 9px 11px; border-radius: 8px;
     font-family: var(--font-ui); font-size: 0.92rem; outline: none;
   }
@@ -985,7 +1003,7 @@
   .group-name-row button{
     background: var(--gold); color: #0f1115; border: none;
     padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
-    white-space: nowrap;
+    white-space: nowrap; flex-shrink: 0;
   }
   .group-section-label{
     font-family: var(--font-ui);
@@ -1062,6 +1080,25 @@
     margin-bottom: 8px;
   }
   .btn-drawer-secondary:hover{ border-color: var(--gold-soft); }
+  .group-switch-row{
+    display:flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .group-switch-row .btn-drawer-secondary{
+    width: auto;
+    flex: 1;
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    padding: 9px 6px;
+  }
+  .my-group-item .role-hint{
+    font-size: 0.7rem;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
   .btn-drawer-danger{
     width: 100%;
     background: none;
@@ -1119,6 +1156,7 @@
 <!-- Group Setup Screen (create or join) -->
 <div class="group-setup-screen" id="groupSetupScreen">
   <div class="group-setup-card">
+    <button type="button" class="group-setup-close" id="btnGroupSetupClose" style="display:none;" title="Back to app">✕</button>
     <h1>Join a <span>Group</span></h1>
     <p class="group-setup-sub">Decks are shared within a group. Create one, or join with a share code.</p>
 
@@ -1157,6 +1195,24 @@
       <h3>Manage Group</h3>
       <button class="drawer-close" id="groupDrawerClose">✕</button>
     </div>
+
+    <div class="group-section-label">Your Groups</div>
+    <div class="collection-list" id="myGroupsList"></div>
+    <div class="group-switch-row">
+      <button type="button" class="btn-drawer-secondary" id="btnDrawerNewGroup">+ Create</button>
+      <button type="button" class="btn-drawer-secondary" id="btnDrawerJoinGroup">+ Join with code</button>
+    </div>
+    <div class="inline-add-row" id="drawerNewGroupRow" style="display:none;">
+      <input type="text" id="drawerNewGroupInput" placeholder="New group name…">
+      <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
+      <button type="button" class="btn-text-cancel" id="btnDrawerCancelNewGroup">Cancel</button>
+    </div>
+    <div class="inline-add-row" id="drawerJoinGroupRow" style="display:none;">
+      <input type="text" id="drawerJoinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
+      <button type="button" id="btnDrawerConfirmJoinGroup">Join</button>
+      <button type="button" class="btn-text-cancel" id="btnDrawerCancelJoinGroup">Cancel</button>
+    </div>
+    <div class="group-setup-error" id="drawerGroupError"></div>
 
     <div class="group-name-row">
       <input type="text" id="groupNameInput" placeholder="Group name">
@@ -1348,7 +1404,7 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          signOut, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } = fb;
+          signOut, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } = fb;
 
   const USERS_COL = collection(db, 'users');
   const GROUPS_COL = collection(db, 'groups');
@@ -1421,6 +1477,15 @@
   let sortMode = 'name';
   let editingId = null; // null = new deck
 
+  // Live Firestore listeners (onSnapshot) for the current group's data.
+  // Torn down and rebuilt whenever we (re)load a group, so switching groups
+  // or signing out never leaves a listener running against stale data.
+  let unsubscribers = [];
+  function clearSnapshotListeners(){
+    unsubscribers.forEach(unsub => { try{ unsub(); }catch(e){ /* non-fatal */ } });
+    unsubscribers = [];
+  }
+
   const $ = (id) => document.getElementById(id);
   const content = $('content');
 
@@ -1474,29 +1539,52 @@
     return '$' + n.toFixed(2);
   }
 
-  // ---------- Storage: collections (Firestore) ----------
-  async function loadCollections(){
-    const snap = await getDocs(query(COLLECTIONS_COL, orderBy('createdAt')));
-    const results = [];
-    snap.forEach(d => results.push(d.data()));
+  // ---------- Storage: collections (Firestore, live) ----------
+  let defaultCollectionEnsured = false;
 
-    if(results.length === 0){
-      const defaultCollection = { id: 'p_' + Date.now(), name: 'My Collection', createdAt: Date.now() };
-      await setDoc(doc(COLLECTIONS_COL, defaultCollection.id), defaultCollection);
-      results.push(defaultCollection);
-    }
-    collections = results;
+  function attachLiveCollections(){
+    return new Promise((resolve, reject)=>{
+      let firstLoadDone = false;
+      const q = query(COLLECTIONS_COL, orderBy('createdAt'));
+      const unsub = onSnapshot(q, async (snap)=>{
+        const results = [];
+        snap.forEach(d => results.push(d.data()));
+        collections = results;
 
-    let stored = null;
-    try{
-      stored = localStorage.getItem(ACTIVE_COLLECTION_KEY);
-    }catch(e){ /* no active collection set yet */ }
+        if(collections.length === 0 && !defaultCollectionEnsured){
+          defaultCollectionEnsured = true;
+          try{
+            const defaultCollection = { id: 'p_' + Date.now(), name: 'My Collection', createdAt: Date.now() };
+            await setDoc(doc(COLLECTIONS_COL, defaultCollection.id), defaultCollection);
+          }catch(e){ console.error('Could not create default collection', e); }
+          // The write above triggers another snapshot shortly with the new
+          // collection included — wait for that pass instead of resolving now.
+          return;
+        }
 
-    if(stored && collections.some(c => c.id === stored)){
-      activeCollectionId = stored;
-    } else {
-      activeCollectionId = collections[0].id;
-    }
+        // Keep the active collection pointed at something real as the
+        // list changes (e.g. someone else adds/removes a collection).
+        if(collections.length){
+          let stored = null;
+          try{ stored = localStorage.getItem(ACTIVE_COLLECTION_KEY); }catch(e){ /* non-fatal */ }
+          if(!activeCollectionId || !collections.some(c => c.id === activeCollectionId)){
+            activeCollectionId = (stored && collections.some(c => c.id === stored)) ? stored : collections[0].id;
+          }
+        }
+
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          resolve();
+        } else {
+          updateHeaderLabel();
+          render();
+        }
+      }, (err)=>{
+        if(!firstLoadDone){ firstLoadDone = true; reject(err); }
+        else console.error('Live collections update error', err);
+      });
+      unsubscribers.push(unsub);
+    });
   }
 
   async function setActiveCollection(id){
@@ -1525,12 +1613,27 @@
     collections = collections.filter(c => c.id !== id);
   }
 
-  // ---------- Storage: series (Firestore) ----------
-  async function loadSeriesList(){
-    const snap = await getDocs(query(SERIES_COL, orderBy('createdAt')));
-    const results = [];
-    snap.forEach(d => results.push(d.data()));
-    seriesList = results;
+  // ---------- Storage: series (Firestore, live) ----------
+  function attachLiveSeries(){
+    return new Promise((resolve, reject)=>{
+      let firstLoadDone = false;
+      const q = query(SERIES_COL, orderBy('createdAt'));
+      const unsub = onSnapshot(q, (snap)=>{
+        const results = [];
+        snap.forEach(d => results.push(d.data()));
+        seriesList = results;
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          resolve();
+        } else {
+          render();
+        }
+      }, (err)=>{
+        if(!firstLoadDone){ firstLoadDone = true; reject(err); }
+        else console.error('Live series update error', err);
+      });
+      unsubscribers.push(unsub);
+    });
   }
 
   async function addSeriesEntry(name){
@@ -1540,29 +1643,43 @@
     return entry;
   }
 
-  // ---------- Storage: decks (Firestore) ----------
-  async function loadDecks(){
-    try{
-      const snap = await getDocs(DECKS_COL);
-      const results = [];
-      snap.forEach(d => results.push(d.data()));
-      decks = results;
-
-      // Migrate any decks saved before collections existed.
-      const fallbackId = collections[0] ? collections[0].id : null;
-      if(fallbackId){
-        for(const deck of decks){
-          if(!deck.collectionId){
-            deck.collectionId = fallbackId;
-            try{ await saveDeck(deck); }catch(e){ /* non-fatal */ }
-          }
+  // ---------- Storage: decks (Firestore, live) ----------
+  function attachLiveDecks(){
+    return new Promise((resolve, reject)=>{
+      let firstLoadDone = false;
+      const unsub = onSnapshot(DECKS_COL, (snap)=>{
+        const results = [];
+        snap.forEach(d => results.push(d.data()));
+        decks = results;
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          resolve();
+        } else {
+          render();
         }
+      }, (err)=>{
+        if(!firstLoadDone){
+          firstLoadDone = true;
+          reject(err);
+        } else {
+          console.error('Live decks update error', err);
+          content.innerHTML = `<div class="empty-state"><h2>Lost the live connection</h2><p>Something went wrong. Try refreshing the page.</p></div>`;
+        }
+      });
+      unsubscribers.push(unsub);
+    });
+  }
+
+  // Migrates any decks saved before collections existed onto the group's
+  // first collection. Runs once, right after the initial live load.
+  async function migrateDeckCollectionIds(){
+    const fallbackId = collections[0] ? collections[0].id : null;
+    if(!fallbackId) return;
+    for(const deck of decks){
+      if(!deck.collectionId){
+        deck.collectionId = fallbackId;
+        try{ await saveDeck(deck); }catch(e){ /* non-fatal */ }
       }
-    }catch(e){
-      decks = [];
-      content.innerHTML = `<div class="empty-state"><h2>Couldn't load your decks</h2><p>Something went wrong. Try refreshing the page.</p></div>`;
-      console.error('Load error', e);
-      return;
     }
   }
 
@@ -1601,12 +1718,44 @@
     MEMBERS_COL = groupSubcollection(groupId, 'members');
   }
 
+  // ---------- Storage: this user's own list of groups (for switching) ----------
+  function membershipsCol(uid){
+    return collection(db, 'users', uid, 'memberships');
+  }
+
+  async function addMembershipRecord(uid, groupId, role){
+    await setDoc(doc(membershipsCol(uid), groupId), { groupId, role, joinedAt: Date.now() });
+  }
+
+  async function removeMembershipRecord(uid, groupId){
+    try{ await deleteDoc(doc(membershipsCol(uid), groupId)); }catch(e){ /* non-fatal */ }
+  }
+
+  async function listMyMemberships(uid){
+    const snap = await getDocs(membershipsCol(uid));
+    const results = [];
+    snap.forEach(d => results.push(d.data()));
+    return results;
+  }
+
+  // Confirms we're still actually listed as a member of a group (the source
+  // of truth), self-healing our own membership record if we've been removed.
+  async function verifyMembership(groupId, uid){
+    try{
+      const snap = await getDoc(doc(groupSubcollection(groupId, 'members'), uid));
+      if(snap.exists()) return true;
+    }catch(e){ /* fall through — treat as no longer a member */ }
+    await removeMembershipRecord(uid, groupId);
+    return false;
+  }
+
   async function createGroup(name, user){
     const groupId = 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
     const groupData = { id: groupId, name, leaderUid: user.uid, createdAt: Date.now() };
     await setDoc(doc(GROUPS_COL, groupId), groupData);
     const memberData = { uid: user.uid, displayName: (user.email || 'Leader').split('@')[0], email: user.email || '', role: 'leader', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(groupId, 'members'), user.uid), memberData);
+    await addMembershipRecord(user.uid, groupId, 'leader');
     await setUserGroup(user.uid, groupId);
     return groupId;
   }
@@ -1669,6 +1818,7 @@
     if(data.expiresAt < Date.now()) throw new Error('That code has expired. Ask the group leader for a new one.');
     const memberData = { uid: user.uid, displayName: (user.email || 'Player').split('@')[0], email: user.email || '', role: 'member', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
+    await addMembershipRecord(user.uid, data.groupId, 'member');
     await setUserGroup(user.uid, data.groupId);
     return data.groupId;
   }
@@ -1736,6 +1886,9 @@
   }
 
   $('btnClearFilters').addEventListener('click', ()=>{
+    const hasAnything = activeFilters.size > 0 || activeBuildFilters.size > 0 || searchTerm !== '';
+    if(!hasAnything) return;
+    if(!confirm('Clear all filters and search?')) return;
     activeFilters.clear();
     activeBuildFilters.clear();
     searchTerm = '';
@@ -2376,6 +2529,10 @@
       closeForm();
       closeDrawer();
       closeGroupDrawer();
+      if(groupSetupScreen.style.display === 'flex' && currentGroup && currentMember){
+        groupSetupScreen.style.display = 'none';
+        appRoot.style.display = 'block';
+      }
     }
   });
 
@@ -2384,27 +2541,43 @@
   function timeout(ms, label){
     return new Promise((_, reject) => setTimeout(()=> reject(new Error(`${label} took too long (over ${ms/1000}s) — check your internet connection and Firestore setup.`)), ms));
   }
+  function delay(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
   async function init(){
     if(appInitialized) return;
     appInitialized = true;
     buildColorFilterChips();
     buildBuildFilterChips();
+    clearSnapshotListeners();
+    defaultCollectionEnsured = false;
+
+    showLoading();
+    const startedAt = Date.now();
     try{
-      await withLoading(async ()=>{
-        await Promise.race([
-          (async ()=>{
-            await loadCollections();
-            await loadSeriesList();
-            await loadDecks();
-          })(),
-          timeout(15000, 'Loading your decks')
-        ]);
-        updateHeaderLabel();
-        render();
-      }, 450);
+      await Promise.race([
+        Promise.all([
+          attachLiveCollections(),
+          attachLiveSeries(),
+          attachLiveDecks()
+        ]),
+        timeout(15000, 'Loading your decks')
+      ]);
+      await migrateDeckCollectionIds();
+
+      // Keep the spinner up for a beat even on a fast connection, so the
+      // load doesn't feel like a jarring instant flash.
+      const elapsed = Date.now() - startedAt;
+      if(elapsed < 900) await delay(900 - elapsed);
+
+      updateHeaderLabel();
+      render();
+      hideLoading();
     }catch(e){
+      hideLoading();
       console.error('Startup error', e);
       appInitialized = false;
+      clearSnapshotListeners();
       const isPermissionError = e && (e.code === 'permission-denied' || /permission/i.test(e.message||''));
       content.innerHTML = `<div class="empty-state">
         <h2>Couldn't load your group's data</h2>
@@ -2505,6 +2678,7 @@
   // ---------- Groups ----------
   const groupSetupScreen = $('groupSetupScreen');
   const groupSetupError = $('groupSetupError');
+  const btnGroupSetupClose = $('btnGroupSetupClose');
   const joinCodeInput = $('joinCodeInput');
   const btnJoinGroup = $('btnJoinGroup');
   const createGroupNameInput = $('createGroupNameInput');
@@ -2523,6 +2697,18 @@
   const shareCodeArea = $('shareCodeArea');
   const btnGenerateCode = $('btnGenerateCode');
   const btnDrawerSignOut = $('btnDrawerSignOut');
+  const myGroupsList = $('myGroupsList');
+  const btnDrawerNewGroup = $('btnDrawerNewGroup');
+  const btnDrawerJoinGroup = $('btnDrawerJoinGroup');
+  const drawerNewGroupRow = $('drawerNewGroupRow');
+  const drawerNewGroupInput = $('drawerNewGroupInput');
+  const btnDrawerConfirmNewGroup = $('btnDrawerConfirmNewGroup');
+  const btnDrawerCancelNewGroup = $('btnDrawerCancelNewGroup');
+  const drawerJoinGroupRow = $('drawerJoinGroupRow');
+  const drawerJoinCodeInput = $('drawerJoinCodeInput');
+  const btnDrawerConfirmJoinGroup = $('btnDrawerConfirmJoinGroup');
+  const btnDrawerCancelJoinGroup = $('btnDrawerCancelJoinGroup');
+  const drawerGroupError = $('drawerGroupError');
 
   let shareCodeTimer = null;
 
@@ -2540,8 +2726,19 @@
     clearGroupSetupError();
     joinCodeInput.value = '';
     createGroupNameInput.value = '';
+    // Only offer a way back if we already have a loaded group to return
+    // to (e.g. a transient error brought the user here) — on true
+    // first-time setup there's nowhere valid to go back to yet.
+    btnGroupSetupClose.style.display = (currentGroup && currentMember) ? 'flex' : 'none';
     groupSetupScreen.style.display = 'flex';
   }
+
+  btnGroupSetupClose.addEventListener('click', ()=>{
+    if(currentGroup && currentMember){
+      groupSetupScreen.style.display = 'none';
+      appRoot.style.display = 'block';
+    }
+  });
 
   async function enterGroup(groupId){
     setGroupScopedCollections(groupId);
@@ -2697,11 +2894,133 @@
     });
   }
 
+  function hideDrawerGroupForms(){
+    drawerNewGroupRow.style.display = 'none';
+    drawerJoinGroupRow.style.display = 'none';
+    drawerGroupError.style.display = 'none';
+    drawerNewGroupInput.value = '';
+    drawerJoinCodeInput.value = '';
+  }
+
+  function showDrawerGroupError(msg){
+    drawerGroupError.textContent = msg;
+    drawerGroupError.style.display = 'block';
+  }
+
+  async function switchToGroup(groupId){
+    if(currentGroup && groupId === currentGroup.id){ closeGroupDrawer(); return; }
+    try{
+      await setUserGroup(currentUser.uid, groupId);
+      closeGroupDrawer();
+      appInitialized = false;
+      await enterGroup(groupId);
+    }catch(e){
+      alert('Could not switch to that group. Please try again.');
+      console.error(e);
+    }
+  }
+
+  async function renderMyGroupsList(){
+    myGroupsList.innerHTML = '<div style="color:var(--muted-2);font-family:var(--font-ui);font-size:0.82rem;padding:6px 2px;">Loading…</div>';
+    let memberships = [];
+    try{
+      memberships = await listMyMemberships(currentUser.uid);
+    }catch(e){
+      console.error(e);
+      myGroupsList.innerHTML = '';
+      return;
+    }
+
+    const rows = [];
+    for(const m of memberships){
+      const stillIn = await verifyMembership(m.groupId, currentUser.uid);
+      if(!stillIn) continue;
+      let group = null;
+      try{ group = await loadGroup(m.groupId); }catch(e){ /* skip */ }
+      if(!group) continue;
+      rows.push({ groupId: m.groupId, name: group.name, role: m.role });
+    }
+
+    myGroupsList.innerHTML = '';
+    rows.forEach(r=>{
+      const item = document.createElement('div');
+      item.className = 'collection-item my-group-item';
+      item.dataset.active = (currentGroup && r.groupId === currentGroup.id) ? 'true' : 'false';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'name';
+      nameSpan.textContent = r.name;
+      item.appendChild(nameSpan);
+
+      const roleHint = document.createElement('span');
+      roleHint.className = 'role-hint';
+      roleHint.textContent = r.role === 'leader' ? 'Leader' : 'Member';
+      item.appendChild(roleHint);
+
+      item.addEventListener('click', ()=> switchToGroup(r.groupId));
+      myGroupsList.appendChild(item);
+    });
+  }
+
+  btnDrawerNewGroup.addEventListener('click', ()=>{
+    hideDrawerGroupForms();
+    drawerNewGroupRow.style.display = 'flex';
+    setTimeout(()=> drawerNewGroupInput.focus(), 30);
+  });
+  btnDrawerCancelNewGroup.addEventListener('click', hideDrawerGroupForms);
+
+  btnDrawerJoinGroup.addEventListener('click', ()=>{
+    hideDrawerGroupForms();
+    drawerJoinGroupRow.style.display = 'flex';
+    setTimeout(()=> drawerJoinCodeInput.focus(), 30);
+  });
+  btnDrawerCancelJoinGroup.addEventListener('click', hideDrawerGroupForms);
+
+  btnDrawerConfirmNewGroup.addEventListener('click', async ()=>{
+    const name = drawerNewGroupInput.value.trim();
+    drawerGroupError.style.display = 'none';
+    if(!name){ showDrawerGroupError('Give your new group a name.'); return; }
+    btnDrawerConfirmNewGroup.disabled = true;
+    try{
+      const groupId = await Promise.race([createGroup(name, currentUser), timeout(15000, 'Creating the group')]);
+      hideDrawerGroupForms();
+      closeGroupDrawer();
+      appInitialized = false;
+      await enterGroup(groupId);
+    }catch(e){
+      showDrawerGroupError(e.message || 'Could not create that group. Please try again.');
+      console.error(e);
+    }finally{
+      btnDrawerConfirmNewGroup.disabled = false;
+    }
+  });
+  drawerNewGroupInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnDrawerConfirmNewGroup.click(); });
+
+  btnDrawerConfirmJoinGroup.addEventListener('click', async ()=>{
+    drawerGroupError.style.display = 'none';
+    btnDrawerConfirmJoinGroup.disabled = true;
+    try{
+      const groupId = await Promise.race([redeemShareCode(drawerJoinCodeInput.value, currentUser), timeout(15000, 'Joining the group')]);
+      hideDrawerGroupForms();
+      closeGroupDrawer();
+      appInitialized = false;
+      await enterGroup(groupId);
+    }catch(e){
+      showDrawerGroupError(e.message || 'Could not join that group. Please try again.');
+      console.error(e);
+    }finally{
+      btnDrawerConfirmJoinGroup.disabled = false;
+    }
+  });
+  drawerJoinCodeInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnDrawerConfirmJoinGroup.click(); });
+
   function openGroupDrawer(){
     groupNameInput.value = currentGroup ? currentGroup.name : '';
     groupNameInput.disabled = !isLeader();
     btnSaveGroupName.style.display = isLeader() ? 'inline-block' : 'none';
     renderMemberList();
+    hideDrawerGroupForms();
+    renderMyGroupsList();
     shareCodeArea.innerHTML = '';
     btnGenerateCode.style.display = isLeader() ? 'block' : 'none';
     btnGenerateCode.textContent = 'Generate Share Code';
@@ -2775,6 +3094,7 @@
       })();
     } else {
       // Signed out: reset everything so a fresh sign-in starts clean.
+      clearSnapshotListeners();
       currentUser = null;
       currentGroup = null;
       currentMember = null;
