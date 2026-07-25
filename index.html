@@ -24,8 +24,10 @@
     getFirestore,
     collection,
     doc,
+    getDoc,
     getDocs,
     setDoc,
+    updateDoc,
     deleteDoc,
     query,
     orderBy
@@ -62,8 +64,10 @@
     signOut,
     collection,
     doc,
+    getDoc,
     getDocs,
     setDoc,
+    updateDoc,
     deleteDoc,
     query,
     orderBy
@@ -838,14 +842,14 @@
   }
   .btn-signout:hover{ border-color: var(--gold-soft); color: var(--ink); }
 
-  /* ---------- Profile chip (header) ---------- */
-  .profile-chip{
+  /* ---------- Group chip (header) ---------- */
+  .group-chip{
     display:flex;
     align-items:center;
     gap: 8px;
     background: var(--surface);
     border: 1px solid var(--line);
-    padding: 5px 12px 5px 5px;
+    padding: 8px 14px;
     border-radius: 999px;
     color: var(--ink);
     font-family: var(--font-ui);
@@ -853,114 +857,65 @@
     font-weight: 600;
     transition: border-color 0.15s ease;
     white-space: nowrap;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .profile-chip:hover{ border-color: var(--gold-soft); }
-  .profile-avatar{
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    display:flex; align-items:center; justify-content:center;
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 0.78rem;
-    color: #0f1115;
-    flex-shrink: 0;
-  }
+  .group-chip:hover{ border-color: var(--gold-soft); }
 
-  /* ---------- Profile picker screen ---------- */
-  .profile-screen{
+  /* ---------- Group setup screen (create / join) ---------- */
+  .group-setup-screen{
     min-height: 100vh;
     display:none;
     align-items:center;
     justify-content:center;
     padding: 24px;
   }
-  .profile-screen-card{
+  .group-setup-card{
     width: 100%;
-    max-width: 520px;
+    max-width: 420px;
+  }
+  .group-setup-card h1{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    color: var(--ink);
     text-align:center;
   }
-  .profile-screen-card h1{
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 1.6rem;
-    margin: 0 0 8px;
-    color: var(--ink);
-  }
-  .profile-screen-card h1 span{ color: var(--gold); }
-  .profile-screen-card p.profile-sub{
-    margin: 0 0 30px;
+  .group-setup-card h1 span{ color: var(--gold); }
+  .group-setup-card > p.group-setup-sub{
+    margin: 0 0 26px;
     color: var(--muted);
     font-family: var(--font-body);
-    font-size: 0.92rem;
+    font-size: 0.9rem;
+    text-align:center;
   }
-  .profile-grid{
-    display:flex;
-    flex-wrap: wrap;
-    gap: 18px;
-    justify-content:center;
-    margin-bottom: 26px;
-  }
-  .profile-tile{
-    position: relative;
-    width: 108px;
-    background: none;
-    border: none;
-    color: var(--ink);
-    display:flex;
-    flex-direction: column;
-    align-items:center;
-    gap: 10px;
-    padding: 6px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: transform 0.15s ease;
-  }
-  .profile-tile:hover{ transform: translateY(-2px); }
-  .profile-tile .profile-avatar-lg{
-    width: 76px; height: 76px;
-    border-radius: 18px;
-    display:flex; align-items:center; justify-content:center;
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 1.6rem;
-    color: #0f1115;
-    border: 2px solid transparent;
-    transition: border-color 0.15s ease;
-  }
-  .profile-tile:hover .profile-avatar-lg{ border-color: var(--gold); }
-  .profile-tile .profile-tile-name{
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    color: var(--muted);
-    max-width: 100px;
-    overflow:hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .profile-tile:hover .profile-tile-name{ color: var(--ink); }
-  .profile-tile .profile-del-btn{
-    position:absolute;
-    top: -4px; right: 10px;
-    background: var(--surface-3);
+  .group-setup-block{
+    background: var(--surface-2);
     border: 1px solid var(--line);
-    color: var(--muted-2);
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    font-size: 0.7rem;
-    display:flex; align-items:center; justify-content:center;
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+    border-radius: 16px;
+    padding: 22px 20px;
+    margin-bottom: 18px;
   }
-  .profile-tile:hover .profile-del-btn{ opacity: 1; }
-  .profile-del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
-
-  .profile-add-row{
+  .group-setup-block h2{
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--ink);
+  }
+  .group-setup-block p{
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.86rem;
+  }
+  .group-setup-block .field-row{
     display:flex;
     gap: 8px;
-    max-width: 340px;
-    margin: 0 auto 22px;
   }
-  .profile-add-row input{
+  .group-setup-block input{
     flex:1;
     background: var(--surface-3);
     border: 1px solid var(--line);
@@ -968,37 +923,171 @@
     padding: 10px 12px;
     border-radius: 9px;
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: 0.94rem;
     outline: none;
   }
-  .profile-add-row input:focus{ border-color: var(--gold); }
-  .profile-add-row button{
+  .group-setup-block input:focus{ border-color: var(--gold); }
+  .group-setup-block input.code-input{
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+  .group-setup-block button{
     background: var(--gold);
     color: #0f1115;
     border: none;
-    padding: 10px 16px;
+    padding: 10px 18px;
     border-radius: 9px;
     font-weight: 600;
-    font-size: 0.86rem;
+    font-size: 0.88rem;
     white-space: nowrap;
   }
-
-  .profile-screen-footer{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap: 16px;
+  .group-setup-block button:disabled{ opacity: 0.6; }
+  .group-setup-divider{
+    text-align:center;
+    color: var(--muted-2);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 6px 0 18px;
+  }
+  .group-setup-error{
+    color: #e77a6a;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    margin: -6px 0 14px;
+    display:none;
+  }
+  .group-setup-footer{
+    text-align:center;
     font-family: var(--font-ui);
     font-size: 0.82rem;
   }
-  .profile-back-link{
-    background:none; border:none; color: var(--muted); text-decoration: underline;
-  }
-  .profile-back-link:hover{ color: var(--ink); }
-  .profile-signout-link{
+  .group-setup-footer button{
     background:none; border:none; color: var(--muted-2); text-decoration: underline;
+    padding:0; font-size: 0.82rem;
   }
-  .profile-signout-link:hover{ color: #e77a6a; }
+  .group-setup-footer button:hover{ color: #e77a6a; }
+
+  /* ---------- Group management drawer ---------- */
+  .group-name-row{
+    display:flex; gap: 8px; margin-bottom: 18px;
+  }
+  .group-name-row input{
+    flex:1; background: var(--surface-3); border: 1px solid var(--line);
+    color: var(--ink); padding: 9px 11px; border-radius: 8px;
+    font-family: var(--font-ui); font-size: 0.92rem; outline: none;
+  }
+  .group-name-row input:focus{ border-color: var(--gold); }
+  .group-name-row input:disabled{ color: var(--muted); }
+  .group-name-row button{
+    background: var(--gold); color: #0f1115; border: none;
+    padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .group-section-label{
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin: 20px 0 10px;
+  }
+  .member-row{
+    display:flex; align-items:center; gap: 8px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    margin-bottom: 6px;
+  }
+  .member-row input{
+    flex:1; min-width: 0; background: transparent; border: none;
+    color: var(--ink); font-family: var(--font-ui); font-size: 0.9rem; outline: none;
+    padding: 3px 4px; border-radius: 5px;
+  }
+  .member-row input:focus{ background: var(--surface-3); }
+  .member-row input:disabled{ color: var(--muted); }
+  .member-role-tag{
+    font-family: var(--font-ui);
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: var(--gold);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .member-row .del-btn{
+    background: none; border: none; color: var(--muted-2);
+    font-size: 0.85rem; padding: 3px 7px; border-radius: 6px; flex-shrink: 0;
+  }
+  .member-row .del-btn:hover{ color: #e77a6a; background: #e77a6a18; }
+  .share-code-box{
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    text-align:center;
+    margin-bottom: 10px;
+  }
+  .share-code-value{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .share-code-expiry{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--muted-2);
+  }
+  .btn-drawer-secondary{
+    width: 100%;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .btn-drawer-secondary:hover{ border-color: var(--gold-soft); }
+  .btn-drawer-danger{
+    width: 100%;
+    background: none;
+    border: 1px solid var(--line);
+    color: #e77a6a;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 10px;
+    border-radius: 8px;
+  }
+  .btn-drawer-danger:hover{ border-color: #e77a6a; background: #e77a6a18; }
+
+  /* ---------- Deck owner tag ---------- */
+  .owner-tag{
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--muted-2);
+  }
 </style>
 </head>
 <body>
@@ -1027,27 +1116,67 @@
   </div>
 </div>
 
-<!-- Profile Picker Screen -->
-<div class="profile-screen" id="profileScreen">
-  <div class="profile-screen-card">
-    <h1>Who's <span>playing?</span></h1>
-    <p class="profile-sub" id="profileSub">Pick a profile, or add a new one for the family.</p>
+<!-- Group Setup Screen (create or join) -->
+<div class="group-setup-screen" id="groupSetupScreen">
+  <div class="group-setup-card">
+    <h1>Join a <span>Group</span></h1>
+    <p class="group-setup-sub">Decks are shared within a group. Create one, or join with a share code.</p>
 
-    <div class="profile-grid" id="profileGrid"></div>
+    <div class="group-setup-error" id="groupSetupError"></div>
 
-    <div class="profile-add-row" id="profileAddRow">
-      <input type="text" id="newProfileInput" placeholder="New profile name…">
-      <button type="button" id="btnAddProfile">Add</button>
+    <div class="group-setup-block">
+      <h2>Join a group</h2>
+      <p>Ask the group leader for their 6-character share code.</p>
+      <div class="field-row">
+        <input type="text" id="joinCodeInput" class="code-input" placeholder="ABC123" maxlength="6">
+        <button type="button" id="btnJoinGroup">Join</button>
+      </div>
     </div>
 
-    <div class="profile-screen-footer">
-      <button type="button" class="profile-back-link" id="btnProfileBack" style="display:none;">Back to app</button>
-      <button type="button" class="profile-signout-link" id="btnProfileSignOut">Sign out</button>
+    <div class="group-setup-divider">— or —</div>
+
+    <div class="group-setup-block">
+      <h2>Create a new group</h2>
+      <p>You'll be the group's leader, with editing rights over every member's decks.</p>
+      <div class="field-row">
+        <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family">
+        <button type="button" id="btnCreateGroup">Create</button>
+      </div>
+    </div>
+
+    <div class="group-setup-footer">
+      <button type="button" id="btnGroupSetupSignOut">Sign out</button>
     </div>
   </div>
 </div>
 
+<!-- Group Management Drawer -->
+<div class="drawer-overlay" id="groupDrawerOverlay">
+  <div class="drawer-panel" id="groupDrawerPanel">
+    <div class="drawer-header">
+      <h3>Manage Group</h3>
+      <button class="drawer-close" id="groupDrawerClose">✕</button>
+    </div>
+
+    <div class="group-name-row">
+      <input type="text" id="groupNameInput" placeholder="Group name">
+      <button type="button" id="btnSaveGroupName">Save</button>
+    </div>
+
+    <div class="group-section-label">Members</div>
+    <div class="collection-list" id="memberList"></div>
+
+    <div class="group-section-label">Invite</div>
+    <div id="shareCodeArea"></div>
+    <button type="button" class="btn-drawer-secondary" id="btnGenerateCode" style="display:none;">Generate Share Code</button>
+
+    <div class="group-section-label">Account</div>
+    <button type="button" class="btn-drawer-danger" id="btnDrawerSignOut">Sign Out</button>
+  </div>
+</div>
+
 <div class="wrap" id="appRoot">
+
   <header>
     <div class="header-left">
       <button class="menu-btn" id="btnMenu" title="Switch collection">☰</button>
@@ -1058,10 +1187,7 @@
       </div>
     </div>
     <div class="account-badge">
-      <button class="profile-chip" id="btnProfileChip" title="Switch profile or sign out">
-        <span class="profile-avatar" id="profileChipAvatar"></span>
-        <span id="profileChipName">Profile</span>
-      </button>
+      <button class="group-chip" id="btnGroupChip" title="Manage group">👥 <span id="groupChipName">Group</span></button>
       <button class="btn-new" id="btnNewDeck">+ New Deck</button>
     </div>
   </header>
@@ -1222,12 +1348,17 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          signOut, collection, doc, getDocs, setDoc, deleteDoc, query, orderBy } = fb;
+          signOut, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } = fb;
 
-  const COLLECTIONS_COL = collection(db, 'familyData', 'shared', 'collections');
-  const SERIES_COL = collection(db, 'familyData', 'shared', 'series');
-  const DECKS_COL = collection(db, 'familyData', 'shared', 'decks');
-  const PROFILES_COL = collection(db, 'familyData', 'shared', 'profiles');
+  const USERS_COL = collection(db, 'users');
+  const GROUPS_COL = collection(db, 'groups');
+  const SHARE_CODES_COL = collection(db, 'shareCodes');
+
+  // These are set once the signed-in user's group is known (see enterGroup()).
+  let COLLECTIONS_COL = null;
+  let SERIES_COL = null;
+  let DECKS_COL = null;
+  let MEMBERS_COL = null;
 
   const COLORS = [
     { key:'W', name:'White', varName:'--w' },
@@ -1279,8 +1410,10 @@
   let decks = [];
   let collections = [];
   let seriesList = [];
-  let profiles = [];
-  let activeProfileId = null;
+  let members = [];
+  let currentUser = null;   // Firebase Auth user object
+  let currentGroup = null;  // { id, name, leaderUid }
+  let currentMember = null; // this user's row in `members`, e.g. { uid, displayName, role }
   let activeCollectionId = null;
   let activeFilters = new Set(); // color keys only (W/U/B/R/G)
   let activeBuildFilters = new Set(); // build type keys: homemade/precon/edited
@@ -1441,31 +1574,120 @@
     await deleteDoc(doc(DECKS_COL, id));
   }
 
-  // ---------- Storage: profiles (Firestore) ----------
-  const PROFILE_COLORS = ['var(--gold)', 'var(--u)', 'var(--g)', 'var(--r)', 'var(--w)', 'var(--b)'];
+  // ---------- Storage: users ----------
+  async function ensureUserDoc(user){
+    const ref = doc(USERS_COL, user.uid);
+    const snap = await getDoc(ref);
+    if(snap.exists()) return snap.data();
+    const displayName = (user.email || 'Player').split('@')[0];
+    const data = { uid: user.uid, email: user.email || '', displayName, groupId: null, createdAt: Date.now() };
+    await setDoc(ref, data);
+    return data;
+  }
 
-  async function loadProfiles(){
-    const snap = await getDocs(query(PROFILES_COL, orderBy('createdAt')));
+  async function setUserGroup(uid, groupId){
+    await updateDoc(doc(USERS_COL, uid), { groupId });
+  }
+
+  // ---------- Storage: groups & members ----------
+  function groupSubcollection(groupId, name){
+    return collection(db, 'groups', groupId, name);
+  }
+
+  function setGroupScopedCollections(groupId){
+    COLLECTIONS_COL = groupSubcollection(groupId, 'collections');
+    SERIES_COL = groupSubcollection(groupId, 'series');
+    DECKS_COL = groupSubcollection(groupId, 'decks');
+    MEMBERS_COL = groupSubcollection(groupId, 'members');
+  }
+
+  async function createGroup(name, user){
+    const groupId = 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    const groupData = { id: groupId, name, leaderUid: user.uid, createdAt: Date.now() };
+    await setDoc(doc(GROUPS_COL, groupId), groupData);
+    const memberData = { uid: user.uid, displayName: (user.email || 'Leader').split('@')[0], email: user.email || '', role: 'leader', joinedAt: Date.now() };
+    await setDoc(doc(groupSubcollection(groupId, 'members'), user.uid), memberData);
+    await setUserGroup(user.uid, groupId);
+    return groupId;
+  }
+
+  async function loadGroup(groupId){
+    const snap = await getDoc(doc(GROUPS_COL, groupId));
+    return snap.exists() ? snap.data() : null;
+  }
+
+  async function renameGroup(groupId, name){
+    await updateDoc(doc(GROUPS_COL, groupId), { name });
+    currentGroup.name = name;
+  }
+
+  async function loadMembers(groupId){
+    const snap = await getDocs(query(groupSubcollection(groupId, 'members'), orderBy('joinedAt')));
     const results = [];
     snap.forEach(d => results.push(d.data()));
-    profiles = results;
+    return results;
   }
 
-  async function addProfile(name){
-    const color = PROFILE_COLORS[profiles.length % PROFILE_COLORS.length];
-    const entry = { id: 'pr_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, color, createdAt: Date.now() };
-    await setDoc(doc(PROFILES_COL, entry.id), entry);
-    profiles.push(entry);
-    return entry;
+  async function renameMember(groupId, uid, name){
+    await updateDoc(doc(groupSubcollection(groupId, 'members'), uid), { displayName: name });
   }
 
-  async function deleteProfile(id){
-    await deleteDoc(doc(PROFILES_COL, id));
-    profiles = profiles.filter(p => p.id !== id);
+  async function removeMember(groupId, uid){
+    await deleteDoc(doc(groupSubcollection(groupId, 'members'), uid));
   }
 
-  function profileInitial(name){
+  // ---------- Storage: share codes ----------
+  const SHARE_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — avoids look-alike mix-ups
+  function randomShareCode(){
+    let code = '';
+    for(let i = 0; i < 6; i++) code += SHARE_CODE_CHARS[Math.floor(Math.random() * SHARE_CODE_CHARS.length)];
+    return code;
+  }
+
+  async function generateShareCode(groupId){
+    // Tries a handful of random codes, skipping any that collide with another
+    // code that's still active, so two live codes never match.
+    for(let attempt = 0; attempt < 6; attempt++){
+      const candidate = randomShareCode();
+      const ref = doc(SHARE_CODES_COL, candidate);
+      const snap = await getDoc(ref);
+      if(!snap.exists() || snap.data().expiresAt < Date.now()){
+        const data = { code: candidate, groupId, createdAt: Date.now(), expiresAt: Date.now() + 30 * 60 * 1000 };
+        await setDoc(ref, data);
+        return data;
+      }
+    }
+    throw new Error('Could not generate a unique code right now — please try again.');
+  }
+
+  async function redeemShareCode(rawCode, user){
+    const code = (rawCode || '').trim().toUpperCase();
+    if(!code) throw new Error('Enter a share code.');
+    const snap = await getDoc(doc(SHARE_CODES_COL, code));
+    if(!snap.exists()) throw new Error("That code doesn't exist. Double-check it and try again.");
+    const data = snap.data();
+    if(data.expiresAt < Date.now()) throw new Error('That code has expired. Ask the group leader for a new one.');
+    const memberData = { uid: user.uid, displayName: (user.email || 'Player').split('@')[0], email: user.email || '', role: 'member', joinedAt: Date.now() };
+    await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
+    await setUserGroup(user.uid, data.groupId);
+    return data.groupId;
+  }
+
+  function initialOf(name){
     return (name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  function ownerDisplayName(uid){
+    const m = members.find(x => x.uid === uid);
+    return m ? m.displayName : null;
+  }
+
+  function isLeader(){
+    return !!(currentGroup && currentUser && currentGroup.leaderUid === currentUser.uid);
+  }
+
+  function canEditDeck(deck){
+    return isLeader() || !!(deck && deck.ownerUid && currentUser && deck.ownerUid === currentUser.uid);
   }
 
   // ---------- Header ----------
@@ -1621,6 +1843,16 @@
         metaRow.appendChild(buildTag);
       }
 
+      if(deck.ownerUid){
+        const ownerName = ownerDisplayName(deck.ownerUid) || (deck.ownerName || null);
+        if(ownerName){
+          const ownerTag = document.createElement('div');
+          ownerTag.className = 'owner-tag';
+          ownerTag.textContent = deck.ownerUid === (currentUser && currentUser.uid) ? 'You' : ownerName;
+          metaRow.appendChild(ownerTag);
+        }
+      }
+
       if(metaRow.children.length) card.appendChild(metaRow);
 
       const pipRow = document.createElement('div');
@@ -1656,7 +1888,15 @@
     if(deck.buildType) subtitleParts.push(buildTypeName(deck.buildType));
     if(series) subtitleParts.push(series.name);
     if(col) subtitleParts.push(col.name);
+    if(deck.ownerUid){
+      const ownerName = ownerDisplayName(deck.ownerUid) || deck.ownerName;
+      if(ownerName) subtitleParts.push(deck.ownerUid === (currentUser && currentUser.uid) ? 'Your deck' : `${ownerName}'s deck`);
+    }
     $('infoCollection').textContent = subtitleParts.join(' • ');
+
+    const canEdit = canEditDeck(deck);
+    $('infoEdit').style.display = canEdit ? '' : 'none';
+    $('infoDelete').style.display = canEdit ? '' : 'none';
 
     const identityWrap = $('infoIdentity');
     identityWrap.innerHTML = '';
@@ -1702,6 +1942,7 @@
     if(!currentInfoId) return;
     const deck = decks.find(d=>d.id===currentInfoId);
     if(!deck) return;
+    if(!canEditDeck(deck)){ alert("You can only edit or delete your own decks."); return; }
     if(!confirm(`Delete "${deck.name}"? This can't be undone.`)) return;
     try{
       await deleteDeck(currentInfoId);
@@ -1885,6 +2126,13 @@
   });
 
   function openForm(idToEdit){
+    if(idToEdit){
+      const existing = decks.find(d=>d.id===idToEdit);
+      if(existing && !canEditDeck(existing)){
+        alert("You can only edit or delete your own decks.");
+        return;
+      }
+    }
     editingId = idToEdit || null;
     $('formError').style.display = 'none';
     const selected = new Set();
@@ -1979,6 +2227,13 @@
     try{
       if(editingId){
         const deck = decks.find(d=>d.id===editingId);
+        if(!canEditDeck(deck)){
+          errorEl.textContent = 'You can only edit your own decks.';
+          errorEl.style.display = 'block';
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Deck';
+          return;
+        }
         deck.name = name;
         deck.description = description;
         deck.colors = selectedColors;
@@ -1998,6 +2253,8 @@
           collectionId: collectionId,
           seriesId: seriesId,
           buildType: buildType,
+          ownerUid: currentUser.uid,
+          ownerName: currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0],
           createdAt: Date.now()
         };
         await saveDeck(deck);
@@ -2118,6 +2375,7 @@
       closeInfo();
       closeForm();
       closeDrawer();
+      closeGroupDrawer();
     }
   });
 
@@ -2149,9 +2407,9 @@
       appInitialized = false;
       const isPermissionError = e && (e.code === 'permission-denied' || /permission/i.test(e.message||''));
       content.innerHTML = `<div class="empty-state">
-        <h2>Couldn't load your family data</h2>
+        <h2>Couldn't load your group's data</h2>
         <p>${isPermissionError
-          ? 'Firestore rejected the request. Make sure your Firestore security rules allow signed-in users to read and write under familyData/shared, and that you\'ve saved/published those rules.'
+          ? 'Firestore rejected the request. Make sure your security rules allow group members to read and write under groups/{groupId}, and that you\'ve published those rules.'
           : 'Something went wrong talking to Firebase. Check the browser console (F12) for the exact error, then refresh the page to try again.'}</p>
       </div>`;
     }
@@ -2175,14 +2433,14 @@
     authError.style.display = 'none';
     if(mode === 'signup'){
       btnAuthSubmit.textContent = 'Create Account';
-      authSub.textContent = 'Set up the family login for Deck Codex.';
+      authSub.textContent = 'Create your own Deck Codex account, then create or join a group.';
       authToggleText.textContent = 'Already have an account?';
       btnAuthToggleMode.textContent = 'Sign in instead';
       authPassword.setAttribute('autocomplete', 'new-password');
     } else {
       btnAuthSubmit.textContent = 'Sign In';
-      authSub.textContent = 'Sign in to your family account to see your decks.';
-      authToggleText.textContent = 'New to this family collection?';
+      authSub.textContent = 'Sign in to your Deck Codex account.';
+      authToggleText.textContent = 'New here?';
       btnAuthToggleMode.textContent = 'Create an account';
       authPassword.setAttribute('autocomplete', 'current-password');
     }
@@ -2244,192 +2502,296 @@
 
   setAuthMode('signin');
 
-  // ---------- Profiles ----------
-  const ACTIVE_PROFILE_KEY = 'ui:active-profile';
-  const profileScreen = $('profileScreen');
-  const profileGrid = $('profileGrid');
-  const profileSub = $('profileSub');
-  const newProfileInput = $('newProfileInput');
-  const profileAddRow = $('profileAddRow');
-  const btnAddProfile = $('btnAddProfile');
-  const btnProfileBack = $('btnProfileBack');
-  const btnProfileSignOut = $('btnProfileSignOut');
-  const btnProfileChip = $('btnProfileChip');
-  const profileChipAvatar = $('profileChipAvatar');
-  const profileChipName = $('profileChipName');
+  // ---------- Groups ----------
+  const groupSetupScreen = $('groupSetupScreen');
+  const groupSetupError = $('groupSetupError');
+  const joinCodeInput = $('joinCodeInput');
+  const btnJoinGroup = $('btnJoinGroup');
+  const createGroupNameInput = $('createGroupNameInput');
+  const btnCreateGroup = $('btnCreateGroup');
+  const btnGroupSetupSignOut = $('btnGroupSetupSignOut');
 
-  function updateProfileScreenChrome(){
-    profileSub.textContent = profiles.length
-      ? 'Pick a profile, or add a new one for the family.'
-      : 'Add the first profile to get started.';
-    profileAddRow.style.display = '';
-    btnProfileBack.style.display = (appInitialized && activeProfileId) ? 'inline' : 'none';
+  const groupChipName = $('groupChipName');
+  const btnGroupChip = $('btnGroupChip');
+
+  const groupDrawerOverlay = $('groupDrawerOverlay');
+  const groupDrawerPanel = $('groupDrawerPanel');
+  const groupDrawerClose = $('groupDrawerClose');
+  const groupNameInput = $('groupNameInput');
+  const btnSaveGroupName = $('btnSaveGroupName');
+  const memberList = $('memberList');
+  const shareCodeArea = $('shareCodeArea');
+  const btnGenerateCode = $('btnGenerateCode');
+  const btnDrawerSignOut = $('btnDrawerSignOut');
+
+  let shareCodeTimer = null;
+
+  function showGroupSetupError(msg){
+    groupSetupError.textContent = msg;
+    groupSetupError.style.display = 'block';
+  }
+  function clearGroupSetupError(){
+    groupSetupError.style.display = 'none';
   }
 
-  function renderProfileGrid(){
-    profileGrid.innerHTML = '';
-    profiles.forEach(p=>{
-      const tile = document.createElement('div');
-      tile.className = 'profile-tile';
-
-      const avatar = document.createElement('div');
-      avatar.className = 'profile-avatar-lg';
-      avatar.style.background = p.color || 'var(--gold)';
-      avatar.textContent = profileInitial(p.name);
-      tile.appendChild(avatar);
-
-      const name = document.createElement('div');
-      name.className = 'profile-tile-name';
-      name.textContent = p.name;
-      tile.appendChild(name);
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'profile-del-btn';
-      delBtn.textContent = '✕';
-      delBtn.title = 'Delete this profile';
-      delBtn.addEventListener('click', async (e)=>{
-        e.stopPropagation();
-        if(!confirm(`Delete the "${p.name}" profile?`)) return;
-        try{
-          await deleteProfile(p.id);
-          if(activeProfileId === p.id){
-            activeProfileId = null;
-            try{ localStorage.removeItem(ACTIVE_PROFILE_KEY); }catch(err){ /* non-fatal */ }
-          }
-          renderProfileGrid();
-          updateProfileScreenChrome();
-        }catch(err){
-          alert('Could not delete that profile. Please try again.');
-          console.error(err);
-        }
-      });
-      tile.appendChild(delBtn);
-
-      tile.addEventListener('click', ()=> chooseProfile(p.id));
-      profileGrid.appendChild(tile);
-    });
-  }
-
-  function showProfileScreen(){
+  function showGroupSetupScreen(){
     authScreen.style.display = 'none';
     appRoot.style.display = 'none';
-    renderProfileGrid();
-    updateProfileScreenChrome();
-    profileScreen.style.display = 'flex';
+    clearGroupSetupError();
+    joinCodeInput.value = '';
+    createGroupNameInput.value = '';
+    groupSetupScreen.style.display = 'flex';
   }
 
-  function updateProfileChip(){
-    const p = profiles.find(x => x.id === activeProfileId);
-    if(p){
-      profileChipAvatar.style.background = p.color || 'var(--gold)';
-      profileChipAvatar.textContent = profileInitial(p.name);
-      profileChipName.textContent = p.name;
+  async function enterGroup(groupId){
+    setGroupScopedCollections(groupId);
+    const [group, memberRows] = await Promise.all([loadGroup(groupId), loadMembers(groupId)]);
+    if(!group){
+      await setUserGroup(currentUser.uid, null);
+      showGroupSetupScreen();
+      showGroupSetupError('That group could not be found. Please create a new one or join with a code.');
+      return;
     }
-  }
-
-  function showApp(){
-    profileScreen.style.display = 'none';
+    currentGroup = group;
+    members = memberRows;
+    currentMember = members.find(m => m.uid === currentUser.uid) || null;
+    if(!currentMember){
+      // We're not (or no longer) a member — e.g. removed by the leader.
+      // Clear our own pointer (this is the one Firestore write we're always
+      // allowed to make on ourselves) and send us back to setup.
+      await setUserGroup(currentUser.uid, null);
+      showGroupSetupScreen();
+      showGroupSetupError("You're no longer a member of that group.");
+      return;
+    }
+    groupChipName.textContent = group.name;
+    groupSetupScreen.style.display = 'none';
     appRoot.style.display = 'block';
-    updateProfileChip();
     init();
   }
 
-  function chooseProfile(id){
-    activeProfileId = id;
-    try{ localStorage.setItem(ACTIVE_PROFILE_KEY, id); }catch(e){ /* non-fatal */ }
-    showApp();
-  }
-
-  btnAddProfile.addEventListener('click', async ()=>{
-    const name = newProfileInput.value.trim();
-    if(!name) return;
-    btnAddProfile.disabled = true;
+  btnCreateGroup.addEventListener('click', async ()=>{
+    const name = createGroupNameInput.value.trim();
+    clearGroupSetupError();
+    if(!name){ showGroupSetupError('Give your group a name.'); return; }
+    btnCreateGroup.disabled = true;
     try{
-      const entry = await addProfile(name);
-      newProfileInput.value = '';
-      chooseProfile(entry.id);
+      const groupId = await Promise.race([createGroup(name, currentUser), timeout(15000, 'Creating the group')]);
+      await enterGroup(groupId);
     }catch(e){
-      alert('Could not add that profile. Please try again.');
+      showGroupSetupError(e.message || 'Could not create that group. Please try again.');
       console.error(e);
     }finally{
-      btnAddProfile.disabled = false;
+      btnCreateGroup.disabled = false;
     }
   });
-  newProfileInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnAddProfile.click(); });
+  createGroupNameInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnCreateGroup.click(); });
 
-  btnProfileChip.addEventListener('click', ()=>{
-    showProfileScreen();
-  });
-
-  btnProfileBack.addEventListener('click', ()=>{
-    if(appInitialized && activeProfileId){
-      profileScreen.style.display = 'none';
-      appRoot.style.display = 'block';
+  btnJoinGroup.addEventListener('click', async ()=>{
+    clearGroupSetupError();
+    btnJoinGroup.disabled = true;
+    try{
+      const groupId = await Promise.race([redeemShareCode(joinCodeInput.value, currentUser), timeout(15000, 'Joining the group')]);
+      await enterGroup(groupId);
+    }catch(e){
+      showGroupSetupError(e.message || 'Could not join that group. Please try again.');
+      console.error(e);
+    }finally{
+      btnJoinGroup.disabled = false;
     }
   });
+  joinCodeInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') btnJoinGroup.click(); });
 
   async function doSignOut(){
-    try{
-      await signOut(auth);
-    }catch(e){
-      console.error(e);
-    }
+    try{ await signOut(auth); }catch(e){ console.error(e); }
   }
-  btnProfileSignOut.addEventListener('click', doSignOut);
+  btnGroupSetupSignOut.addEventListener('click', doSignOut);
+  btnDrawerSignOut.addEventListener('click', doSignOut);
+
+  // ---------- Group management drawer ----------
+  function formatCountdown(ms){
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function stopShareCodeTimer(){
+    if(shareCodeTimer){ clearInterval(shareCodeTimer); shareCodeTimer = null; }
+  }
+
+  function renderShareCode(codeData){
+    stopShareCodeTimer();
+    function paint(){
+      const remaining = codeData.expiresAt - Date.now();
+      if(remaining <= 0){
+        shareCodeArea.innerHTML = '';
+        btnGenerateCode.textContent = 'Generate Share Code';
+        stopShareCodeTimer();
+        return;
+      }
+      shareCodeArea.innerHTML = `
+        <div class="share-code-box">
+          <div class="share-code-value">${codeData.code}</div>
+          <div class="share-code-expiry">Expires in ${formatCountdown(remaining)} — single use while active</div>
+        </div>`;
+      btnGenerateCode.textContent = 'Generate New Code';
+    }
+    paint();
+    shareCodeTimer = setInterval(paint, 1000);
+  }
+
+  function renderMemberList(){
+    memberList.innerHTML = '';
+    members.forEach(m=>{
+      const row = document.createElement('div');
+      row.className = 'member-row';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = m.displayName;
+      const canRename = isLeader() || m.uid === currentUser.uid;
+      nameInput.disabled = !canRename;
+      nameInput.addEventListener('change', async ()=>{
+        const newName = nameInput.value.trim();
+        if(!newName || newName === m.displayName){ nameInput.value = m.displayName; return; }
+        try{
+          await renameMember(currentGroup.id, m.uid, newName);
+          m.displayName = newName;
+          if(m.uid === currentUser.uid && currentMember) currentMember.displayName = newName;
+          render();
+        }catch(e){
+          alert('Could not rename that member. Please try again.');
+          console.error(e);
+          nameInput.value = m.displayName;
+        }
+      });
+      row.appendChild(nameInput);
+
+      const roleTag = document.createElement('span');
+      roleTag.className = 'member-role-tag';
+      roleTag.textContent = m.role === 'leader' ? 'Leader' : 'Member';
+      row.appendChild(roleTag);
+
+      if(isLeader() && m.uid !== currentUser.uid){
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Remove from group';
+        delBtn.addEventListener('click', async ()=>{
+          if(!confirm(`Remove ${m.displayName} from the group? They'll lose access, but their decks stay in the group.`)) return;
+          try{
+            await removeMember(currentGroup.id, m.uid);
+            members = members.filter(x => x.uid !== m.uid);
+            renderMemberList();
+          }catch(e){
+            alert('Could not remove that member. Please try again.');
+            console.error(e);
+          }
+        });
+        row.appendChild(delBtn);
+      }
+
+      memberList.appendChild(row);
+    });
+  }
+
+  function openGroupDrawer(){
+    groupNameInput.value = currentGroup ? currentGroup.name : '';
+    groupNameInput.disabled = !isLeader();
+    btnSaveGroupName.style.display = isLeader() ? 'inline-block' : 'none';
+    renderMemberList();
+    shareCodeArea.innerHTML = '';
+    btnGenerateCode.style.display = isLeader() ? 'block' : 'none';
+    btnGenerateCode.textContent = 'Generate Share Code';
+    groupDrawerOverlay.classList.add('show');
+  }
+  function closeGroupDrawer(){
+    groupDrawerOverlay.classList.remove('show');
+    stopShareCodeTimer();
+  }
+
+  btnGroupChip.addEventListener('click', openGroupDrawer);
+  groupDrawerClose.addEventListener('click', closeGroupDrawer);
+  groupDrawerOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'groupDrawerOverlay') closeGroupDrawer(); });
+  groupDrawerPanel.addEventListener('click', (e)=> e.stopPropagation());
+
+  btnSaveGroupName.addEventListener('click', async ()=>{
+    if(!isLeader()) return;
+    const name = groupNameInput.value.trim();
+    if(!name) return;
+    btnSaveGroupName.disabled = true;
+    try{
+      await renameGroup(currentGroup.id, name);
+      groupChipName.textContent = name;
+    }catch(e){
+      alert('Could not rename the group. Please try again.');
+      console.error(e);
+    }finally{
+      btnSaveGroupName.disabled = false;
+    }
+  });
+
+  btnGenerateCode.addEventListener('click', async ()=>{
+    if(!isLeader()) return;
+    btnGenerateCode.disabled = true;
+    try{
+      const codeData = await generateShareCode(currentGroup.id);
+      renderShareCode(codeData);
+    }catch(e){
+      alert(e.message || 'Could not generate a code. Please try again.');
+      console.error(e);
+    }finally{
+      btnGenerateCode.disabled = false;
+    }
+  });
 
   onAuthStateChanged(auth, (user)=>{
    try{
     if(user){
+      currentUser = user;
       authScreen.style.display = 'none';
       (async ()=>{
         try{
-          await Promise.race([loadProfiles(), timeout(15000, 'Loading profiles')]);
-          let stored = null;
-          try{ stored = localStorage.getItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
-          if(stored && profiles.some(p => p.id === stored)){
-            activeProfileId = stored;
-            showApp();
+          const userDoc = await Promise.race([ensureUserDoc(user), timeout(15000, 'Loading your account')]);
+          if(userDoc.groupId){
+            try{
+              await enterGroup(userDoc.groupId);
+            }catch(e){
+              console.error('Could not enter group', e);
+              showGroupSetupScreen();
+              showGroupSetupError('Something went wrong loading your group. Check your connection and try again, or create/join a new one.');
+            }
           } else {
-            showProfileScreen();
+            showGroupSetupScreen();
           }
         }catch(e){
-          console.error('Could not load profiles', e);
-          const isPermission = e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
-          profileGrid.innerHTML = `<p style="color:#e77a6a;font-family:var(--font-ui);font-size:0.9rem;max-width:380px;line-height:1.5;">${
-            isPermission
-              ? 'Firestore is blocking this request. In the Firebase console, check that your security rules allow signed-in users to read/write under familyData/shared — and that you clicked Publish.'
-              : 'Could not reach Firebase. Check your internet connection, then refresh. Open the browser console (F12) for the exact error.'
-          }</p>`;
-          profileSub.textContent = 'Something went wrong loading your family data.';
-          profileAddRow.style.display = 'none';
-          btnProfileBack.style.display = 'none';
-          authScreen.style.display = 'none';
-          appRoot.style.display = 'none';
-          profileScreen.style.display = 'flex';
+          console.error('Could not load your account', e);
+          authScreen.style.display = 'flex';
+          authError.textContent = 'Could not reach Firebase. Check your connection and try again.';
+          authError.style.display = 'block';
         }
       })();
     } else {
-      // Signed out: reset everything so the next person who signs in on
-      // this device gets a clean profile picker rather than the last
-      // person's session.
+      // Signed out: reset everything so a fresh sign-in starts clean.
+      currentUser = null;
+      currentGroup = null;
+      currentMember = null;
+      members = [];
       appInitialized = false;
-      activeProfileId = null;
-      profiles = [];
-      try{ localStorage.removeItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
       appRoot.style.display = 'none';
-      profileScreen.style.display = 'none';
+      groupSetupScreen.style.display = 'none';
+      closeGroupDrawer();
       authScreen.style.display = 'flex';
       authEmail.value = '';
       authPassword.value = '';
     }
    }catch(e){
-      // Last-resort safety net: never let an unexpected error leave the
-      // page blank with no way to recover.
       console.error('Unexpected error handling auth state', e);
       authScreen.style.display = 'flex';
       appRoot.style.display = 'none';
-      profileScreen.style.display = 'none';
+      groupSetupScreen.style.display = 'none';
       authError.textContent = 'Something unexpected went wrong (see browser console for details). Please refresh and try again.';
       authError.style.display = 'block';
    }
