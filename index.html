@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Deck Codex</title>
 
 <!-- Site icon — files live alongside this index.html in the repo, so
@@ -29,10 +29,14 @@
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    signOut
+    signOut,
+    deleteUser,
+    EmailAuthProvider,
+    reauthenticateWithCredential
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
   import {
-    getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
     collection,
     collectionGroup,
     doc,
@@ -59,7 +63,14 @@
 
   const firebaseApp = initializeApp(firebaseConfig);
   const auth = getAuth(firebaseApp);
-  const db = getFirestore(firebaseApp);
+  // persistentLocalCache turns on offline support: reads/writes work against
+  // a local cache immediately (so a dead connection shows the last-synced
+  // decks instead of a blank screen) and queue up to sync once back online.
+  // Must be set up here, on first access to Firestore — calling getFirestore()
+  // anywhere first would lock in the (non-offline) default instead.
+  const db = initializeFirestore(firebaseApp, {
+    localCache: persistentLocalCache()
+  });
 
   // Family members log in once and stay logged in on that device/browser.
   setPersistence(auth, browserLocalPersistence).catch((err) => {
@@ -76,6 +87,9 @@
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signOut,
+    deleteUser,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
     collection,
     collectionGroup,
     doc,
@@ -139,7 +153,7 @@
   .wrap{
     max-width: 1080px;
     margin: 0 auto;
-    padding: 40px 24px 80px;
+    padding: max(40px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 80px max(24px, env(safe-area-inset-left));
   }
 
   /* ---------- Header ---------- */
@@ -756,7 +770,7 @@
     transform: translateX(-100%);
     transition: transform 0.22s ease;
     display:flex; flex-direction: column;
-    padding: 22px 18px;
+    padding: max(22px, calc(env(safe-area-inset-top) + 12px)) 18px max(22px, calc(env(safe-area-inset-bottom) + 12px)) max(18px, env(safe-area-inset-left));
     overflow: hidden;
   }
   .drawer-overlay.show .drawer-panel{ transform: translateX(0); }
@@ -872,7 +886,7 @@
   /* ---------- Undo banner (deck delete) ---------- */
   .undo-banner{
     position: fixed;
-    top: 16px;
+    top: max(16px, calc(env(safe-area-inset-top) + 8px));
     left: 50%;
     z-index: 200;
     display:flex;
@@ -1370,6 +1384,18 @@
     margin: 0 0 14px;
     word-break: break-all;
   }
+  .account-danger-zone{
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .account-danger-hint{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--muted-2);
+    line-height: 1.5;
+    margin: 0 0 10px;
+  }
   .invite-hint{
     font-family: var(--font-ui);
     font-size: 0.82rem;
@@ -1576,6 +1602,10 @@
         <div class="group-section-label">Account</div>
         <p class="account-email" id="accountEmailLabel"></p>
         <button type="button" class="btn-drawer-danger" id="btnDrawerSignOut">Sign Out</button>
+        <div class="account-danger-zone">
+          <p class="account-danger-hint">Permanently delete your account and everything tied to it. This can't be undone.</p>
+          <button type="button" class="btn-drawer-danger" id="btnDeleteAccount">Delete My Account</button>
+        </div>
       </div>
 
     </div>
@@ -1826,7 +1856,8 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          signOut, collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+          signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential,
+          collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
           query, where, orderBy, onSnapshot } = fb;
 
   const USERS_COL = collection(db, 'users');
@@ -1971,6 +2002,26 @@
       }
     }
   });
+
+  // ---------- Native Android hardware/gesture back button (Capacitor) ----------
+  // Only relevant inside the wrapped app (window.Capacitor is undefined in a
+  // plain browser tab, so this is a no-op on the web). Registering a
+  // listener replaces Android's default back behavior entirely, so we have
+  // to explicitly exit the app ourselves when there's nothing left to close
+  // — otherwise the back button would just silently do nothing.
+  if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App){
+    window.Capacitor.Plugins.App.addListener('backButton', ()=>{
+      const open = currentOpenOverlay();
+      if(open){ open.close(); return; }
+      if(document.getElementById('groupSetupScreen').style.display !== 'none' &&
+         document.getElementById('btnGroupSetupClose').style.display !== 'none'){
+        // Mid-setup "back to app" screen — treat like its own close button.
+        document.getElementById('btnGroupSetupClose').click();
+        return;
+      }
+      window.Capacitor.Plugins.App.exitApp();
+    });
+  }
 
   function cssColorVar(key){
     const c = COLORS.find(c => c.key === key);
@@ -3671,6 +3722,7 @@
   const shareCodeArea = $('shareCodeArea');
   const btnGenerateCode = $('btnGenerateCode');
   const btnDrawerSignOut = $('btnDrawerSignOut');
+  const btnDeleteAccount = $('btnDeleteAccount');
   const myGroupsList = $('myGroupsList');
   const btnDrawerAddGroup = $('btnDrawerAddGroup');
   const addGroupModalOverlay = $('addGroupModalOverlay');
@@ -3816,6 +3868,84 @@
   }
   btnGroupSetupSignOut.addEventListener('click', doSignOut);
   btnDrawerSignOut.addEventListener('click', doSignOut);
+
+  // ---------- Account deletion ----------
+  // Deletes every deck + collection this uid owns within one group, then
+  // removes their membership. Used both for "leave a shared group" and as
+  // one step of full account deletion.
+  async function deleteOwnDataInGroup(groupId, uid){
+    const decksSnap = await getDocs(query(groupSubcollection(groupId, 'decks'), where('ownerUid', '==', uid)));
+    for(const d of decksSnap.docs){
+      await deleteDoc(d.ref).catch(()=>{ /* non-fatal — keep going */ });
+    }
+    await deleteDoc(doc(groupSubcollection(groupId, 'collections'), personalCollectionId(uid))).catch(()=>{ /* may not exist */ });
+  }
+
+  // Full teardown of a group — only ever called when the leader deleting
+  // their account is that group's *only* member, so there's no one else's
+  // data being destroyed alongside theirs.
+  async function deleteEntireGroup(groupId, uid){
+    const decksSnap = await getDocs(groupSubcollection(groupId, 'decks'));
+    for(const d of decksSnap.docs) await deleteDoc(d.ref).catch(()=>{});
+    const colsSnap = await getDocs(groupSubcollection(groupId, 'collections'));
+    for(const c of colsSnap.docs) await deleteDoc(c.ref).catch(()=>{});
+    const seriesSnap = await getDocs(groupSubcollection(groupId, 'series'));
+    for(const s of seriesSnap.docs) await deleteDoc(s.ref).catch(()=>{});
+    await deleteDoc(doc(groupSubcollection(groupId, 'members'), uid)).catch(()=>{});
+    await deleteDoc(doc(GROUPS_COL, groupId)).catch(()=>{});
+  }
+
+  async function performAccountDeletion(){
+    const uid = currentUser.uid;
+    const memberships = await listMyGroups(uid);
+
+    for(const m of memberships){
+      const group = await loadGroup(m.groupId).catch(()=> null);
+      if(!group) continue;
+
+      if(group.leaderUid === uid){
+        const groupMembers = await loadMembers(m.groupId).catch(()=> []);
+        if(groupMembers.length > 1){
+          throw new Error(`You're the leader of "${group.name}", which has other members in it. Remove them (or have another member leave) before deleting your account — otherwise their decks would be deleted along with yours.`);
+        }
+        await deleteEntireGroup(m.groupId, uid);
+      } else {
+        await deleteOwnDataInGroup(m.groupId, uid);
+        await removeMember(m.groupId, uid).catch(()=>{});
+      }
+    }
+
+    await deleteDoc(doc(USERS_COL, uid)).catch(()=>{});
+    await deleteUser(currentUser);
+  }
+
+  async function doDeleteAccount(){
+    if(!currentUser) return;
+    const typed = prompt('This permanently deletes your account, your decks, and any groups only you belong to. This can\'t be undone.\n\nType DELETE to confirm.');
+    if(typed !== 'DELETE') return;
+
+    try{
+      await withLoading(performAccountDeletion, 0);
+      // onAuthStateChanged handles resetting the UI back to the sign-in screen.
+    }catch(e){
+      if(e && e.code === 'auth/requires-recent-login'){
+        const pwd = prompt('For your security, please re-enter your password to confirm account deletion.');
+        if(!pwd) return;
+        try{
+          const cred = EmailAuthProvider.credential(currentUser.email, pwd);
+          await reauthenticateWithCredential(currentUser, cred);
+          return doDeleteAccount(); // re-run now that the session is fresh
+        }catch(e2){
+          alert('Could not verify your password. Please try again.');
+          console.error(e2);
+        }
+        return;
+      }
+      alert(e.message || 'Could not delete your account. Please try again.');
+      console.error(e);
+    }
+  }
+  btnDeleteAccount.addEventListener('click', doDeleteAccount);
 
   // ---------- Group management drawer ----------
   function formatCountdown(ms){
