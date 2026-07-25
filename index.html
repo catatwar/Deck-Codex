@@ -1035,7 +1035,7 @@
 
     <div class="profile-grid" id="profileGrid"></div>
 
-    <div class="profile-add-row">
+    <div class="profile-add-row" id="profileAddRow">
       <input type="text" id="newProfileInput" placeholder="New profile name…">
       <button type="button" id="btnAddProfile">Add</button>
     </div>
@@ -2250,6 +2250,7 @@
   const profileGrid = $('profileGrid');
   const profileSub = $('profileSub');
   const newProfileInput = $('newProfileInput');
+  const profileAddRow = $('profileAddRow');
   const btnAddProfile = $('btnAddProfile');
   const btnProfileBack = $('btnProfileBack');
   const btnProfileSignOut = $('btnProfileSignOut');
@@ -2261,6 +2262,7 @@
     profileSub.textContent = profiles.length
       ? 'Pick a profile, or add a new one for the family.'
       : 'Add the first profile to get started.';
+    profileAddRow.style.display = '';
     btnProfileBack.style.display = (appInitialized && activeProfileId) ? 'inline' : 'none';
   }
 
@@ -2377,21 +2379,34 @@
   btnProfileSignOut.addEventListener('click', doSignOut);
 
   onAuthStateChanged(auth, (user)=>{
+   try{
     if(user){
       authScreen.style.display = 'none';
       (async ()=>{
         try{
           await Promise.race([loadProfiles(), timeout(15000, 'Loading profiles')]);
+          let stored = null;
+          try{ stored = localStorage.getItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
+          if(stored && profiles.some(p => p.id === stored)){
+            activeProfileId = stored;
+            showApp();
+          } else {
+            showProfileScreen();
+          }
         }catch(e){
-          console.error(e);
-        }
-        let stored = null;
-        try{ stored = localStorage.getItem(ACTIVE_PROFILE_KEY); }catch(e){ /* non-fatal */ }
-        if(stored && profiles.some(p => p.id === stored)){
-          activeProfileId = stored;
-          showApp();
-        } else {
-          showProfileScreen();
+          console.error('Could not load profiles', e);
+          const isPermission = e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+          profileGrid.innerHTML = `<p style="color:#e77a6a;font-family:var(--font-ui);font-size:0.9rem;max-width:380px;line-height:1.5;">${
+            isPermission
+              ? 'Firestore is blocking this request. In the Firebase console, check that your security rules allow signed-in users to read/write under familyData/shared — and that you clicked Publish.'
+              : 'Could not reach Firebase. Check your internet connection, then refresh. Open the browser console (F12) for the exact error.'
+          }</p>`;
+          profileSub.textContent = 'Something went wrong loading your family data.';
+          profileAddRow.style.display = 'none';
+          btnProfileBack.style.display = 'none';
+          authScreen.style.display = 'none';
+          appRoot.style.display = 'none';
+          profileScreen.style.display = 'flex';
         }
       })();
     } else {
@@ -2408,6 +2423,16 @@
       authEmail.value = '';
       authPassword.value = '';
     }
+   }catch(e){
+      // Last-resort safety net: never let an unexpected error leave the
+      // page blank with no way to recover.
+      console.error('Unexpected error handling auth state', e);
+      authScreen.style.display = 'flex';
+      appRoot.style.display = 'none';
+      profileScreen.style.display = 'none';
+      authError.textContent = 'Something unexpected went wrong (see browser console for details). Please refresh and try again.';
+      authError.style.display = 'block';
+   }
   });
   } // end boot()
 })();
