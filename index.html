@@ -472,6 +472,13 @@
   }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
   .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  /* Used only for the return-to-closed snap: the bouncy easing above
+     overshoots past its target mid-animation, which for opening just means
+     briefly revealing a little extra red (harmless, already covered) — but
+     for closing it means overshooting past 0 to the right, which is exactly
+     the "bouncing right" that should never reveal the delete layer. This
+     easing approaches 0 without ever passing it. */
+  .deck-card.swipe-snap-close{ transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 
   /* Swipeable cards: the border/radius/hover-lift move up to the wrapper so
      the delete button sits flush inside the same bordered, rounded box
@@ -484,6 +491,11 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     overflow: hidden;
+    /* .grid's default align-items:stretch would otherwise stretch this
+       wrapper to match a taller card elsewhere in the same row, while the
+       card inside stayed its own (shorter) height — leaving a gap at the
+       bottom where the delete layer underneath showed through. */
+    align-self: start;
     transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   }
   .deck-card-wrap:hover{
@@ -2241,7 +2253,7 @@
       <div class="record-block" id="infoRecordBlock">
         <div class="desc-label">Match Record</div>
         <div class="record-row">
-          <span class="record-summary" id="infoRecordSummary">0–0</span>
+          <span class="record-summary" id="infoRecordSummary">0 – 0</span>
           <span class="record-winrate" id="infoRecordWinrate"></span>
         </div>
         <p class="record-note">Tracked in MTG Tracker — logged there, shown here.</p>
@@ -3403,15 +3415,14 @@
       if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){ /* ignore */ } }
     }
 
-    // A light rubber-band "give" once a drag pulls past either end, instead
-    // of hitting a dead stop — the extra distance is heavily dampened so it
-    // still reads as bounded, not a full free drag. The delete button's
-    // background now covers the whole card (see .deck-delete-action CSS),
-    // so however far this stretches, there's nothing behind it but red.
+    // A light rubber-band "give" once a drag pulls past the open end, instead
+    // of hitting a dead stop — dampened so it still reads as bounded. The
+    // closed (right) end has no give at all: a right-swipe should never
+    // reveal anything, so it's hard-clamped instead of rubber-banding.
     function applyDragResistance(raw){
       const min = SWIPE_OPEN_OFFSET, max = 0;
       if(raw < min) return min - (min - raw) * 0.3;
-      if(raw > max) return max + (raw - max) * 0.3;
+      if(raw > max) return max;
       return raw;
     }
 
@@ -3420,14 +3431,15 @@
       card.style.transform = `translateX(${x}px)`;
     }
 
-    function animateTo(x, onDone){
+    function animateTo(x, onDone, opts){
+      const noBounce = !!(opts && opts.noBounce);
       card.classList.remove('swipe-dragging');
-      card.classList.add('swipe-snap');
+      card.classList.add(noBounce ? 'swipe-snap-close' : 'swipe-snap');
       setTransform(x);
       const handler = (e)=>{
         if(e && e.propertyName !== 'transform') return;
         card.removeEventListener('transitionend', handler);
-        card.classList.remove('swipe-snap');
+        card.classList.remove('swipe-snap', 'swipe-snap-close');
         if(onDone) onDone();
       };
       card.addEventListener('transitionend', handler);
@@ -3436,11 +3448,11 @@
     function closeCard(animate){
       wrap.dataset.open = 'false';
       if(animate === false){
-        card.classList.remove('swipe-dragging', 'swipe-snap');
+        card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
         card.style.transform = '';
         return;
       }
-      animateTo(0, ()=>{ if(wrap.dataset.open === 'false') card.style.transform = ''; });
+      animateTo(0, ()=>{ if(wrap.dataset.open === 'false') card.style.transform = ''; }, { noBounce: true });
     }
 
     function openCard(){
@@ -3697,9 +3709,9 @@
     const wins = deck.wins || 0;
     const losses = deck.losses || 0;
     const total = wins + losses;
-    $('infoRecordSummary').textContent = `${wins}–${losses}`;
+    $('infoRecordSummary').textContent = `${wins} – ${losses}`;
     $('infoRecordWinrate').textContent = total > 0
-      ? `${Math.round((wins / total) * 100)}% win rate`
+      ? `(${Math.round((wins / total) * 100)}% Win)`
       : 'No games logged yet';
   }
 
