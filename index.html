@@ -3104,6 +3104,15 @@
     return m ? capitalizeName(m.displayName) : null;
   }
 
+  // Filing a deck into someone's personal collection (personal_{uid}) means
+  // it's *their* deck, not whoever happened to click Save — this matters
+  // most for the leader, who's the only one who can pick a collection that
+  // isn't their own. Returns null for shared collections (no single owner).
+  function personalCollectionOwnerUid(collectionId){
+    if(!collectionId || typeof collectionId !== 'string' || !collectionId.startsWith('personal_')) return null;
+    return collectionId.slice('personal_'.length);
+  }
+
   function isLeader(){
     return !!(currentGroup && currentUser && currentGroup.leaderUid === currentUser.uid);
   }
@@ -4279,20 +4288,41 @@
         // Patches only the fields this form actually edits — never touches
         // wins/losses (MTG Tracker's to write) or anything else, even if
         // this device's local copy of the deck is momentarily behind.
-        await updateDeckFields(editingId, {
+        const patch = {
           name, description,
           colors: selectedColors,
           colorless: isColorless,
           collectionId,
           seriesId,
           buildType
-        });
+        };
+        // If this re-files the deck into a different member's personal
+        // collection, re-attribute ownership to match (leader-only, since
+        // only the leader can pick someone else's collection at all). This
+        // also self-heals decks that were mis-attributed before this fix —
+        // just reopening and saving a deck already sitting in the right
+        // collection will correct its stored owner.
+        const targetOwnerUid = personalCollectionOwnerUid(collectionId);
+        if(isLeader() && targetOwnerUid && targetOwnerUid !== deck.ownerUid){
+          patch.ownerUid = targetOwnerUid;
+          patch.ownerName = ownerDisplayName(targetOwnerUid) || 'Member';
+        }
+        await updateDeckFields(editingId, patch);
         // Mirror the exact same fields onto our local cached copy so the
         // UI updates instantly instead of waiting on the snapshot echo —
         // safe because it's the identical field set we just wrote, so it
         // can't drift from what Firestore now has.
-        Object.assign(deck, { name, description, colors: selectedColors, colorless: isColorless, collectionId, seriesId, buildType });
+        Object.assign(deck, patch);
       } else {
+        // Owner follows the collection it's filed into when that's a
+        // personal collection (so a deck added to Dad's collection is
+        // Dad's deck, not whoever's currently signed in); shared
+        // collections have no single owner, so they fall back to the
+        // person creating it, same as before.
+        const targetOwnerUid = personalCollectionOwnerUid(collectionId) || currentUser.uid;
+        const targetOwnerName = targetOwnerUid === currentUser.uid
+          ? capitalizeName(currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0])
+          : (ownerDisplayName(targetOwnerUid) || 'Member');
         const deck = {
           id: 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
           name, description,
@@ -4301,8 +4331,8 @@
           collectionId: collectionId,
           seriesId: seriesId,
           buildType: buildType,
-          ownerUid: currentUser.uid,
-          ownerName: capitalizeName(currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0]),
+          ownerUid: targetOwnerUid,
+          ownerName: targetOwnerName,
           wins: 0,
           losses: 0,
           createdAt: Date.now()
