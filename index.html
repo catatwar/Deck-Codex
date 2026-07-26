@@ -1141,6 +1141,68 @@
   .btn-signout:hover{ border-color: var(--gold-soft); color: var(--ink); }
 
   /* ---------- Group chip (header) ---------- */
+  .notif-btn{
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink: 0;
+    transition: border-color 0.15s ease;
+  }
+  .notif-btn:hover{ border-color: var(--gold-soft); }
+  .notif-btn .icon-svg{ width: 19px; height: 19px; }
+  .notif-dot{
+    position:absolute;
+    top: 6px; right: 6px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #e77a6a;
+    border: 2px solid var(--surface-2);
+  }
+
+  .notif-list{
+    flex: 1; overflow-y: auto;
+    display:flex; flex-direction: column; gap: 18px;
+  }
+  .notif-entry{
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+  }
+  .notif-entry:last-child{ border-bottom: none; padding-bottom: 0; }
+  .notif-entry-date{
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .notif-entry-title{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.96rem;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .notif-entry ul{
+    margin: 0; padding-left: 18px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .notif-entry li{ margin-bottom: 4px; }
+  .notif-empty{
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    text-align:center;
+    padding: 40px 0;
+  }
+
   .group-chip{
     display:flex;
     align-items:center;
@@ -1947,6 +2009,7 @@
       </div>
     </div>
     <div class="account-badge">
+      <button class="notif-btn" id="btnNotifications" title="What's new" aria-label="What's new"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
       <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
       <button class="group-chip" id="btnProfileChip" title="Your profile" aria-label="Your profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="profileNameLabel">Account</span></button>
       <button class="btn-new" id="btnNewDeck">+ New Deck</button>
@@ -2066,6 +2129,17 @@
         <button class="btn-primary" id="formSave">Save Deck</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- What's New Drawer -->
+<div class="drawer-overlay" id="notifDrawerOverlay">
+  <div class="drawer-panel" id="notifDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="notifDrawerTitle">
+    <div class="drawer-header">
+      <h3 id="notifDrawerTitle">What's New</h3>
+      <button class="drawer-close" id="notifDrawerClose" aria-label="Close what's new panel"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+    </div>
+    <div class="notif-list" id="notifList"></div>
   </div>
 </div>
 
@@ -2276,6 +2350,7 @@
     const candidates = [
       { el: $('addGroupModalOverlay'), close: ()=> returnToGroupMenu() },
       { el: $('groupDrawerOverlay'),   close: ()=> closeGroupDrawer() },
+      { el: $('notifDrawerOverlay'),   close: ()=> closeNotifDrawer() },
       { el: $('profileOverlay'),       close: ()=> closeProfile() },
       { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
       { el: $('infoOverlay'),          close: ()=> closeInfo() },
@@ -4225,6 +4300,82 @@
   btnProfileChip.addEventListener('click', openProfile);
   profileModalClose.addEventListener('click', closeProfile);
   profileOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'profileOverlay') closeProfile(); });
+
+  // ---------- What's New ----------
+  // Plain hand-maintained list: add a new entry to the TOP of this array
+  // whenever you ship something worth telling people about. Newest entry's
+  // date is what drives the unread dot on the bell icon.
+  const CHANGELOG = [
+    {
+      date: '2026-07-26',
+      title: 'Update alerts, easier sign-in, and this "What\'s New" tab',
+      items: [
+        'The app now tells you when a new version has been deployed and refreshes itself automatically.',
+        'Added a "show password" toggle and a "Forgot password?" link on the sign-in screen.',
+        'Fixed the group share-code field, which was cutting off part of the code.'
+      ]
+    }
+  ];
+
+  const NOTIF_SEEN_KEY = 'deckCodexLastSeenChangelog';
+  const btnNotifications = $('btnNotifications');
+  const notifDot = $('notifDot');
+  const notifDrawerOverlay = $('notifDrawerOverlay');
+  const notifDrawerPanel = $('notifDrawerPanel');
+  const notifDrawerClose = $('notifDrawerClose');
+  const notifList = $('notifList');
+
+  function refreshNotifDot(){
+    if(!CHANGELOG.length){ notifDot.style.display = 'none'; return; }
+    let lastSeen = null;
+    try{ lastSeen = localStorage.getItem(NOTIF_SEEN_KEY); }catch(e){ /* non-fatal */ }
+    const isUnread = !lastSeen || lastSeen < CHANGELOG[0].date;
+    notifDot.style.display = isUnread ? 'block' : 'none';
+  }
+
+  function renderChangelog(){
+    if(!CHANGELOG.length){
+      notifList.innerHTML = '<p class="notif-empty">No updates yet — check back after the next release.</p>';
+      return;
+    }
+    notifList.innerHTML = CHANGELOG.map(entry => `
+      <div class="notif-entry">
+        <div class="notif-entry-date">${formatChangelogDate(entry.date)}</div>
+        <h4 class="notif-entry-title">${entry.title}</h4>
+        <ul>${entry.items.map(item => `<li>${item}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  }
+
+  function formatChangelogDate(dateStr){
+    // dateStr is 'YYYY-MM-DD'; parse as local date rather than UTC so it
+    // doesn't shift a day depending on the reader's timezone.
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  function openNotifDrawer(){
+    rememberFocus();
+    renderChangelog();
+    notifDrawerOverlay.classList.add('show');
+    lockBodyScroll();
+    setTimeout(()=> notifDrawerClose.focus(), 30);
+    if(CHANGELOG.length){
+      try{ localStorage.setItem(NOTIF_SEEN_KEY, CHANGELOG[0].date); }catch(e){ /* non-fatal */ }
+    }
+    notifDot.style.display = 'none';
+  }
+  function closeNotifDrawer(){
+    notifDrawerOverlay.classList.remove('show');
+    unlockBodyScroll();
+    restoreFocus();
+  }
+  btnNotifications.addEventListener('click', openNotifDrawer);
+  notifDrawerClose.addEventListener('click', closeNotifDrawer);
+  notifDrawerOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'notifDrawerOverlay') closeNotifDrawer(); });
+  notifDrawerPanel.addEventListener('click', (e)=> e.stopPropagation());
+
+  refreshNotifDot();
 
   let shareCodeTimer = null;
 
