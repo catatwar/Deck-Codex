@@ -2311,6 +2311,10 @@
         <label for="scannerNameInput">Card name</label>
         <input type="text" id="scannerNameInput" placeholder="e.g. Lightning Bolt">
       </div>
+      <div class="field">
+        <label for="scannerNumberInput">Collector number <span class="optional-tag">(optional, but pins down the exact printing)</span></label>
+        <input type="text" id="scannerNumberInput" placeholder="e.g. 141" inputmode="numeric">
+      </div>
 
       <div class="scanner-status" id="scannerStatus" style="display:none;"></div>
       <div class="form-error" id="scannerError" style="display:none;"></div>
@@ -3775,6 +3779,7 @@
   const scannerFileInput = $('scannerFileInput');
   const scannerPreviewImg = $('scannerPreviewImg');
   const scannerNameInput = $('scannerNameInput');
+  const scannerNumberInput = $('scannerNumberInput');
   const scannerStatus = $('scannerStatus');
   const scannerError = $('scannerError');
   const scannerResult = $('scannerResult');
@@ -3785,6 +3790,7 @@
     scannerPreviewImg.src = '';
     scannerPreviewImg.style.display = 'none';
     scannerNameInput.value = '';
+    scannerNumberInput.value = '';
     scannerStatus.style.display = 'none';
     scannerStatus.textContent = '';
     scannerError.style.display = 'none';
@@ -3820,6 +3826,15 @@
     return lines[0].replace(/^[^A-Za-z]+/, '').trim();
   }
 
+  // The collector number is printed small along the bottom edge, almost
+  // always as "141/264" (this number / set size) — sometimes with a
+  // leading zero. Pull just the first number out of that pattern if OCR
+  // managed to catch it.
+  function bestGuessCollectorNumber(rawText){
+    const match = (rawText || '').match(/\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/);
+    return match ? match[1] : '';
+  }
+
   scannerFileInput.addEventListener('change', async ()=>{
     const file = scannerFileInput.files && scannerFileInput.files[0];
     if(!file) return;
@@ -3834,9 +3849,11 @@
       const worker = await getOcrWorker();
       const { data } = await worker.recognize(file);
       const guess = bestGuessCardName(data.text);
+      const numberGuess = bestGuessCollectorNumber(data.text);
       if(guess) scannerNameInput.value = guess;
+      if(numberGuess) scannerNumberInput.value = numberGuess;
       scannerStatus.textContent = guess
-        ? `Got "${guess}" — check it looks right, then look up the price.`
+        ? `Got "${guess}"${numberGuess ? ` (#${numberGuess})` : ''} — check it looks right, then look up the price.`
         : "Couldn't quite read the name — type it in below.";
     }catch(e){
       console.error('OCR failed', e);
@@ -3877,6 +3894,7 @@
 
   async function lookUpCardPrice(){
     const name = scannerNameInput.value.trim();
+    const number = scannerNumberInput.value.trim();
     scannerError.style.display = 'none';
     scannerResult.style.display = 'none';
     if(!name){
@@ -3887,18 +3905,36 @@
     btnScannerLookup.disabled = true;
     btnScannerLookup.textContent = 'Looking up…';
     try{
+      // With a collector number, do an exact search (name + cn: filter) so
+      // we land on the specific printing rather than Scryfall's default
+      // pick among reprints. Without one, fall back to a fuzzy name-only
+      // lookup, which is looser but needs nothing else from the person.
+      const url = number
+        ? `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${name}" cn:${number}`)}`
+        : `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`;
       const res = await Promise.race([
-        fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`),
+        fetch(url),
         timeout(15000, 'Looking up the price')
       ]);
       if(!res.ok){
-        scannerError.textContent = (res.status === 404)
-          ? `Couldn't find a card matching "${name}". Check the spelling and try again.`
-          : 'Something went wrong looking that up. Please try again.';
+        if(res.status === 404){
+          scannerError.textContent = number
+            ? `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`
+            : `Couldn't find a card matching "${name}". Check the spelling and try again.`;
+        } else {
+          scannerError.textContent = 'Something went wrong looking that up. Please try again.';
+        }
         scannerError.style.display = 'block';
         return;
       }
-      renderScannerResult(await res.json());
+      const data = await res.json();
+      const card = number ? (data.data && data.data[0]) : data;
+      if(!card){
+        scannerError.textContent = `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`;
+        scannerError.style.display = 'block';
+        return;
+      }
+      renderScannerResult(card);
     }catch(e){
       console.error('Price lookup failed', e);
       scannerError.textContent = (e && e.message) ? e.message : 'Something went wrong looking that up. Please try again.';
@@ -3911,6 +3947,7 @@
 
   btnScannerLookup.addEventListener('click', lookUpCardPrice);
   scannerNameInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') lookUpCardPrice(); });
+  scannerNumberInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') lookUpCardPrice(); });
 
   // ---------- Add/Edit form modal ----------
   function buildColorPicker(selected){
