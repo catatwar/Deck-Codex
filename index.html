@@ -3405,6 +3405,22 @@
     });
   }
 
+  // A card left open from a swipe should snap shut the moment focus moves
+  // elsewhere — tapping a different card, a filter, a collection tab,
+  // anywhere — rather than staying uncovered until it's touched directly
+  // again. closeAllOtherSwipes() above only ever ran once a *drag* started
+  // on another card; this catches every other kind of interaction too.
+  // Registered once (not per-render, since `content` is rebuilt on every
+  // render but `document` isn't) via this guard flag.
+  if(!window._deckSwipeGlobalCloserAttached){
+    window._deckSwipeGlobalCloserAttached = true;
+    document.addEventListener('pointerdown', (e)=>{
+      document.querySelectorAll('.deck-card-wrap[data-open="true"]').forEach(w=>{
+        if(!w.contains(e.target) && typeof w._closeSwipe === 'function') w._closeSwipe();
+      });
+    }, true);
+  }
+
   function attachSwipeToDelete(wrap, card, deleteBtn, deck){
     let dragging = false;
     let axisLocked = null; // 'x' | 'y' | null
