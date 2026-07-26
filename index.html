@@ -767,6 +767,12 @@
     font-size: 0.84rem;
     margin: 12px 0 0;
   }
+  .scanner-error{
+    color: #e77a6a;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    margin: 12px 0 0;
+  }
   .scanner-result{
     margin-top: 18px;
     padding-top: 16px;
@@ -2317,7 +2323,7 @@
       </div>
 
       <div class="scanner-status" id="scannerStatus" style="display:none;"></div>
-      <div class="form-error" id="scannerError" style="display:none;"></div>
+      <div class="scanner-error" id="scannerError" style="display:none;"></div>
 
       <div class="modal-actions">
         <button class="btn-primary" id="btnScannerLookup">Look Up Price</button>
@@ -3817,22 +3823,76 @@
   scannerOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'scannerOverlay') closeScanner(); });
   $('btnScannerTakePhoto').addEventListener('click', ()=> scannerFileInput.click());
 
-  // Magic card names are almost always the first line of readable text
-  // near the top of the card, so the first non-empty OCR line is a
-  // reasonable guess — the person can always correct it before searching.
+  // Picking "the first line" works for traditional card frames, but
+  // borderless/extended-art cards have no fixed layout to anchor on, so
+  // OCR's first readable line is just as likely to be flavor text or an
+  // artist credit. Instead, score the first several lines and pick the one
+  // that looks most like a title: capitalized words, plausible length, and
+  // none of the common rules-text phrasing that shows up in a card's body.
+  const RULES_TEXT_HINTS = [
+    'target', 'whenever', 'when this', 'you may', 'enters the', 'sacrifice',
+    'destroy', 'graveyard', 'battlefield', 'library', 'opponent', 'exile',
+    'draw a card', 'create a', 'equipped', 'choose one', 'this spell',
+    'end of turn', 'upkeep', 'flavor'
+  ];
+  function scoreCandidateNameLine(line){
+    if(line.length < 2 || line.length > 45) return -100;
+    const lower = line.toLowerCase();
+    if(RULES_TEXT_HINTS.some(hint => lower.includes(hint))) return -50;
+
+    const words = line.split(/\s+/).filter(Boolean);
+    const smallWords = new Set(['of','the','a','an','to','and','from']);
+    const titleCaseHits = words.filter((w, i) =>
+      smallWords.has(w.toLowerCase()) && i > 0 ? true : /^[A-Z]/.test(w)
+    ).length;
+    const titleCaseFraction = titleCaseHits / words.length;
+
+    const letters = line.replace(/[^A-Za-z]/g, '');
+    const lowerLetters = line.replace(/[^a-z]/g, '');
+    const lowercaseRatio = letters.length ? lowerLetters.length / letters.length : 1;
+
+    let score = titleCaseFraction * 3 - lowercaseRatio * 2;
+    if(line.length >= 3 && line.length <= 35) score += 1;
+    if(/[{}]/.test(line)) score -= 2; // stray mana-symbol OCR artifacts
+    // Set-code / language-code remnants (e.g. "C EN", "M U") are short,
+    // all-caps, and have zero lowercase letters — which otherwise scores
+    // deceptively well above, since the lowercase-ratio penalty rewards
+    // having no lowercase letters at all. Real card names are essentially
+    // never built from 1–2 letter words, so penalize that shape directly.
+    const avgWordLen = words.reduce((a, w) => a + w.length, 0) / words.length;
+    if(avgWordLen < 3) score -= 4;
+    return score;
+  }
   function bestGuessCardName(rawText){
-    const lines = (rawText || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const lines = (rawText || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 8);
     if(!lines.length) return '';
-    return lines[0].replace(/^[^A-Za-z]+/, '').trim();
+    let best = lines[0];
+    let bestScore = -Infinity;
+    for(const line of lines){
+      // Collector-number lines ("141/264 C EN") are shaped nothing like a
+      // name — exclude them outright rather than let them compete on score.
+      if(/^0*\d{1,4}\s*\/\s*0*\d{1,4}\b/.test(line)) continue;
+      const cleaned = line.replace(/^[^A-Za-z]+/, '').trim();
+      if(!cleaned) continue;
+      const s = scoreCandidateNameLine(cleaned);
+      if(s > bestScore){ bestScore = s; best = cleaned; }
+    }
+    return best;
   }
 
   // The collector number is printed small along the bottom edge, almost
-  // always as "141/264" (this number / set size) — sometimes with a
-  // leading zero. Pull just the first number out of that pattern if OCR
-  // managed to catch it.
+  // always as "141/264" (this number / set size). The same X/Y shape also
+  // matches a creature's power/toughness box (e.g. "3/3"), which was
+  // getting picked up by mistake — real sets are essentially never smaller
+  // than ~40 cards, so requiring the second number to be at least that
+  // large filters P/T pairs out. When more than one match qualifies, the
+  // last one in the text is favored since the collector line sits at the
+  // very bottom of the card, read last by OCR.
   function bestGuessCollectorNumber(rawText){
-    const match = (rawText || '').match(/\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/);
-    return match ? match[1] : '';
+    const matches = [...(rawText || '').matchAll(/\b0*(\d{1,4})\s*\/\s*0*(\d{1,4})\b/g)];
+    const plausible = matches.filter(m => Number(m[2]) >= 40);
+    if(!plausible.length) return '';
+    return plausible[plausible.length - 1][1];
   }
 
   scannerFileInput.addEventListener('change', async ()=>{
@@ -3845,6 +3905,12 @@
 
     scannerStatus.style.display = 'block';
     scannerStatus.textContent = 'Reading the card name from your photo…';
+    // Disabled for the duration of OCR — otherwise a tap on "Look Up
+    // Price" that lands before OCR finishes fires on whatever was in the
+    // name/number fields before this photo (often nothing), which either
+    // errors out or searches for the wrong card.
+    btnScannerLookup.disabled = true;
+    btnScannerLookup.textContent = 'Reading photo…';
     try{
       const worker = await getOcrWorker();
       const { data } = await worker.recognize(file);
@@ -3858,6 +3924,9 @@
     }catch(e){
       console.error('OCR failed', e);
       scannerStatus.textContent = "Couldn't read the photo — type the card name in below instead.";
+    }finally{
+      btnScannerLookup.disabled = false;
+      btnScannerLookup.textContent = 'Look Up Price';
     }
   });
 
@@ -3897,6 +3966,7 @@
     const number = scannerNumberInput.value.trim();
     scannerError.style.display = 'none';
     scannerResult.style.display = 'none';
+    scannerStatus.style.display = 'none';
     if(!name){
       scannerError.textContent = 'Enter or scan a card name first.';
       scannerError.style.display = 'block';
