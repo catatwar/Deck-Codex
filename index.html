@@ -2468,6 +2468,12 @@
     return b ? b.name : null;
   }
   const ACTIVE_COLLECTION_KEY = 'ui:active-collection';
+  // Scoped per-group so switching between groups (or reopening the app
+  // after the splash screen) never accidentally applies one group's
+  // remembered collection to another group's data.
+  function activeCollectionKey(){
+    return currentGroup ? `${ACTIVE_COLLECTION_KEY}:${currentGroup.id}` : ACTIVE_COLLECTION_KEY;
+  }
   const LOADING_MESSAGES = ['Shuffling the cards…', 'Sorting decks…', 'Getting caught up…'];
 
   function pickLoadingMessage(){
@@ -2713,9 +2719,13 @@
         // list changes (e.g. someone else adds/removes a collection).
         if(collections.length){
           let stored = null;
-          try{ stored = localStorage.getItem(ACTIVE_COLLECTION_KEY); }catch(e){ /* non-fatal */ }
+          try{ stored = localStorage.getItem(activeCollectionKey()); }catch(e){ /* non-fatal */ }
           if(!activeCollectionId || !collections.some(c => c.id === activeCollectionId)){
-            activeCollectionId = (stored && collections.some(c => c.id === stored)) ? stored : collections[0].id;
+            const myCollectionId = currentUser ? personalCollectionId(currentUser.uid) : null;
+            const fallback = (myCollectionId && collections.some(c => c.id === myCollectionId))
+              ? myCollectionId
+              : collections[0].id;
+            activeCollectionId = (stored && collections.some(c => c.id === stored)) ? stored : fallback;
           }
         }
 
@@ -2737,7 +2747,7 @@
   async function setActiveCollection(id){
     await withLoading(async ()=>{
       activeCollectionId = id;
-      try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, id); }catch(e){ /* non-fatal */ }
+      try{ localStorage.setItem(activeCollectionKey(), id); }catch(e){ /* non-fatal */ }
       updateHeaderLabel();
       render();
     }, 450);
@@ -4454,8 +4464,11 @@
           await withLoading(async ()=>{
             await deleteCollection(col.id);
             if(activeCollectionId === col.id){
-              activeCollectionId = collections[0].id;
-              try{ localStorage.setItem(ACTIVE_COLLECTION_KEY, activeCollectionId); }catch(e){ /* non-fatal */ }
+              const myCollectionId = currentUser ? personalCollectionId(currentUser.uid) : null;
+              activeCollectionId = (myCollectionId && collections.some(c => c.id === myCollectionId))
+                ? myCollectionId
+                : collections[0].id;
+              try{ localStorage.setItem(activeCollectionKey(), activeCollectionId); }catch(e){ /* non-fatal */ }
             }
             renderDrawer();
             updateHeaderLabel();
