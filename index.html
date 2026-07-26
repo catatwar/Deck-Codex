@@ -1939,6 +1939,16 @@
       countdownTimer = setInterval(tick, 1000);
     }
 
+    // Snooze adds 10 seconds to whatever time is currently left, rather
+    // than restarting the countdown at 10 — so snoozing with 4 seconds
+    // left takes you to 14, matching the "+10 more seconds" button label.
+    function extendCountdown(){
+      secondsLeft += COUNTDOWN_SECONDS;
+      countdownEl.textContent = secondsLeft;
+      if(countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(tick, 1000);
+    }
+
     function updateSnoozeButton(){
       if(snoozesLeft <= 0){
         btnSnooze.disabled = true;
@@ -1964,7 +1974,7 @@
         if(snoozesLeft <= 0) return;
         snoozesLeft -= 1;
         updateSnoozeButton();
-        startCountdown();
+        extendCountdown();
       });
     });
 
