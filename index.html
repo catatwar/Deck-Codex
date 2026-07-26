@@ -49,10 +49,24 @@
     query,
     where,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    increment
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
-  const firebaseConfig = {
+  // ---------- Environment: prod vs. dev backend ----------
+  // Runs against the DEV Firebase project when opened locally (localhost /
+  // 127.0.0.1) or from a repo/URL containing "-dev" or "dev." — otherwise
+  // falls back to the real, production project. This means the exact same
+  // index.html file is safe to push to both a dev test-server repo and the
+  // real repo: it always talks to the right backend on its own, so there's
+  // nothing to remember to swap by hand.
+  const IS_DEV_ENV = (() => {
+    const host = window.location.hostname;
+    const path = window.location.pathname;
+    return host === 'localhost' || host === '127.0.0.1' || host.startsWith('dev.') || path.includes('-dev');
+  })();
+
+  const PROD_FIREBASE_CONFIG = {
     apiKey: "AIzaSyDb3arF_8bSV3Ga83Zx-m7KuP0P9tN26xc",
     authDomain: "deck-codex.firebaseapp.com",
     projectId: "deck-codex",
@@ -61,6 +75,26 @@
     appId: "1:1086947063600:web:8a940708cacee4fbaabaf5",
     measurementId: "G-8370EN67DG"
   };
+
+  // TODO: once the dev Firebase project exists, paste its Web app config
+  // in here (Firebase console → Project settings → Your apps → Web app →
+  // SDK setup and configuration). Everything else in this file already
+  // knows to use this automatically — nothing else needs to change.
+  const DEV_FIREBASE_CONFIG = {
+    apiKey: "REPLACE_ME",
+    authDomain: "REPLACE_ME.firebaseapp.com",
+    projectId: "REPLACE_ME",
+    storageBucket: "REPLACE_ME.firebasestorage.app",
+    messagingSenderId: "REPLACE_ME",
+    appId: "REPLACE_ME"
+  };
+
+  const firebaseConfig = IS_DEV_ENV ? DEV_FIREBASE_CONFIG : PROD_FIREBASE_CONFIG;
+  if(IS_DEV_ENV){
+    // Loud and impossible to miss — you never want to accidentally think
+    // you're looking at real family data when you're actually on dev.
+    console.log('%cDeck Codex — DEV environment (test Firebase project)', 'color:#5b9bd5; font-weight:bold; font-size:14px;');
+  }
 
   const firebaseApp = initializeApp(firebaseConfig);
   const auth = getAuth(firebaseApp);
@@ -103,7 +137,8 @@
     query,
     where,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    increment
   };
 
   // Let any listeners know the SDK is ready (used defensively — the main
@@ -671,6 +706,119 @@
     font-weight: 600;
     color: var(--ink);
   }
+
+  .record-block{ margin-bottom: 20px; }
+  .record-row{
+    display:flex;
+    align-items:baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .record-summary{
+    font-family: var(--font-ui);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .record-winrate{
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    color: var(--muted);
+  }
+  .record-actions{
+    display:flex; gap: 10px; align-items:center;
+  }
+  .btn-record-win, .btn-record-loss{
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface-3);
+    color: var(--ink);
+  }
+  .btn-record-win:hover{ border-color: #7aa87a; color: #7aa87a; }
+  .btn-record-loss:hover{ border-color: #e77a6a; color: #e77a6a; }
+  .btn-record-undo{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--muted);
+    background:none;
+    border:none;
+    text-decoration: underline;
+    padding: 0;
+    margin-left: auto;
+  }
+  .btn-record-undo:hover{ color: var(--ink); }
+
+  .scanner-photo-row{
+    display:flex; align-items:center; gap: 12px; flex-wrap: wrap;
+  }
+  .scanner-preview-img{
+    width: 64px; height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  .scanner-status{
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+    margin: 12px 0 0;
+  }
+  .scanner-result{
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display:flex;
+    gap: 14px;
+  }
+  .scanner-result-img{
+    width: 90px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .scanner-result-name{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--ink);
+    margin: 0 0 4px;
+  }
+  .scanner-result-set{
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .scanner-result-prices{
+    display:flex; flex-wrap: wrap; gap: 8px 20px;
+  }
+  .scanner-price-item{
+    font-family: var(--font-ui);
+  }
+  .scanner-price-label{
+    display:block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-2);
+  }
+  .scanner-price-value{
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gold);
+  }
+  .scanner-result-link{
+    display:inline-block;
+    margin-top: 10px;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: underline;
+  }
+  .scanner-result-link:hover{ color: var(--ink); }
 
   .desc-label{
     font-family: var(--font-ui);
@@ -2009,6 +2157,7 @@
       </div>
     </div>
     <div class="account-badge">
+      <button class="notif-btn" id="btnScanCard" title="Scan a card for price" aria-label="Scan a card for price"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
       <button class="notif-btn" id="btnNotifications" title="What's new" aria-label="What's new"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
       <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
       <button class="group-chip" id="btnProfileChip" title="Your profile" aria-label="Your profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="profileNameLabel">Account</span></button>
@@ -2074,6 +2223,18 @@
         <div class="desc-label">Price</div>
         <div class="price-value" id="infoPrice"></div>
       </div>
+      <div class="record-block" id="infoRecordBlock">
+        <div class="desc-label">Match Record</div>
+        <div class="record-row">
+          <span class="record-summary" id="infoRecordSummary">0–0</span>
+          <span class="record-winrate" id="infoRecordWinrate"></span>
+        </div>
+        <div class="record-actions">
+          <button type="button" class="btn-record-win" id="btnLogWin">+ Win</button>
+          <button type="button" class="btn-record-loss" id="btnLogLoss">+ Loss</button>
+          <button type="button" class="btn-record-undo" id="btnUndoLastResult" style="display:none;">Undo</button>
+        </div>
+      </div>
       <div class="desc-label">Description</div>
       <p class="desc-text" id="infoDesc"></p>
       <div class="modal-actions">
@@ -2128,6 +2289,37 @@
         <button class="btn-secondary" id="formCancel">Cancel</button>
         <button class="btn-primary" id="formSave">Save Deck</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Card Price Scanner -->
+<div class="overlay" id="scannerOverlay">
+  <div class="modal" style="max-width:440px;" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
+    <div class="modal-body">
+      <button class="modal-close" id="scannerClose" aria-label="Close card scanner"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h2 id="scannerTitle">Card Price Scanner</h2>
+      <p class="modal-subtitle">Snap a photo of a card, or just type its name — this just looks up the price, nothing here gets saved.</p>
+
+      <input type="file" id="scannerFileInput" accept="image/*" capture="environment" style="display:none;">
+      <div class="scanner-photo-row">
+        <button type="button" class="btn-secondary" id="btnScannerTakePhoto">📷 Take / Choose Photo</button>
+        <img id="scannerPreviewImg" class="scanner-preview-img" style="display:none;" alt="">
+      </div>
+
+      <div class="field" style="margin-top:16px;">
+        <label for="scannerNameInput">Card name</label>
+        <input type="text" id="scannerNameInput" placeholder="e.g. Lightning Bolt">
+      </div>
+
+      <div class="scanner-status" id="scannerStatus" style="display:none;"></div>
+      <div class="form-error" id="scannerError" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" id="btnScannerLookup">Look Up Price</button>
+      </div>
+
+      <div class="scanner-result" id="scannerResult" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -2217,7 +2409,7 @@
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
           signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
           collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-          query, where, orderBy, onSnapshot } = fb;
+          query, where, orderBy, onSnapshot, increment } = fb;
 
   const USERS_COL = collection(db, 'users');
   const GROUPS_COL = collection(db, 'groups');
@@ -2351,6 +2543,7 @@
       { el: $('addGroupModalOverlay'), close: ()=> returnToGroupMenu() },
       { el: $('groupDrawerOverlay'),   close: ()=> closeGroupDrawer() },
       { el: $('notifDrawerOverlay'),   close: ()=> closeNotifDrawer() },
+      { el: $('scannerOverlay'),       close: ()=> closeScanner() },
       { el: $('profileOverlay'),       close: ()=> closeProfile() },
       { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
       { el: $('infoOverlay'),          close: ()=> closeInfo() },
@@ -2604,6 +2797,10 @@
           resolve();
         } else {
           render();
+          if($('infoOverlay').classList.contains('show') && currentInfoId){
+            const d = decks.find(x => x.id === currentInfoId);
+            if(d) renderInfoRecord(d);
+          }
         }
       }, (err)=>{
         if(!firstLoadDone){
@@ -3397,6 +3594,7 @@
 
   // ---------- Info modal ----------
   let currentInfoId = null;
+  let lastLoggedResult = null; // { deckId, field } — powers the one-tap Undo
 
   function openInfo(id){
     const deck = decks.find(d => d.id === id);
@@ -3441,6 +3639,10 @@
       $('infoPriceBlock').style.display = 'none';
     }
 
+    renderInfoRecord(deck);
+    lastLoggedResult = null;
+    $('btnUndoLastResult').style.display = 'none';
+
     const descEl = $('infoDesc');
     if(deck.description){
       descEl.textContent = deck.description;
@@ -3480,6 +3682,235 @@
     closeInfo();
     openForm(id);
   });
+
+  // ---------- Match record (wins/losses) ----------
+  // Stored directly on the deck doc (wins/losses counters) rather than a
+  // separate game-log collection — a family tracker doesn't need per-game
+  // history, so this keeps it to one tiny write per logged result instead
+  // of a whole subcollection to read back and sum every time.
+  function renderInfoRecord(deck){
+    const wins = deck.wins || 0;
+    const losses = deck.losses || 0;
+    const total = wins + losses;
+    $('infoRecordSummary').textContent = `${wins}–${losses}`;
+    $('infoRecordWinrate').textContent = total > 0
+      ? `${Math.round((wins / total) * 100)}% win rate`
+      : 'No games logged yet';
+  }
+
+  async function logGameResult(deckId, field){
+    const deck = decks.find(d => d.id === deckId);
+    if(!deck) return;
+    // Optimistic local update so the tap feels instant; the live listener
+    // will reconcile with the server's value shortly after regardless.
+    deck[field] = (deck[field] || 0) + 1;
+    renderInfoRecord(deck);
+    lastLoggedResult = { deckId, field };
+    $('btnUndoLastResult').style.display = '';
+    try{
+      await updateDoc(doc(DECKS_COL, deckId), { [field]: increment(1) });
+    }catch(e){
+      console.error('Could not log game result', e);
+      deck[field] = Math.max(0, (deck[field] || 0) - 1);
+      renderInfoRecord(deck);
+      lastLoggedResult = null;
+      $('btnUndoLastResult').style.display = 'none';
+      alert("Couldn't save that result — check your connection and try again.");
+    }
+  }
+
+  async function undoLastLoggedResult(){
+    if(!lastLoggedResult) return;
+    const { deckId, field } = lastLoggedResult;
+    const deck = decks.find(d => d.id === deckId);
+    lastLoggedResult = null;
+    $('btnUndoLastResult').style.display = 'none';
+    if(!deck) return;
+    deck[field] = Math.max(0, (deck[field] || 0) - 1);
+    renderInfoRecord(deck);
+    try{
+      await updateDoc(doc(DECKS_COL, deckId), { [field]: increment(-1) });
+    }catch(e){
+      console.error('Could not undo logged result', e);
+      alert("Couldn't undo that — check your connection and try again.");
+    }
+  }
+
+  $('btnLogWin').addEventListener('click', ()=>{
+    if(!currentInfoId) return;
+    logGameResult(currentInfoId, 'wins');
+  });
+  $('btnLogLoss').addEventListener('click', ()=>{
+    if(!currentInfoId) return;
+    logGameResult(currentInfoId, 'losses');
+  });
+  $('btnUndoLastResult').addEventListener('click', undoLastLoggedResult);
+
+  // ---------- Card price scanner ----------
+  // Deliberately stateless: nothing here ever touches Firestore or any
+  // storage. OCR runs entirely client-side (Tesseract.js, loaded on first
+  // use so nobody pays for it who never opens this), and the price lookup
+  // is a single public, keyless call to Scryfall. Closing the modal
+  // discards everything.
+  let ocrWorkerPromise = null;
+  function getOcrWorker(){
+    if(!ocrWorkerPromise){
+      ocrWorkerPromise = (async ()=>{
+        if(!window.Tesseract){
+          await new Promise((resolve, reject)=>{
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Could not load the text-recognition library.'));
+            document.head.appendChild(script);
+          });
+        }
+        return await window.Tesseract.createWorker('eng');
+      })();
+    }
+    return ocrWorkerPromise;
+  }
+
+  const scannerOverlay = $('scannerOverlay');
+  const scannerFileInput = $('scannerFileInput');
+  const scannerPreviewImg = $('scannerPreviewImg');
+  const scannerNameInput = $('scannerNameInput');
+  const scannerStatus = $('scannerStatus');
+  const scannerError = $('scannerError');
+  const scannerResult = $('scannerResult');
+  const btnScannerLookup = $('btnScannerLookup');
+
+  function resetScanner(){
+    scannerFileInput.value = '';
+    scannerPreviewImg.src = '';
+    scannerPreviewImg.style.display = 'none';
+    scannerNameInput.value = '';
+    scannerStatus.style.display = 'none';
+    scannerStatus.textContent = '';
+    scannerError.style.display = 'none';
+    scannerResult.style.display = 'none';
+    scannerResult.innerHTML = '';
+    btnScannerLookup.disabled = false;
+    btnScannerLookup.textContent = 'Look Up Price';
+  }
+
+  function openScanner(){
+    resetScanner();
+    rememberFocus();
+    scannerOverlay.classList.add('show');
+    lockBodyScroll();
+    setTimeout(()=> $('scannerClose').focus(), 30);
+  }
+  function closeScanner(){
+    scannerOverlay.classList.remove('show');
+    unlockBodyScroll();
+    restoreFocus();
+  }
+  $('btnScanCard').addEventListener('click', openScanner);
+  $('scannerClose').addEventListener('click', closeScanner);
+  scannerOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'scannerOverlay') closeScanner(); });
+  $('btnScannerTakePhoto').addEventListener('click', ()=> scannerFileInput.click());
+
+  // Magic card names are almost always the first line of readable text
+  // near the top of the card, so the first non-empty OCR line is a
+  // reasonable guess — the person can always correct it before searching.
+  function bestGuessCardName(rawText){
+    const lines = (rawText || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if(!lines.length) return '';
+    return lines[0].replace(/^[^A-Za-z]+/, '').trim();
+  }
+
+  scannerFileInput.addEventListener('change', async ()=>{
+    const file = scannerFileInput.files && scannerFileInput.files[0];
+    if(!file) return;
+    scannerError.style.display = 'none';
+    scannerResult.style.display = 'none';
+    scannerPreviewImg.src = URL.createObjectURL(file);
+    scannerPreviewImg.style.display = 'block';
+
+    scannerStatus.style.display = 'block';
+    scannerStatus.textContent = 'Reading the card name from your photo…';
+    try{
+      const worker = await getOcrWorker();
+      const { data } = await worker.recognize(file);
+      const guess = bestGuessCardName(data.text);
+      if(guess) scannerNameInput.value = guess;
+      scannerStatus.textContent = guess
+        ? `Got "${guess}" — check it looks right, then look up the price.`
+        : "Couldn't quite read the name — type it in below.";
+    }catch(e){
+      console.error('OCR failed', e);
+      scannerStatus.textContent = "Couldn't read the photo — type the card name in below instead.";
+    }
+  });
+
+  function renderScannerResult(card){
+    const prices = card.prices || {};
+    const priceEntries = [
+      { label: 'USD', value: prices.usd },
+      { label: 'USD Foil', value: prices.usd_foil }
+    ].filter(p => p.value);
+
+    const priceHtml = priceEntries.length
+      ? priceEntries.map(p => `
+          <div class="scanner-price-item">
+            <span class="scanner-price-label">${p.label}</span>
+            <span class="scanner-price-value">$${p.value}</span>
+          </div>
+        `).join('')
+      : '<div class="scanner-price-item"><span class="scanner-price-label">Price</span><span class="scanner-price-value">Not available</span></div>';
+
+    const faceImages = card.card_faces && card.card_faces[0] ? card.card_faces[0].image_uris : null;
+    const imgUrl = (card.image_uris && card.image_uris.small) || (faceImages && faceImages.small) || '';
+
+    scannerResult.innerHTML = `
+      ${imgUrl ? `<img class="scanner-result-img" src="${imgUrl}" alt="">` : ''}
+      <div>
+        <h3 class="scanner-result-name">${card.name}</h3>
+        <p class="scanner-result-set">${card.set_name || ''}</p>
+        <div class="scanner-result-prices">${priceHtml}</div>
+        <a class="scanner-result-link" href="${card.scryfall_uri}" target="_blank" rel="noopener">View on Scryfall</a>
+      </div>
+    `;
+    scannerResult.style.display = 'flex';
+  }
+
+  async function lookUpCardPrice(){
+    const name = scannerNameInput.value.trim();
+    scannerError.style.display = 'none';
+    scannerResult.style.display = 'none';
+    if(!name){
+      scannerError.textContent = 'Enter or scan a card name first.';
+      scannerError.style.display = 'block';
+      return;
+    }
+    btnScannerLookup.disabled = true;
+    btnScannerLookup.textContent = 'Looking up…';
+    try{
+      const res = await Promise.race([
+        fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`),
+        timeout(15000, 'Looking up the price')
+      ]);
+      if(!res.ok){
+        scannerError.textContent = (res.status === 404)
+          ? `Couldn't find a card matching "${name}". Check the spelling and try again.`
+          : 'Something went wrong looking that up. Please try again.';
+        scannerError.style.display = 'block';
+        return;
+      }
+      renderScannerResult(await res.json());
+    }catch(e){
+      console.error('Price lookup failed', e);
+      scannerError.textContent = (e && e.message) ? e.message : 'Something went wrong looking that up. Please try again.';
+      scannerError.style.display = 'block';
+    }finally{
+      btnScannerLookup.disabled = false;
+      btnScannerLookup.textContent = 'Look Up Price';
+    }
+  }
+
+  btnScannerLookup.addEventListener('click', lookUpCardPrice);
+  scannerNameInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') lookUpCardPrice(); });
 
   // ---------- Add/Edit form modal ----------
   function buildColorPicker(selected){
@@ -3813,6 +4244,8 @@
           buildType: buildType,
           ownerUid: currentUser.uid,
           ownerName: capitalizeName(currentMember ? currentMember.displayName : (currentUser.email || '').split('@')[0]),
+          wins: 0,
+          losses: 0,
           createdAt: Date.now()
         };
         await saveDeck(deck);
