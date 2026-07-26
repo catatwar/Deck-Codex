@@ -2467,13 +2467,6 @@
     const b = BUILD_TYPES.find(b => b.key === key);
     return b ? b.name : null;
   }
-  const ACTIVE_COLLECTION_KEY = 'ui:active-collection';
-  // Scoped per-group so switching between groups (or reopening the app
-  // after the splash screen) never accidentally applies one group's
-  // remembered collection to another group's data.
-  function activeCollectionKey(){
-    return currentGroup ? `${ACTIVE_COLLECTION_KEY}:${currentGroup.id}` : ACTIVE_COLLECTION_KEY;
-  }
   const LOADING_MESSAGES = ['Shuffling the cards…', 'Sorting decks…', 'Getting caught up…'];
 
   function pickLoadingMessage(){
@@ -2715,18 +2708,15 @@
         snap.forEach(d => results.push(d.data()));
         collections = results;
 
-        // Keep the active collection pointed at something real as the
-        // list changes (e.g. someone else adds/removes a collection).
-        if(collections.length){
-          let stored = null;
-          try{ stored = localStorage.getItem(activeCollectionKey()); }catch(e){ /* non-fatal */ }
-          if(!activeCollectionId || !collections.some(c => c.id === activeCollectionId)){
-            const myCollectionId = currentUser ? personalCollectionId(currentUser.uid) : null;
-            const fallback = (myCollectionId && collections.some(c => c.id === myCollectionId))
-              ? myCollectionId
-              : collections[0].id;
-            activeCollectionId = (stored && collections.some(c => c.id === stored)) ? stored : fallback;
-          }
+        // Keep the active collection pointed at something real. Normally
+        // this is already the user's personal collection (set in
+        // enterGroup()). The only time it won't be found here is a brand
+        // new member whose personal collection doc hasn't been created yet
+        // (ensurePersonalCollection runs right after this first resolves) —
+        // in that narrow window, fall back to whatever collection exists so
+        // the screen isn't blank, rather than an arbitrary remembered value.
+        if(collections.length && !collections.some(c => c.id === activeCollectionId)){
+          activeCollectionId = collections[0].id;
         }
 
         if(!firstLoadDone){
@@ -2747,7 +2737,6 @@
   async function setActiveCollection(id){
     await withLoading(async ()=>{
       activeCollectionId = id;
-      try{ localStorage.setItem(activeCollectionKey(), id); }catch(e){ /* non-fatal */ }
       updateHeaderLabel();
       render();
     }, 450);
@@ -3464,15 +3453,31 @@
 
     function animateTo(x, onDone, opts){
       const noBounce = !!(opts && opts.noBounce);
-      card.classList.remove('swipe-dragging');
+      // Clear out any in-flight snap animation first — if a transition was
+      // interrupted (e.g. the user grabbed the card again mid-animation),
+      // its leftover class/listener would otherwise still be attached,
+      // making the *next* animation inherit the wrong transition timing or
+      // fire its onDone callback at the wrong moment.
+      if(card._swipeTransitionHandler){
+        card.removeEventListener('transitionend', card._swipeTransitionHandler);
+        card._swipeTransitionHandler = null;
+      }
+      card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
+      // Force layout to flush before re-adding the transition class, so the
+      // browser always animates from the current on-screen position instead
+      // of possibly collapsing this into the tail end of the class it just
+      // had (which reads as a stutter rather than one fluid motion).
+      void card.offsetWidth;
       card.classList.add(noBounce ? 'swipe-snap-close' : 'swipe-snap');
       setTransform(x);
       const handler = (e)=>{
         if(e && e.propertyName !== 'transform') return;
         card.removeEventListener('transitionend', handler);
+        card._swipeTransitionHandler = null;
         card.classList.remove('swipe-snap', 'swipe-snap-close');
         if(onDone) onDone();
       };
+      card._swipeTransitionHandler = handler;
       card.addEventListener('transitionend', handler);
     }
 
@@ -3502,7 +3507,11 @@
       startX = e.clientX;
       startY = e.clientY;
       baseOffset = wrap.dataset.open === 'true' ? SWIPE_OPEN_OFFSET : 0;
-      card.classList.remove('swipe-snap');
+      if(card._swipeTransitionHandler){
+        card.removeEventListener('transitionend', card._swipeTransitionHandler);
+        card._swipeTransitionHandler = null;
+      }
+      card.classList.remove('swipe-snap', 'swipe-snap-close');
       card.classList.add('swipe-dragging');
       try{ card.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
     });
@@ -4468,7 +4477,6 @@
               activeCollectionId = (myCollectionId && collections.some(c => c.id === myCollectionId))
                 ? myCollectionId
                 : collections[0].id;
-              try{ localStorage.setItem(activeCollectionKey(), activeCollectionId); }catch(e){ /* non-fatal */ }
             }
             renderDrawer();
             updateHeaderLabel();
@@ -5008,6 +5016,11 @@
       showGroupSetupError("You're no longer a member of that group.");
       return;
     }
+    // Always land on "My Collection" (this user's own personal collection)
+    // in whichever group we just entered — the same collection every
+    // member, leader included, gets by default for their own decks — rather
+    // than whatever collection happened to be open last time.
+    activeCollectionId = personalCollectionId(currentUser.uid);
     groupChipName.textContent = group.name;
     updateProfileNameLabel();
     groupSetupScreen.style.display = 'none';
