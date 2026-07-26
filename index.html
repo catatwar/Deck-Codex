@@ -597,6 +597,11 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin: 0;
+    /* Reserves exactly 2 lines of height always — without this, a
+       one-line description made the whole card shorter than a card with a
+       full 2-line description, since -webkit-line-clamp only caps the
+       *maximum* height, it doesn't guarantee a minimum. */
+    min-height: calc(1.45em * 2);
     flex: 1;
   }
 
