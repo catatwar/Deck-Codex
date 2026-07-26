@@ -32,7 +32,8 @@
     signOut,
     deleteUser,
     EmailAuthProvider,
-    reauthenticateWithCredential
+    reauthenticateWithCredential,
+    sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
   import {
     initializeFirestore,
@@ -90,6 +91,7 @@
     deleteUser,
     EmailAuthProvider,
     reauthenticateWithCredential,
+    sendPasswordResetEmail,
     collection,
     collectionGroup,
     doc,
@@ -1033,11 +1035,56 @@
   }
   .auth-field input:focus{ border-color: var(--gold); }
 
+  .password-field-wrap{
+    position: relative;
+  }
+  .password-field-wrap input{
+    padding-right: 42px;
+  }
+  .btn-toggle-password{
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:none;
+    border:none;
+    color: var(--muted);
+    border-radius: 6px;
+  }
+  .btn-toggle-password:hover{ color: var(--ink); }
+  .btn-toggle-password .icon-svg{ width: 18px; height: 18px; }
+
+  .btn-forgot-password{
+    display:block;
+    margin: 8px 0 0;
+    background:none;
+    border:none;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .btn-forgot-password:hover{ color: var(--gold); }
+
   .auth-error{
     color: #e77a6a;
     font-family: var(--font-ui);
     font-size: 0.82rem;
-    margin: -4px 0 16px;
+    margin: 10px 0 16px;
+    display:none;
+  }
+
+  .auth-notice{
+    color: #7aa87a;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    margin: 10px 0 16px;
     display:none;
   }
 
@@ -1542,9 +1589,23 @@
     </div>
     <div class="auth-field">
       <label for="authPassword">Password</label>
-      <input type="password" id="authPassword" autocomplete="current-password" placeholder="••••••••">
+      <div class="password-field-wrap">
+        <input type="password" id="authPassword" autocomplete="current-password" placeholder="Enter password">
+        <button type="button" class="btn-toggle-password" id="btnTogglePassword" aria-label="Show password" title="Show password">
+          <svg class="icon-svg icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg class="icon-svg icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 4.22-5.06M9.9 4.24A9.7 9.7 0 0 1 12 4c7 0 11 7 11 7a18.6 18.6 0 0 1-2.16 3.19m-6.3-.87a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
+      <button type="button" class="btn-forgot-password" id="btnForgotPassword">Forgot password?</button>
     </div>
     <div class="auth-error" id="authError"></div>
+    <div class="auth-notice" id="authNotice"></div>
 
     <button class="btn-auth-primary" id="btnAuthSubmit">Sign In</button>
     <div class="auth-toggle">
@@ -1905,7 +1966,7 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential,
+          signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
           collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
           query, where, orderBy, onSnapshot } = fb;
 
@@ -3746,8 +3807,11 @@
   const authEmail = $('authEmail');
   const authPassword = $('authPassword');
   const authError = $('authError');
+  const authNotice = $('authNotice');
   const btnAuthSubmit = $('btnAuthSubmit');
   const btnAuthToggleMode = $('btnAuthToggleMode');
+  const btnTogglePassword = $('btnTogglePassword');
+  const btnForgotPassword = $('btnForgotPassword');
   const authSub = $('authSub');
   const authToggleText = $('authToggleText');
 
@@ -3756,6 +3820,7 @@
   function setAuthMode(mode){
     authMode = mode;
     authError.style.display = 'none';
+    authNotice.style.display = 'none';
     if(mode === 'signup'){
       btnAuthSubmit.textContent = 'Create Account';
       authSub.textContent = 'Create your own Deck Codex account, then create or join a group.';
@@ -3824,6 +3889,62 @@
   btnAuthSubmit.addEventListener('click', submitAuth);
   authPassword.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submitAuth(); });
   authEmail.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') authPassword.focus(); });
+
+  const iconEye = btnTogglePassword.querySelector('.icon-eye');
+  const iconEyeOff = btnTogglePassword.querySelector('.icon-eye-off');
+  btnTogglePassword.addEventListener('click', ()=>{
+    const showing = authPassword.type === 'text';
+    authPassword.type = showing ? 'password' : 'text';
+    iconEye.style.display = showing ? '' : 'none';
+    iconEyeOff.style.display = showing ? 'none' : '';
+    btnTogglePassword.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    btnTogglePassword.title = showing ? 'Show password' : 'Hide password';
+    authPassword.focus();
+  });
+
+  async function submitForgotPassword(){
+    const email = authEmail.value.trim();
+    authError.style.display = 'none';
+    authNotice.style.display = 'none';
+
+    if(!email){
+      authError.textContent = 'Enter your email above first, then tap "Forgot password?"';
+      authError.style.display = 'block';
+      authEmail.focus();
+      return;
+    }
+
+    const prevLabel = btnForgotPassword.textContent;
+    btnForgotPassword.disabled = true;
+    btnForgotPassword.textContent = 'Sending…';
+
+    try{
+      await Promise.race([sendPasswordResetEmail(auth, email), timeout(15000, 'Sending reset email')]);
+      authNotice.textContent = `If an account exists for ${email}, a reset link is on its way. Check your inbox (and spam folder).`;
+      authNotice.style.display = 'block';
+    }catch(e){
+      // Firebase returns auth/invalid-email for malformed addresses; for
+      // unknown accounts it may also report user-not-found depending on
+      // project settings — either way we show the same neutral message so
+      // we don't reveal whether an email is registered.
+      if(e && e.code === 'auth/invalid-email'){
+        authError.textContent = 'That email address doesn\'t look right.';
+        authError.style.display = 'block';
+      } else if(e && e.code === 'auth/too-many-requests'){
+        authError.textContent = 'Too many attempts. Please wait a moment and try again.';
+        authError.style.display = 'block';
+      } else {
+        authNotice.textContent = `If an account exists for ${email}, a reset link is on its way. Check your inbox (and spam folder).`;
+        authNotice.style.display = 'block';
+      }
+      console.error(e);
+    }finally{
+      btnForgotPassword.disabled = false;
+      btnForgotPassword.textContent = prevLabel;
+    }
+  }
+
+  btnForgotPassword.addEventListener('click', submitForgotPassword);
 
   setAuthMode('signin');
 
