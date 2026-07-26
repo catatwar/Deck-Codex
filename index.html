@@ -49,8 +49,7 @@
     query,
     where,
     orderBy,
-    onSnapshot,
-    increment
+    onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   // ---------- Environment: prod vs. dev backend ----------
@@ -137,8 +136,7 @@
     query,
     where,
     orderBy,
-    onSnapshot,
-    increment
+    onSnapshot
   };
 
   // Let any listeners know the SDK is ready (used defensively — the main
@@ -590,14 +588,6 @@
     flex: 1;
   }
 
-  .deck-price-tag{
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--gold);
-    white-space: nowrap;
-  }
-
   /* ---------- Empty state ---------- */
   .empty-state{
     text-align:center;
@@ -699,20 +689,12 @@
   }
   .identity-pip .pip{ width: 22px; height: 22px; font-size: 0.68rem; }
 
-  .price-block{ margin-bottom: 20px; }
-  .price-value{
-    font-family: var(--font-ui);
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--ink);
-  }
-
   .record-block{ margin-bottom: 20px; }
   .record-row{
     display:flex;
     align-items:baseline;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
   }
   .record-summary{
     font-family: var(--font-ui);
@@ -725,32 +707,12 @@
     font-size: 0.86rem;
     color: var(--muted);
   }
-  .record-actions{
-    display:flex; gap: 10px; align-items:center;
-  }
-  .btn-record-win, .btn-record-loss{
+  .record-note{
     font-family: var(--font-ui);
-    font-weight: 600;
-    font-size: 0.82rem;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: var(--surface-3);
-    color: var(--ink);
+    font-size: 0.76rem;
+    color: var(--muted-2);
+    margin: 0;
   }
-  .btn-record-win:hover{ border-color: #7aa87a; color: #7aa87a; }
-  .btn-record-loss:hover{ border-color: #e77a6a; color: #e77a6a; }
-  .btn-record-undo{
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
-    color: var(--muted);
-    background:none;
-    border:none;
-    text-decoration: underline;
-    padding: 0;
-    margin-left: auto;
-  }
-  .btn-record-undo:hover{ color: var(--ink); }
 
   .scanner-photo-row{
     display:flex; align-items:center; gap: 12px; flex-wrap: wrap;
@@ -1775,6 +1737,49 @@
 </style>
 
 <style>
+  /* ---------- Portrait lock (phones only) ---------- */
+  /* True orientation-locking isn't reliably available to a plain web page
+     (iOS Safari doesn't support it at all; Android only allows it in a
+     fullscreen/installed context) — so instead of fighting the browser,
+     this blocks interaction with a plain "please rotate back" overlay
+     whenever a touchscreen device is both landscape AND short enough to
+     be a phone rather than a tablet or a laptop window. */
+  .portrait-lock-overlay{ display:none; }
+  @media (orientation: landscape) and (pointer: coarse) and (max-height: 500px){
+    .portrait-lock-overlay{
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: var(--surface);
+      color: var(--ink);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px;
+      font-family: var(--font-ui);
+    }
+  }
+  .portrait-lock-icon{
+    font-size: 2.6rem;
+    margin-bottom: 14px;
+    transform: rotate(90deg);
+  }
+  .portrait-lock-title{
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .portrait-lock-sub{
+    font-size: 0.88rem;
+    color: var(--muted);
+    max-width: 300px;
+    line-height: 1.5;
+  }
+</style>
+
+<style>
   /* ---------- Update banner ---------- */
   .update-banner{
     position: fixed;
@@ -1842,6 +1847,14 @@
 </style>
 </head>
 <body>
+
+<!-- Portrait lock: pure CSS, shows automatically via media query when a
+     phone is rotated to landscape. No JS needed. -->
+<div class="portrait-lock-overlay" id="portraitLockOverlay">
+  <div class="portrait-lock-icon">📱</div>
+  <div class="portrait-lock-title">Rotate back to portrait</div>
+  <div class="portrait-lock-sub">Deck Codex is designed for portrait mode — turn your device back to keep going.</div>
+</div>
 
 <!-- Splash Screen: covers the brief sign-in flash while Firebase auth resolves -->
 <div id="splashScreen">
@@ -2225,21 +2238,13 @@
         <div class="identity-label">Color Identity</div>
         <div class="identity-pips" id="infoIdentity"></div>
       </div>
-      <div class="price-block" id="infoPriceBlock" style="display:none;">
-        <div class="desc-label">Price</div>
-        <div class="price-value" id="infoPrice"></div>
-      </div>
       <div class="record-block" id="infoRecordBlock">
         <div class="desc-label">Match Record</div>
         <div class="record-row">
           <span class="record-summary" id="infoRecordSummary">0–0</span>
           <span class="record-winrate" id="infoRecordWinrate"></span>
         </div>
-        <div class="record-actions">
-          <button type="button" class="btn-record-win" id="btnLogWin">+ Win</button>
-          <button type="button" class="btn-record-loss" id="btnLogLoss">+ Loss</button>
-          <button type="button" class="btn-record-undo" id="btnUndoLastResult" style="display:none;">Undo</button>
-        </div>
+        <p class="record-note">Tracked in MTG Tracker — logged there, shown here.</p>
       </div>
       <div class="desc-label">Description</div>
       <p class="desc-text" id="infoDesc"></p>
@@ -2281,10 +2286,6 @@
       <div class="field">
         <label>Build <span class="optional-tag">(optional)</span></label>
         <div class="color-picker" id="formBuildType"></div>
-      </div>
-      <div class="field">
-        <label for="formPrice">Price <span class="optional-tag">(optional)</span></label>
-        <input type="number" id="formPrice" placeholder="0.00" step="0.01" min="0">
       </div>
       <div class="field">
         <label for="formDesc">Description <span class="optional-tag">(optional)</span></label>
@@ -2419,7 +2420,7 @@
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
           signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
           collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-          query, where, orderBy, onSnapshot, increment } = fb;
+          query, where, orderBy, onSnapshot } = fb;
 
   const USERS_COL = collection(db, 'users');
   const GROUPS_COL = collection(db, 'groups');
@@ -2644,13 +2645,6 @@
     const showColorless = deck.colorless || !deck.colors || deck.colors.length === 0;
     if(showColorless) pips.push('C');
     return pips;
-  }
-
-  function formatPrice(p){
-    if(p === null || p === undefined || p === '') return null;
-    const n = Number(p);
-    if(Number.isNaN(n)) return null;
-    return '$' + n.toFixed(2);
   }
 
   // ---------- Storage: collections (Firestore, live) ----------
@@ -2898,13 +2892,22 @@
     for(const deck of decks){
       if(!deck.collectionId){
         deck.collectionId = fallbackId;
-        try{ await saveDeck(deck); }catch(e){ /* non-fatal */ }
+        try{ await updateDeckFields(deck.id, { collectionId: fallbackId }); }catch(e){ /* non-fatal */ }
       }
     }
   }
 
-  async function saveDeck(deck){
+  // createDeck does a full write and is only ever used for a brand-new
+  // doc that doesn't exist yet. updateDeckFields patches just the given
+  // fields — used for edits and migrations — so it can never clobber
+  // fields Codex doesn't own (wins/losses, which MTG Tracker writes) even
+  // if this device's local copy of the deck is momentarily stale.
+  async function createDeck(deck){
     await setDoc(doc(DECKS_COL, deck.id), deck);
+  }
+
+  async function updateDeckFields(deckId, fields){
+    await updateDoc(doc(DECKS_COL, deckId), fields);
   }
 
   async function deleteDeck(id){
@@ -3294,13 +3297,6 @@
       name.textContent = deck.name;
       topRow.appendChild(name);
 
-      const priceStr = formatPrice(deck.price);
-      if(priceStr){
-        const priceTag = document.createElement('div');
-        priceTag.className = 'deck-price-tag';
-        priceTag.textContent = priceStr;
-        topRow.appendChild(priceTag);
-      }
       card.appendChild(topRow);
 
       const metaRow = document.createElement('div');
@@ -3604,7 +3600,6 @@
 
   // ---------- Info modal ----------
   let currentInfoId = null;
-  let lastLoggedResult = null; // { deckId, field } — powers the one-tap Undo
 
   function openInfo(id){
     const deck = decks.find(d => d.id === id);
@@ -3641,17 +3636,7 @@
       identityWrap.appendChild(pill);
     });
 
-    const priceStr = formatPrice(deck.price);
-    if(priceStr){
-      $('infoPriceBlock').style.display = 'block';
-      $('infoPrice').textContent = priceStr;
-    } else {
-      $('infoPriceBlock').style.display = 'none';
-    }
-
     renderInfoRecord(deck);
-    lastLoggedResult = null;
-    $('btnUndoLastResult').style.display = 'none';
 
     const descEl = $('infoDesc');
     if(deck.description){
@@ -3694,10 +3679,11 @@
   });
 
   // ---------- Match record (wins/losses) ----------
-  // Stored directly on the deck doc (wins/losses counters) rather than a
-  // separate game-log collection — a family tracker doesn't need per-game
-  // history, so this keeps it to one tiny write per logged result instead
-  // of a whole subcollection to read back and sum every time.
+  // View-only here on purpose: MTG Tracker is the sole owner of win/loss
+  // truth (it derives records from its own match-log history), and pushes
+  // the aggregate wins/losses onto this same deck doc in Firestore. Codex
+  // just displays whatever's there — no editing UI, so there's no way for
+  // a Codex edit to clobber what Tracker has recorded.
   function renderInfoRecord(deck){
     const wins = deck.wins || 0;
     const losses = deck.losses || 0;
@@ -3707,54 +3693,6 @@
       ? `${Math.round((wins / total) * 100)}% win rate`
       : 'No games logged yet';
   }
-
-  async function logGameResult(deckId, field){
-    const deck = decks.find(d => d.id === deckId);
-    if(!deck) return;
-    // Optimistic local update so the tap feels instant; the live listener
-    // will reconcile with the server's value shortly after regardless.
-    deck[field] = (deck[field] || 0) + 1;
-    renderInfoRecord(deck);
-    lastLoggedResult = { deckId, field };
-    $('btnUndoLastResult').style.display = '';
-    try{
-      await updateDoc(doc(DECKS_COL, deckId), { [field]: increment(1) });
-    }catch(e){
-      console.error('Could not log game result', e);
-      deck[field] = Math.max(0, (deck[field] || 0) - 1);
-      renderInfoRecord(deck);
-      lastLoggedResult = null;
-      $('btnUndoLastResult').style.display = 'none';
-      alert("Couldn't save that result — check your connection and try again.");
-    }
-  }
-
-  async function undoLastLoggedResult(){
-    if(!lastLoggedResult) return;
-    const { deckId, field } = lastLoggedResult;
-    const deck = decks.find(d => d.id === deckId);
-    lastLoggedResult = null;
-    $('btnUndoLastResult').style.display = 'none';
-    if(!deck) return;
-    deck[field] = Math.max(0, (deck[field] || 0) - 1);
-    renderInfoRecord(deck);
-    try{
-      await updateDoc(doc(DECKS_COL, deckId), { [field]: increment(-1) });
-    }catch(e){
-      console.error('Could not undo logged result', e);
-      alert("Couldn't undo that — check your connection and try again.");
-    }
-  }
-
-  $('btnLogWin').addEventListener('click', ()=>{
-    if(!currentInfoId) return;
-    logGameResult(currentInfoId, 'wins');
-  });
-  $('btnLogLoss').addEventListener('click', ()=>{
-    if(!currentInfoId) return;
-    logGameResult(currentInfoId, 'losses');
-  });
-  $('btnUndoLastResult').addEventListener('click', undoLastLoggedResult);
 
   // ---------- Card price scanner ----------
   // Deliberately stateless: nothing here ever touches Firestore or any
@@ -3776,7 +3714,14 @@
           });
         }
         return await window.Tesseract.createWorker('eng');
-      })();
+      })().catch(e => {
+        // Don't let one failed load (e.g. a network hiccup) permanently
+        // wedge every future scan attempt — clear the cache so the next
+        // photo tried gets a fresh attempt instead of an instant repeat
+        // failure.
+        ocrWorkerPromise = null;
+        throw e;
+      });
     }
     return ocrWorkerPromise;
   }
@@ -3866,7 +3811,11 @@
   function bestGuessCardName(rawText){
     const lines = (rawText || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 8);
     if(!lines.length) return '';
-    let best = lines[0];
+    // Minimum plausibility bar — if nothing clears this, we'd rather admit
+    // we couldn't read it than hand back a low-confidence guess dressed up
+    // to look like a real answer.
+    const MIN_SCORE = 0.5;
+    let best = '';
     let bestScore = -Infinity;
     for(const line of lines){
       // Collector-number lines ("141/264 C EN") are shaped nothing like a
@@ -3877,7 +3826,7 @@
       const s = scoreCandidateNameLine(cleaned);
       if(s > bestScore){ bestScore = s; best = cleaned; }
     }
-    return best;
+    return bestScore >= MIN_SCORE ? best : '';
   }
 
   // The collector number is printed small along the bottom edge, almost
@@ -3914,13 +3863,24 @@
     try{
       const worker = await getOcrWorker();
       const { data } = await worker.recognize(file);
-      const guess = bestGuessCardName(data.text);
-      const numberGuess = bestGuessCollectorNumber(data.text);
+      // Tesseract reports an overall 0–100 confidence for the recognition
+      // pass itself, separate from how plausible any single line looks.
+      // Below this bar the "text" it returned is often close to noise —
+      // better to say so plainly than quietly fill in a guess that looks
+      // considered but isn't actually backed by a confident read.
+      const MIN_OCR_CONFIDENCE = 35;
+      const lowConfidence = typeof data.confidence === 'number' && data.confidence < MIN_OCR_CONFIDENCE;
+      const guess = lowConfidence ? '' : bestGuessCardName(data.text);
+      const numberGuess = lowConfidence ? '' : bestGuessCollectorNumber(data.text);
       if(guess) scannerNameInput.value = guess;
       if(numberGuess) scannerNumberInput.value = numberGuess;
-      scannerStatus.textContent = guess
-        ? `Got "${guess}"${numberGuess ? ` (#${numberGuess})` : ''} — check it looks right, then look up the price.`
-        : "Couldn't quite read the name — type it in below.";
+      if(lowConfidence){
+        scannerStatus.textContent = "Couldn't get a confident read on this photo — try better lighting or a closer shot, or type the card name in below.";
+      } else {
+        scannerStatus.textContent = guess
+          ? `Got "${guess}"${numberGuess ? ` (#${numberGuess})` : ''} — check it looks right, then look up the price.`
+          : "Couldn't quite make out the name — type it in below.";
+      }
     }catch(e){
       console.error('OCR failed', e);
       scannerStatus.textContent = "Couldn't read the photo — type the card name in below instead.";
@@ -4227,7 +4187,6 @@
       $('formTitle').textContent = 'Edit Deck';
       $('formName').value = deck.name;
       $('formDesc').value = deck.description || '';
-      $('formPrice').value = (deck.price !== null && deck.price !== undefined) ? deck.price : '';
       if(deck.colors && deck.colors.length){
         deck.colors.forEach(c=>selected.add(c));
       }
@@ -4241,7 +4200,6 @@
       $('formTitle').textContent = 'New Deck';
       $('formName').value = '';
       $('formDesc').value = '';
-      $('formPrice').value = '';
       buildCollectionSelect(isLeader() ? activeCollectionId : null);
       buildSeriesSelect('');
       buildBuildTypeSelector(null);
@@ -4269,7 +4227,6 @@
   $('formSave').addEventListener('click', async ()=>{
     const name = $('formName').value.trim();
     const description = $('formDesc').value.trim();
-    const priceRaw = $('formPrice').value;
     const collectionId = isLeader() ? $('formCollection').value : (editingId ? $('formCollection').value : personalCollectionId(currentUser.uid));
     const seriesRaw = $('formSeries').value;
     const errorEl = $('formError');
@@ -4305,17 +4262,6 @@
     const isColorless = activeButtons.includes('C');
     const buildType = getSelectedBuildType();
 
-    let price = null;
-    if(priceRaw !== ''){
-      const n = Number(priceRaw);
-      if(Number.isNaN(n) || n < 0){
-        errorEl.textContent = 'Price must be a positive number.';
-        errorEl.style.display = 'block';
-        return;
-      }
-      price = n;
-    }
-
     const saveBtn = $('formSave');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
@@ -4330,22 +4276,28 @@
           saveBtn.textContent = 'Save Deck';
           return;
         }
-        deck.name = name;
-        deck.description = description;
-        deck.colors = selectedColors;
-        deck.colorless = isColorless;
-        deck.price = price;
-        deck.collectionId = collectionId;
-        deck.seriesId = seriesId;
-        deck.buildType = buildType;
-        await saveDeck(deck);
+        // Patches only the fields this form actually edits — never touches
+        // wins/losses (MTG Tracker's to write) or anything else, even if
+        // this device's local copy of the deck is momentarily behind.
+        await updateDeckFields(editingId, {
+          name, description,
+          colors: selectedColors,
+          colorless: isColorless,
+          collectionId,
+          seriesId,
+          buildType
+        });
+        // Mirror the exact same fields onto our local cached copy so the
+        // UI updates instantly instead of waiting on the snapshot echo —
+        // safe because it's the identical field set we just wrote, so it
+        // can't drift from what Firestore now has.
+        Object.assign(deck, { name, description, colors: selectedColors, colorless: isColorless, collectionId, seriesId, buildType });
       } else {
         const deck = {
           id: 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
           name, description,
           colors: selectedColors,
           colorless: isColorless,
-          price: price,
           collectionId: collectionId,
           seriesId: seriesId,
           buildType: buildType,
@@ -4355,7 +4307,7 @@
           losses: 0,
           createdAt: Date.now()
         };
-        await saveDeck(deck);
+        await createDeck(deck);
         // Not pushing to `decks` here on purpose — attachLiveDecks' live
         // listener already adds it (often before this line even runs),
         // and pushing again here was what caused the deck to show up
