@@ -138,6 +138,15 @@
 
   *{ box-sizing: border-box; }
   html, body{ margin:0; padding:0; overscroll-behavior-y: none; }
+  /* height:100% (not min-height:100vh) so the background always reaches
+     the bottom of the actual current viewport on short pages — percentage
+     heights track window.innerHeight in real time, where vh units can lag
+     behind it on mobile (see the content-fits comment below). Because
+     overflow stays visible by default here, taller content still grows
+     past this box and scrollHeight still reports it correctly, so long
+     pages keep scrolling exactly as before. */
+  html{ height: 100%; }
+  body{ min-height: 100%; }
   /* The root element's background paints the whole canvas regardless of
      content height — this is what keeps the gradient filling the screen
      on short pages, with no need to force body/html taller than their
