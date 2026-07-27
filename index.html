@@ -29,7 +29,6 @@
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    fetchSignInMethodsForEmail,
     signOut,
     deleteUser,
     EmailAuthProvider,
@@ -122,7 +121,6 @@
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    fetchSignInMethodsForEmail,
     signOut,
     deleteUser,
     EmailAuthProvider,
@@ -2758,7 +2756,6 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-          fetchSignInMethodsForEmail,
           signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
           collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
           query, where, orderBy, onSnapshot } = fb;
@@ -5638,7 +5635,7 @@
       case 'auth/invalid-email': return 'That email address doesn\'t look right.';
       case 'auth/missing-password':
       case 'auth/weak-password': return 'Password must be at least 6 characters.';
-      case 'auth/email-already-in-use': return 'An account already exists for that email — try signing in instead.';
+      case 'auth/email-already-in-use': return 'An account already exists for that email — your password was probably just mistyped. Try again, or use "Forgot password?" below.';
       case 'auth/invalid-credential':
       case 'auth/wrong-password': return 'Incorrect email or password.';
       case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
@@ -5661,45 +5658,8 @@
 
     btnAuthSubmit.disabled = true;
     const prevLabel = btnAuthSubmit.textContent;
-    btnAuthSubmit.textContent = 'Checking…';
-
-    // Check whether an account exists for this email *before* attempting to
-    // sign in. Many current Firebase projects return the same generic
-    // "invalid-credential" error for both a wrong password and a
-    // nonexistent account, so the sign-in attempt's error code alone often
-    // can't tell those two cases apart — this explicit check can.
-    let accountExists = null; // true | false | null (couldn't determine)
-    try{
-      const methods = await Promise.race([
-        fetchSignInMethodsForEmail(auth, email),
-        timeout(15000, 'Checking that email')
-      ]);
-      accountExists = methods.length > 0;
-    }catch(checkErr){
-      if(checkErr && checkErr.code === 'auth/invalid-email'){
-        authError.textContent = friendlyAuthError('auth/invalid-email');
-        authError.style.display = 'block';
-        btnAuthSubmit.disabled = false;
-        btnAuthSubmit.textContent = prevLabel;
-        return;
-      }
-      // Couldn't determine either way (e.g. a network hiccup, or this
-      // project has enumeration protection enabled and always reports no
-      // methods) — accountExists stays null and the sign-in attempt below
-      // decides what to show instead.
-      console.error('Could not check whether an account exists, falling back to a normal sign-in attempt', checkErr);
-    }
-
-    if(accountExists === false){
-      pendingCreateEmail = email;
-      pendingCreateStep = 'offer';
-      showAuthConfirm(`We couldn't find an account for ${email} — would you like to create one?`);
-      btnAuthSubmit.disabled = false;
-      btnAuthSubmit.textContent = prevLabel;
-      return;
-    }
-
     btnAuthSubmit.textContent = 'Signing in…';
+
     try{
       await Promise.race([
         signInWithEmailAndPassword(auth, email, password),
@@ -5708,17 +5668,23 @@
       authPassword.value = '';
       // onAuthStateChanged below takes it from here.
     }catch(e){
-      // Fallback path for when the existence check above couldn't run: on
-      // some projects both "no such account" and "wrong password" surface
-      // as one of these two codes, so offer to create an account rather
-      // than just reporting a dead-end "incorrect password" error.
-      if(accountExists === null && e && (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')){
+      if(e && (e.code === 'auth/invalid-email' || e.code === 'auth/too-many-requests')){
+        // These aren't about whether the account exists, so just show them
+        // directly rather than offering to create an account.
+        authError.textContent = friendlyAuthError(e.code);
+        authError.style.display = 'block';
+      } else {
+        // Current Firebase projects report the same generic error here
+        // whether the password was wrong or no account exists at all for
+        // this email — a deliberate anti-enumeration measure on Google's
+        // end, and there's no reliable client-side way around it. So
+        // rather than guess, offer to create an account; if one already
+        // exists, the creation attempt itself will say so (Firebase can't
+        // silently allow two accounts on the same email, so that error is
+        // always trustworthy) and we'll point the person back here instead.
         pendingCreateEmail = email;
         pendingCreateStep = 'offer';
-        showAuthConfirm(`We couldn't find an account for ${email} — would you like to create one?`);
-      } else {
-        authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
-        authError.style.display = 'block';
+        showAuthConfirm(`That didn't sign you in — wrong password, or no account yet for ${email}? If you don't have one, we can create it.`);
       }
       console.error(e);
     }finally{
@@ -5746,6 +5712,9 @@
       hideAuthConfirm();
       authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
       authError.style.display = 'block';
+      if(e && e.code === 'auth/email-already-in-use'){
+        authPassword.focus();
+      }
       console.error(e);
     }finally{
       authConfirmYes.disabled = false;
@@ -5757,7 +5726,7 @@
   authConfirmYes.addEventListener('click', ()=>{
     if(pendingCreateStep === 'offer'){
       pendingCreateStep = 'confirm';
-      showAuthConfirm(`Are you sure you want to create an account for ${pendingCreateEmail}? You'll create or join a group right after.`);
+      showAuthConfirm(`Are you sure you want to create an account for ${pendingCreateEmail}? (If you already have one, this will fail and let you try signing in again instead.)`);
     } else if(pendingCreateStep === 'confirm'){
       createPendingAccount();
     }
