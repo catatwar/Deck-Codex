@@ -474,6 +474,16 @@
   }
   .custom-select-option:hover{ background: var(--surface-3); }
   .custom-select-option[data-active="true"]{ background: var(--gold-soft); color: var(--gold); font-weight: 600; }
+  /* Used for the "+ Add new series…" row — an action, not a value, so it's
+     set apart from the real options above it with a divider and gold text. */
+  .custom-select-option.custom-select-option-action{
+    color: var(--gold);
+    font-weight: 600;
+    border-top: 1px solid var(--line);
+    margin-top: 4px;
+    padding-top: 12px;
+  }
+  .custom-select-option.custom-select-option-action:hover{ background: var(--gold-soft); }
   .custom-select-option .option-name{
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2723,7 +2733,7 @@
 
 <!-- Add/Edit Modal -->
 <div class="overlay" id="formOverlay">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+  <div class="modal" id="deckFormModal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
     <div class="modal-body">
       <button class="modal-close" id="formClose" aria-label="Cancel and close"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="formTitle">New Deck</h2>
@@ -2732,8 +2742,14 @@
         <select id="formCollection"></select>
       </div>
       <div class="field">
-        <label for="formSeries">Series <span class="optional-tag">(optional)</span></label>
-        <select id="formSeries"></select>
+        <label id="formSeriesLabel">Series <span class="optional-tag">(optional)</span></label>
+        <div class="custom-select" id="formSeriesCustomSelect">
+          <button type="button" class="custom-select-trigger" id="formSeriesTrigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="formSeriesLabel">
+            <span id="formSeriesTriggerLabel">No series</span>
+            <svg class="icon-svg custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="custom-select-options" id="formSeriesOptions" role="listbox" aria-label="Series" style="display:none;"></div>
+        </div>
         <div class="inline-add-row" id="seriesAddRow" style="display:none;">
           <input type="text" id="newSeriesInput" placeholder="New series name…" maxlength="50">
           <button type="button" id="btnConfirmAddSeries">Add</button>
@@ -5338,31 +5354,96 @@
   }
 
   const ADD_NEW_SERIES_VALUE = '__add_new_series__';
+  // Stands in for the old <select id="formSeries"> element's .value, now
+  // that the picker is a custom dropdown instead of a native select.
+  let formSeriesValue = '';
+  let formSeriesOpen = false;
+
+  function formSeriesLabelFor(value){
+    if(!value) return 'No series';
+    if(value === ADD_NEW_SERIES_VALUE) return '+ Add new series…';
+    const s = seriesList.find(x => x.id === value);
+    return s ? s.name : 'No series';
+  }
+  function openFormSeriesOptions(){
+    formSeriesOpen = true;
+    $('formSeriesCustomSelect').classList.add('open');
+    $('formSeriesOptions').style.display = 'block';
+    $('formSeriesTrigger').setAttribute('aria-expanded', 'true');
+  }
+  function closeFormSeriesOptions(){
+    formSeriesOpen = false;
+    $('formSeriesCustomSelect').classList.remove('open');
+    $('formSeriesOptions').style.display = 'none';
+    $('formSeriesTrigger').setAttribute('aria-expanded', 'false');
+  }
+
+  // Selects a value in the series picker — mirrors what a native <select>'s
+  // change event used to drive: updates the trigger label, shows/hides the
+  // inline "add a series" row, and refreshes the rename/delete buttons.
+  function selectFormSeriesValue(value){
+    formSeriesValue = value || '';
+    $('formSeriesTriggerLabel').textContent = formSeriesLabelFor(formSeriesValue);
+    if(formSeriesValue === ADD_NEW_SERIES_VALUE){
+      showSeriesAddRow();
+    } else {
+      hideSeriesAddRow();
+    }
+    updateSeriesActionBtnsVisibility();
+    buildFormSeriesOptionList();
+  }
+
+  function buildFormSeriesOptionList(){
+    const wrap = $('formSeriesOptions');
+    wrap.innerHTML = '';
+
+    const makeOption = (value, label, isAction)=>{
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'custom-select-option' + (isAction ? ' custom-select-option-action' : '');
+      opt.setAttribute('role', 'option');
+      const isActive = formSeriesValue === value;
+      opt.dataset.active = isActive ? 'true' : 'false';
+      opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'option-name';
+      nameSpan.textContent = label;
+      opt.appendChild(nameSpan);
+
+      if(!isAction){
+        const checkIcon = document.createElement('span');
+        checkIcon.className = 'check-icon';
+        checkIcon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        opt.appendChild(checkIcon);
+      }
+
+      opt.addEventListener('click', ()=>{
+        selectFormSeriesValue(value);
+        closeFormSeriesOptions();
+      });
+      wrap.appendChild(opt);
+    };
+
+    makeOption('', 'No series');
+    seriesList.forEach(s => makeOption(s.id, s.name));
+    makeOption(ADD_NEW_SERIES_VALUE, '+ Add new series…', true);
+  }
+  $('formSeriesTrigger').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(formSeriesOpen) closeFormSeriesOptions();
+    else openFormSeriesOptions();
+  });
+  // Collapses the list when clicking anywhere else in the deck form
+  // (another field, the modal background) — clicks on the trigger or an
+  // option are inside #formSeriesCustomSelect and excluded here, handled
+  // by the trigger's own listener and each option's click handler above.
+  $('deckFormModal').addEventListener('click', (e)=>{
+    if(formSeriesOpen && !$('formSeriesCustomSelect').contains(e.target)) closeFormSeriesOptions();
+  });
 
   function buildSeriesSelect(selectedId){
-    const sel = $('formSeries');
-    sel.innerHTML = '';
-
-    const noneOpt = document.createElement('option');
-    noneOpt.value = '';
-    noneOpt.textContent = 'No series';
-    sel.appendChild(noneOpt);
-
-    seriesList.forEach(s=>{
-      const opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = s.name;
-      sel.appendChild(opt);
-    });
-
-    const addOpt = document.createElement('option');
-    addOpt.value = ADD_NEW_SERIES_VALUE;
-    addOpt.textContent = '+ Add new series…';
-    sel.appendChild(addOpt);
-
-    sel.value = selectedId || '';
-    hideSeriesAddRow();
-    updateSeriesActionBtnsVisibility();
+    selectFormSeriesValue(selectedId || '');
   }
 
   // Leader-only, and only for an actual existing series (not "No series"
@@ -5372,7 +5453,7 @@
     const delBtn = $('btnDeleteSeries');
     const editBtn = $('btnEditSeries');
     if(!delBtn || !editBtn) return;
-    const val = $('formSeries').value;
+    const val = formSeriesValue;
     const show = !!(isLeader() && val && val !== ADD_NEW_SERIES_VALUE);
     delBtn.style.display = show ? 'inline-block' : 'none';
     editBtn.style.display = show ? 'inline-block' : 'none';
@@ -5387,19 +5468,8 @@
     $('seriesAddRow').style.display = 'none';
   }
 
-  $('formSeries').addEventListener('change', (e)=>{
-    if(e.target.value === ADD_NEW_SERIES_VALUE){
-      showSeriesAddRow();
-    } else {
-      hideSeriesAddRow();
-    }
-    updateSeriesActionBtnsVisibility();
-  });
-
   $('btnCancelAddSeries').addEventListener('click', ()=>{
-    hideSeriesAddRow();
-    $('formSeries').value = '';
-    updateSeriesActionBtnsVisibility();
+    selectFormSeriesValue('');
   });
 
   $('btnConfirmAddSeries').addEventListener('click', async ()=>{
@@ -5429,7 +5499,7 @@
   // Every deck tagged with this series just looks the id up in seriesList,
   // so the new name shows up everywhere automatically — nothing else to update.
   $('btnEditSeries').addEventListener('click', async ()=>{
-    const id = $('formSeries').value;
+    const id = formSeriesValue;
     if(!id || id === ADD_NEW_SERIES_VALUE) return;
     const series = seriesList.find(s => s.id === id);
     if(!series) return;
@@ -5458,7 +5528,7 @@
   // tagged with it are explicitly kept — only the series label goes away,
   // and those decks fall back to "no series" (see deleteSeriesEntry above).
   $('btnDeleteSeries').addEventListener('click', async ()=>{
-    const id = $('formSeries').value;
+    const id = formSeriesValue;
     if(!id || id === ADD_NEW_SERIES_VALUE) return;
     const series = seriesList.find(s => s.id === id);
     if(!series) return;
@@ -5589,6 +5659,7 @@
     unlockBodyScroll();
     editingId = null;
     restoreFocus();
+    closeFormSeriesOptions();
   }
 
   $('btnNewDeck').addEventListener('click', ()=> openForm(null));
@@ -5600,7 +5671,7 @@
     const name = $('formName').value.trim();
     const description = $('formDesc').value.trim();
     const collectionId = isLeader() ? $('formCollection').value : (editingId ? $('formCollection').value : personalCollectionId(currentUser.uid));
-    const seriesRaw = $('formSeries').value;
+    const seriesRaw = formSeriesValue;
     const errorEl = $('formError');
     errorEl.style.display = 'none';
 
