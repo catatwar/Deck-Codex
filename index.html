@@ -1268,6 +1268,70 @@
     white-space: nowrap;
   }
 
+  /* ---------- Search-all-collections (inside the collection switcher) ---------- */
+  .drawer-search-input{
+    width: 100%;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    outline: none;
+    margin-bottom: 14px;
+    transition: border-color 0.15s ease;
+  }
+  .drawer-search-input::placeholder{ color: var(--muted-2); }
+  .drawer-search-input:focus{ border-color: var(--gold); }
+
+  /* Swaps in over the normal collection-list while there's a search
+     query — same flex/scroll behavior as .collection-list so the drawer
+     doesn't jump around switching between the two. */
+  .search-all-results{
+    flex: 1; overflow-y: auto;
+    display:flex; flex-direction: column; gap: 6px;
+    margin-bottom: 16px;
+  }
+  .search-all-item{
+    display:flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .search-all-item:hover{ border-color: var(--gold-soft); background: var(--gold-soft); }
+  .search-all-item-name{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ink);
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .search-all-item-collection{
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted-2);
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .search-all-empty{
+    color: var(--muted-2);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    text-align: center;
+    padding: 30px 10px;
+  }
+
   .inline-add-row{ display:flex; gap: 8px; margin-top: 8px; }
   .inline-add-row input{
     flex:1; background: var(--surface-3); border: 1px solid var(--line);
@@ -2850,7 +2914,9 @@
       <h3 id="collectionsDrawerTitle">Collections</h3>
       <button class="drawer-close" id="drawerClose" aria-label="Close collections panel"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
+    <input type="text" id="searchAllCollectionsInput" class="drawer-search-input" placeholder="Search all collections…" aria-label="Search all collections">
     <div class="collection-list" id="collectionList"></div>
+    <div class="search-all-results" id="searchAllResults" style="display:none;"></div>
     <div class="add-collection-row" id="addCollectionRow">
       <input type="text" id="newCollectionInput" placeholder="New collection name…" maxlength="50">
       <button id="btnAddCollection">Add</button>
@@ -5900,10 +5966,74 @@
     });
   }
 
+  // Searches deck names across every collection (not just the active one),
+  // regardless of which collection is currently open. Swaps the normal
+  // collection-list out for a flat list of matching decks, each tagged
+  // with which collection it lives in — tapping one jumps straight to
+  // that collection and opens the deck's full info view.
+  function renderSearchAllResults(){
+    const query = $('searchAllCollectionsInput').value.trim().toLowerCase();
+    const listEl = $('collectionList');
+    const resultsEl = $('searchAllResults');
+    const addRow = $('addCollectionRow');
+
+    if(!query){
+      resultsEl.style.display = 'none';
+      resultsEl.innerHTML = '';
+      listEl.style.display = 'flex';
+      addRow.style.display = isLeader() ? 'flex' : 'none';
+      return;
+    }
+
+    listEl.style.display = 'none';
+    addRow.style.display = 'none';
+    resultsEl.style.display = 'flex';
+    resultsEl.innerHTML = '';
+
+    const matches = decks
+      .filter(d => !pendingDeleteIds.has(d.id) && d.name.toLowerCase().includes(query))
+      .sort((a,b)=> a.name.localeCompare(b.name));
+
+    if(matches.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'search-all-empty';
+      empty.textContent = 'No decks match that search.';
+      resultsEl.appendChild(empty);
+      return;
+    }
+
+    matches.forEach(deck=>{
+      const col = collections.find(c => c.id === deck.collectionId);
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'search-all-item';
+      item.setAttribute('aria-label', `Open ${deck.name} in ${col ? collectionDisplayName(col) : 'its collection'}`);
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'search-all-item-name';
+      nameEl.textContent = deck.name;
+      item.appendChild(nameEl);
+
+      const colEl = document.createElement('span');
+      colEl.className = 'search-all-item-collection';
+      colEl.textContent = col ? collectionDisplayName(col) : 'Unknown collection';
+      item.appendChild(colEl);
+
+      item.addEventListener('click', ()=>{
+        setActiveCollection(deck.collectionId);
+        closeDrawer();
+        openInfo(deck.id);
+      });
+      resultsEl.appendChild(item);
+    });
+  }
+  $('searchAllCollectionsInput').addEventListener('input', renderSearchAllResults);
+
   function openDrawer(){
     rememberFocus();
     renderDrawer();
-    $('addCollectionRow').style.display = isLeader() ? 'flex' : 'none';
+    $('searchAllCollectionsInput').value = '';
+    renderSearchAllResults();
     $('drawerOverlay').classList.add('show');
     lockBodyScroll();
     setTimeout(()=> $('drawerClose').focus(), 30);
