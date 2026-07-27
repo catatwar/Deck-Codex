@@ -557,7 +557,7 @@
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
-  .meta-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
+  .meta-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
 
   .deck-meta{
     font-family: var(--font-ui);
@@ -3829,7 +3829,12 @@
         }
       }
 
-      if(metaRow.children.length) card.appendChild(metaRow);
+      // Always appended — even with zero tags — so every card reserves the
+      // same vertical space here. Appending it only when non-empty (the
+      // old behavior) meant a deck with a series (or build type/owner) tag
+      // was measurably taller than one without, since that whole row plus
+      // its flex gap simply didn't exist on the shorter cards.
+      card.appendChild(metaRow);
 
       const pipRow = document.createElement('div');
       pipRow.className = 'pip-row';
@@ -3838,7 +3843,7 @@
 
       const desc = document.createElement('p');
       desc.className = 'deck-desc-preview';
-      desc.textContent = deck.description ? deck.description : 'No description yet.';
+      desc.textContent = deck.description ? deck.description : (deck.buildType === 'homemade' ? 'Custom Deck' : 'No description yet.');
       card.appendChild(desc);
 
       if(canEditDeck(deck)){
@@ -4189,7 +4194,7 @@
       descEl.textContent = deck.description;
       descEl.classList.remove('empty');
     } else {
-      descEl.textContent = 'No description written for this deck yet.';
+      descEl.textContent = deck.buildType === 'homemade' ? 'Custom Deck' : 'No description written for this deck yet.';
       descEl.classList.add('empty');
     }
 
