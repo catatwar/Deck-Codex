@@ -4074,9 +4074,13 @@
       })
       .catch(e=>{
         console.error('Could not delete this deck', e);
-        // Deletion failed — put the deck back so it doesn't vanish forever.
+        // Deletion failed — put the deck back so it doesn't vanish forever,
+        // and say so out loud. Silently reverting here is exactly what
+        // makes a real permission/rules failure look identical to "it's
+        // just slow" instead of the hard failure it actually is.
         pendingDeleteIds.delete(id);
         render();
+        alert(`Couldn't delete "${deck.name}" — it's still here. (${e && e.code ? e.code : 'please try again'})`);
       });
   }
 
