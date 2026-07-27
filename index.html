@@ -590,11 +590,16 @@
   .deck-tags-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
 
   /* ---------- Most-used deck emblem ---------- */
-  /* Sits inline in the top row (before the name) rather than absolutely
-     positioned, so it can never drift over the name text or the favorite
-     button, and never adds height to the card — it's shorter than the
-     favorite icon that already sets this row's height. */
+  /* Absolutely positioned in a strip of extra top padding reserved only on
+     this card (see .has-most-used-badge below) — not inline next to the
+     name, which was squeezing the name down to almost nothing on cards
+     with longer names. This way the name always keeps its full width. */
+  .deck-card.has-most-used-badge{ padding: 42px 16px 16px; }
   .most-used-badge{
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    z-index: 3;
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -608,7 +613,6 @@
     padding: 3px 8px;
     border-radius: 999px;
     white-space: nowrap;
-    flex-shrink: 0;
     box-shadow: 0 1px 4px -1px #00000070;
   }
   .most-used-badge .icon-svg{ width: 9px; height: 9px; }
@@ -3974,16 +3978,17 @@
       card.setAttribute('tabindex', '0');
       card.setAttribute('aria-label', deck.id === mostUsedId ? `View ${deck.name} (most used deck)` : `View ${deck.name}`);
 
-      const topRow = document.createElement('div');
-      topRow.className = 'deck-top-row';
-
       if(deck.id === mostUsedId){
+        card.classList.add('has-most-used-badge');
         const badge = document.createElement('div');
         badge.className = 'most-used-badge';
         badge.setAttribute('aria-label', 'Most used deck in this collection');
         badge.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 7.1-1.01z"/></svg><span>Most Used</span>';
-        topRow.appendChild(badge);
+        card.appendChild(badge);
       }
+
+      const topRow = document.createElement('div');
+      topRow.className = 'deck-top-row';
 
       const name = document.createElement('div');
       name.className = 'deck-name';
