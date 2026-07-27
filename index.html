@@ -1331,6 +1331,27 @@
     text-align: center;
     padding: 30px 10px;
   }
+  /* Separates plain name matches from decks pulled in only because their
+     series name matched — a labeled line rather than just more rows, so
+     it's clear these turned up for a different reason. */
+  .search-all-divider{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 2px 0;
+    color: var(--muted-2);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .search-all-divider::before, .search-all-divider::after{
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
 
   .inline-add-row{ display:flex; gap: 8px; margin-top: 8px; }
   .inline-add-row input{
@@ -5970,7 +5991,10 @@
   // regardless of which collection is currently open. Swaps the normal
   // collection-list out for a flat list of matching decks, each tagged
   // with which collection it lives in — tapping one jumps straight to
-  // that collection and opens the deck's full info view.
+  // that collection and opens the deck's full info view. Decks that don't
+  // match by name but belong to a series whose name matches are shown
+  // too, separated out under a "Similar Series" divider so it's clear why
+  // they turned up.
   function renderSearchAllResults(){
     const query = $('searchAllCollectionsInput').value.trim().toLowerCase();
     const listEl = $('collectionList');
@@ -5990,11 +6014,23 @@
     resultsEl.style.display = 'flex';
     resultsEl.innerHTML = '';
 
-    const matches = decks
+    const nameMatches = decks
       .filter(d => !pendingDeleteIds.has(d.id) && d.name.toLowerCase().includes(query))
       .sort((a,b)=> a.name.localeCompare(b.name));
+    const nameMatchIds = new Set(nameMatches.map(d => d.id));
 
-    if(matches.length === 0){
+    // Only decks not already shown above as a direct name match — a deck
+    // that matches both by its own name and its series name should only
+    // ever appear once, in the main list.
+    const seriesMatches = decks
+      .filter(d => {
+        if(pendingDeleteIds.has(d.id) || nameMatchIds.has(d.id) || !d.seriesId) return false;
+        const s = seriesList.find(x => x.id === d.seriesId);
+        return s && s.name.toLowerCase().includes(query);
+      })
+      .sort((a,b)=> a.name.localeCompare(b.name));
+
+    if(nameMatches.length === 0 && seriesMatches.length === 0){
       const empty = document.createElement('div');
       empty.className = 'search-all-empty';
       empty.textContent = 'No decks match that search.';
@@ -6002,8 +6038,12 @@
       return;
     }
 
-    matches.forEach(deck=>{
+    // deck.seriesId is only passed for series-match rows, so the subtitle
+    // can show "Series Name • Collection" instead of just the collection —
+    // making it clear why a deck with a non-matching name showed up here.
+    const makeResultRow = (deck)=>{
       const col = collections.find(c => c.id === deck.collectionId);
+      const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'search-all-item';
@@ -6016,7 +6056,8 @@
 
       const colEl = document.createElement('span');
       colEl.className = 'search-all-item-collection';
-      colEl.textContent = col ? collectionDisplayName(col) : 'Unknown collection';
+      const colLabel = col ? collectionDisplayName(col) : 'Unknown collection';
+      colEl.textContent = series ? `${series.name} • ${colLabel}` : colLabel;
       item.appendChild(colEl);
 
       item.addEventListener('click', ()=>{
@@ -6024,8 +6065,18 @@
         closeDrawer();
         openInfo(deck.id);
       });
-      resultsEl.appendChild(item);
-    });
+      return item;
+    };
+
+    nameMatches.forEach(deck => resultsEl.appendChild(makeResultRow(deck)));
+
+    if(seriesMatches.length > 0){
+      const divider = document.createElement('div');
+      divider.className = 'search-all-divider';
+      divider.innerHTML = '<span>Similar Series</span>';
+      resultsEl.appendChild(divider);
+      seriesMatches.forEach(deck => resultsEl.appendChild(makeResultRow(deck)));
+    }
   }
   $('searchAllCollectionsInput').addEventListener('input', renderSearchAllResults);
 
