@@ -1116,6 +1116,13 @@
   }
   .inline-add-row .btn-text-cancel:hover{ color: var(--ink); }
 
+  .btn-text-delete{
+    background: none; border: none; color: #e77a6a;
+    padding: 6px 2px; font-size: 0.82rem; font-weight: 600;
+    margin-top: 6px; cursor: pointer;
+  }
+  .btn-text-delete:hover{ color: #ff9a8a; text-decoration: underline; }
+
   /* ---------- Loading overlay ---------- */
   .loading-overlay{
     position: fixed; inset:0;
@@ -2544,6 +2551,7 @@
           <button type="button" id="btnConfirmAddSeries">Add</button>
           <button type="button" class="btn-text-cancel" id="btnCancelAddSeries">Cancel</button>
         </div>
+        <button type="button" class="btn-text-delete" id="btnDeleteSeries" style="display:none;">Delete this series</button>
       </div>
       <div class="field">
         <label for="formName">Deck name <span class="optional-tag">(required)</span></label>
@@ -3205,6 +3213,22 @@
     const entry = { id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
     await setDoc(doc(SERIES_COL, entry.id), entry);
     return entry;
+  }
+
+  // Deletes a series entry only. Unlike deleteCollection() above, this
+  // deliberately does NOT touch any decks — a series is just a label, not
+  // a container the way a collection is. Any deck tagged with this series
+  // has its seriesId cleared back to "no series" so nothing is left
+  // pointing at a series that no longer exists; the deck itself, its
+  // stats, and everything else about it is untouched.
+  async function deleteSeriesEntry(id){
+    await deleteDoc(doc(SERIES_COL, id));
+    const affected = decks.filter(d => d.seriesId === id);
+    for(const d of affected){
+      await updateDoc(doc(DECKS_COL, d.id), { seriesId: null });
+      d.seriesId = null;
+    }
+    seriesList = seriesList.filter(s => s.id !== id);
   }
 
   // ---------- Storage: decks (Firestore, live) ----------
@@ -4862,6 +4886,16 @@
 
     sel.value = selectedId || '';
     hideSeriesAddRow();
+    updateDeleteSeriesBtnVisibility();
+  }
+
+  // Leader-only, and only for an actual existing series (not "No series"
+  // or the "+ Add new series…" placeholder row).
+  function updateDeleteSeriesBtnVisibility(){
+    const btn = $('btnDeleteSeries');
+    if(!btn) return;
+    const val = $('formSeries').value;
+    btn.style.display = (isLeader() && val && val !== ADD_NEW_SERIES_VALUE) ? 'inline-block' : 'none';
   }
 
   function showSeriesAddRow(){
@@ -4879,11 +4913,13 @@
     } else {
       hideSeriesAddRow();
     }
+    updateDeleteSeriesBtnVisibility();
   });
 
   $('btnCancelAddSeries').addEventListener('click', ()=>{
     hideSeriesAddRow();
     $('formSeries').value = '';
+    updateDeleteSeriesBtnVisibility();
   });
 
   $('btnConfirmAddSeries').addEventListener('click', async ()=>{
@@ -4905,6 +4941,32 @@
   });
   $('newSeriesInput').addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ e.preventDefault(); $('btnConfirmAddSeries').click(); }
+  });
+
+  // Deletes whichever series is currently selected in the form. The decks
+  // tagged with it are explicitly kept — only the series label goes away,
+  // and those decks fall back to "no series" (see deleteSeriesEntry above).
+  $('btnDeleteSeries').addEventListener('click', async ()=>{
+    const id = $('formSeries').value;
+    if(!id || id === ADD_NEW_SERIES_VALUE) return;
+    const series = seriesList.find(s => s.id === id);
+    if(!series) return;
+    const deckCount = decks.filter(d => d.seriesId === id).length;
+    const msg = deckCount > 0
+      ? `Delete series "${series.name}"? Its ${deckCount} deck${deckCount===1?'':'s'} will stay — they'll just no longer be tagged with this series.`
+      : `Delete series "${series.name}"?`;
+    if(!confirm(msg)) return;
+    const btn = $('btnDeleteSeries');
+    btn.disabled = true;
+    try{
+      await deleteSeriesEntry(id);
+      buildSeriesSelect('');
+    }catch(e){
+      alert('Could not delete that series. Please try again.');
+      console.error(e);
+    }finally{
+      btn.disabled = false;
+    }
   });
 
   // Compares a deck's fields before/after a save and produces a short,
