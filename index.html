@@ -783,12 +783,25 @@
     flex-direction: column;
     gap: 8px;
   }
+  .history-list li{ margin: 0; }
   .history-entry{
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
     font-family: var(--font-ui);
     font-size: 0.8rem;
     line-height: 1.4;
-    padding-left: 12px;
+    padding: 4px 10px 4px 12px;
     border-left: 2px solid var(--line);
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .history-entry:hover, .history-entry:focus-visible{
+    border-left-color: var(--gold);
+    background: var(--gold-soft);
   }
   .history-entry-date{
     display: block;
@@ -1181,6 +1194,31 @@
   @media (max-width: 520px){
     .title-block h1{ font-size: 1.5rem; }
     .modal-body{ padding: 22px 18px 20px; }
+
+    /* Balance the header controls: on desktop these all hug the right
+       edge (fine when there's room to spare), but on a narrow phone that
+       left everything bunched up with ragged empty space beside it. Here
+       the icon row spreads evenly edge-to-edge, and "+ New Deck" gets its
+       own full-width row underneath as a clear, prominent action. */
+    header{
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    .account-badge{
+      width: 100%;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .account-badge .group-chip{
+      max-width: 118px;
+      padding: 7px 10px;
+      font-size: 0.78rem;
+    }
+    .btn-new{
+      flex: 1 1 100%;
+      text-align: center;
+    }
   }
 
   /* ---------- Auth / Login ---------- */
@@ -2419,6 +2457,26 @@
   </div>
 </div>
 
+<!-- Prior Version: shown when tapping an entry in a deck's Update History -->
+<div class="overlay" id="historyVersionOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyVersionTitle">
+    <div class="modal-body">
+      <button class="modal-close" id="historyVersionClose" aria-label="Close prior version"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      <h2 id="historyVersionTitle">Prior Version</h2>
+      <p class="modal-subtitle" id="historyVersionWhen"></p>
+      <p class="record-note" id="historyVersionChange"></p>
+      <div class="identity-block">
+        <div class="identity-label">Color Identity</div>
+        <div class="identity-pips" id="historyVersionIdentity"></div>
+      </div>
+      <div class="desc-label" id="historyVersionMetaLabel" style="display:none;">Was Filed Under</div>
+      <p class="desc-text" id="historyVersionMeta"></p>
+      <div class="desc-label">Description</div>
+      <p class="desc-text" id="historyVersionDesc"></p>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Modal -->
 <div class="overlay" id="formOverlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
@@ -2719,6 +2777,7 @@
       { el: $('scannerOverlay'),       close: ()=> closeScanner() },
       { el: $('profileOverlay'),       close: ()=> closeProfile() },
       { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
+      { el: $('historyVersionOverlay'),close: ()=> closeHistoryVersion() },
       { el: $('infoOverlay'),          close: ()=> closeInfo() },
       { el: $('formOverlay'),          close: ()=> closeForm() },
       { el: $('drawerOverlay'),        close: ()=> closeDrawer() }
@@ -2809,15 +2868,36 @@
     return pips;
   }
 
-  // ---------- Storage: favorites + last-opened (personal, local only) ----------
-  // These are a personal viewing preference — which decks *you* pin, and
-  // when *you* last looked at one — not shared group data, so they live in
-  // this browser's localStorage (keyed by group + user) rather than on the
-  // shared deck doc. That also sidesteps needing write access to a deck you
-  // don't own just to favorite or open it.
-  function favoritesKey(){
-    return (currentGroup && currentUser) ? `ui:favorites:${currentGroup.id}:${currentUser.uid}` : null;
+  // ---------- Favorites (linked to this member's profile) ----------
+  // Stored as an array on this user's own member doc (`favorites`), not on
+  // the deck itself — a personal viewing preference, not shared group data
+  // — so it follows their profile across every collection in the group and
+  // across devices, while staying entirely private to them: Firestore rules
+  // only let a member write their own `favorites` field, and attachLiveMembers
+  // already keeps `currentMember` in sync, so no extra listener is needed.
+  function isFavorite(deckId){
+    return !!(currentMember && Array.isArray(currentMember.favorites) && currentMember.favorites.includes(deckId));
   }
+  async function setFavorite(deckId, value){
+    if(!currentGroup || !currentUser || !currentMember) return;
+    const current = Array.isArray(currentMember.favorites) ? currentMember.favorites : [];
+    const next = value
+      ? (current.includes(deckId) ? current : [...current, deckId])
+      : current.filter(id => id !== deckId);
+    // Optimistic local update so the heart flips instantly — the live
+    // members listener will confirm (or correct) this the moment
+    // Firestore echoes the write back.
+    currentMember.favorites = next;
+    try{
+      await updateDoc(doc(groupSubcollection(currentGroup.id, 'members'), currentUser.uid), { favorites: next });
+    }catch(e){ console.error('Could not update favorites', e); }
+  }
+
+  // ---------- Last-opened (personal, local only) ----------
+  // Only ever used to break ties among pinned favorites (whichever deck you
+  // looked at most recently floats to the very top) — not worth syncing
+  // across devices for that, so this alone stays in this browser's
+  // localStorage rather than on the profile.
   function lastOpenedKey(){
     return (currentGroup && currentUser) ? `ui:last-opened:${currentGroup.id}:${currentUser.uid}` : null;
   }
@@ -2831,15 +2911,6 @@
   function writeJsonMap(key, map){
     if(!key) return;
     try{ localStorage.setItem(key, JSON.stringify(map)); }catch(e){ /* non-fatal */ }
-  }
-  function isFavorite(deckId){
-    return !!readJsonMap(favoritesKey())[deckId];
-  }
-  function setFavorite(deckId, value){
-    const key = favoritesKey();
-    const map = readJsonMap(key);
-    if(value) map[deckId] = true; else delete map[deckId];
-    writeJsonMap(key, map);
   }
   function lastOpenedAt(deckId){
     return readJsonMap(lastOpenedKey())[deckId] || 0;
@@ -4011,19 +4082,86 @@
     emptyEl.style.display = 'none';
     listEl.style.display = '';
     const shown = entries.slice(0, 8);
-    listEl.innerHTML = shown.map(entry => `
-      <li class="history-entry">
-        <span class="history-entry-date">${formatTimestamp(entry.ts)}</span>
-        <span class="history-entry-text"></span>
+    listEl.innerHTML = shown.map(() => `
+      <li>
+        <button type="button" class="history-entry">
+          <span class="history-entry-date"></span>
+          <span class="history-entry-text"></span>
+        </button>
       </li>
     `).join('');
-    // Set text via textContent (not the template above) to avoid ever
+    // Text set via textContent (not the template above) to avoid ever
     // interpreting a deck name/description that made it into a history
-    // line as HTML.
-    listEl.querySelectorAll('.history-entry-text').forEach((el, i)=>{
-      el.textContent = shown[i].text || '';
+    // line as HTML. Tapping an entry opens exactly what this deck looked
+    // like right before that change was made.
+    listEl.querySelectorAll('.history-entry').forEach((btn, i)=>{
+      const entry = shown[i];
+      btn.querySelector('.history-entry-date').textContent = formatTimestamp(entry.ts);
+      btn.querySelector('.history-entry-text').textContent = entry.text || '';
+      btn.addEventListener('click', ()=> openHistoryVersion(deck, entry));
     });
   }
+
+  const historyVersionOverlay = $('historyVersionOverlay');
+  function openHistoryVersion(deck, entry){
+    $('historyVersionWhen').textContent = `As of ${formatTimestamp(entry.ts)}`;
+    $('historyVersionChange').textContent = entry.text ? `Change: ${entry.text}` : '';
+
+    const snap = entry.snapshot;
+    const identityWrap = $('historyVersionIdentity');
+    identityWrap.innerHTML = '';
+    if(snap){
+      $('historyVersionTitle').textContent = snap.name || 'Prior Version';
+      const pips = [...(snap.colors || [])];
+      if(snap.colorless || !snap.colors || !snap.colors.length) pips.push('C');
+      pips.forEach(key=>{
+        const pill = document.createElement('div');
+        pill.className = 'identity-pip';
+        pill.appendChild(makePip(key));
+        const label = document.createElement('span');
+        label.textContent = key === 'C' ? 'Colorless' : COLORS.find(c=>c.key===key).name;
+        pill.appendChild(label);
+        identityWrap.appendChild(pill);
+      });
+      const metaParts = [];
+      if(snap.buildType) metaParts.push(buildTypeName(snap.buildType));
+      if(snap.collectionName) metaParts.push(snap.collectionName);
+      if(snap.seriesName) metaParts.push(snap.seriesName);
+      const metaLabel = $('historyVersionMetaLabel');
+      const metaEl = $('historyVersionMeta');
+      if(metaParts.length){
+        metaLabel.style.display = '';
+        metaEl.style.display = '';
+        metaEl.textContent = metaParts.join(' • ');
+      } else {
+        metaLabel.style.display = 'none';
+        metaEl.style.display = 'none';
+      }
+      const descEl = $('historyVersionDesc');
+      descEl.textContent = snap.description ? snap.description : 'No description was set at this point.';
+      descEl.classList.toggle('empty', !snap.description);
+    } else {
+      // Entries recorded before this feature existed have no snapshot.
+      $('historyVersionTitle').textContent = deck.name;
+      $('historyVersionMetaLabel').style.display = 'none';
+      $('historyVersionMeta').style.display = 'none';
+      const descEl = $('historyVersionDesc');
+      descEl.textContent = "This change was recorded before Deck Codex started saving prior versions, so there's no stored snapshot to show.";
+      descEl.classList.add('empty');
+    }
+
+    rememberFocus();
+    historyVersionOverlay.classList.add('show');
+    lockBodyScroll();
+    setTimeout(()=> $('historyVersionClose').focus(), 30);
+  }
+  function closeHistoryVersion(){
+    historyVersionOverlay.classList.remove('show');
+    unlockBodyScroll();
+    restoreFocus();
+  }
+  $('historyVersionClose').addEventListener('click', closeHistoryVersion);
+  historyVersionOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'historyVersionOverlay') closeHistoryVersion(); });
 
   // ---------- Card price scanner ----------
   // Deliberately stateless: nothing here ever touches Firestore or any
@@ -4532,12 +4670,33 @@
     return parts.length ? parts.join('; ') : null;
   }
 
+  // Captures a deck's editable fields as they stood *before* an edit, in
+  // human-readable form (collection/series resolved to their display names
+  // rather than stored as raw ids) — so tapping an old history entry later
+  // still reads correctly even if that collection or series has since been
+  // renamed or deleted.
+  function buildDeckSnapshot(deck){
+    const col = collections.find(c => c.id === deck.collectionId);
+    const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
+    return {
+      name: deck.name,
+      description: deck.description || '',
+      colors: deck.colors ? deck.colors.slice() : [],
+      colorless: !!deck.colorless || !(deck.colors && deck.colors.length),
+      buildType: deck.buildType || null,
+      collectionName: col ? collectionDisplayName(col) : null,
+      seriesName: series ? series.name : null
+    };
+  }
+
   // Appends a new entry (newest first) to a deck's `history` array, capped
-  // to a reasonable length so the doc doesn't grow forever.
+  // to a reasonable length so the doc doesn't grow forever. `snapshot` is
+  // the deck's state right before this change, so tapping the entry later
+  // can show exactly what it looked like at that point in time.
   const DECK_HISTORY_MAX_ENTRIES = 20;
-  function withAppendedHistory(existingHistory, text){
+  function withAppendedHistory(existingHistory, text, snapshot){
     const prior = Array.isArray(existingHistory) ? existingHistory : [];
-    return [{ ts: Date.now(), text }, ...prior].slice(0, DECK_HISTORY_MAX_ENTRIES);
+    return [{ ts: Date.now(), text, snapshot }, ...prior].slice(0, DECK_HISTORY_MAX_ENTRIES);
   }
 
   function openForm(idToEdit){
@@ -4670,7 +4829,7 @@
         }
         const changeSummary = summarizeDeckChanges(deck, patch);
         if(changeSummary){
-          patch.history = withAppendedHistory(deck.history, changeSummary);
+          patch.history = withAppendedHistory(deck.history, changeSummary, buildDeckSnapshot(deck));
         }
         await updateDeckFields(editingId, patch);
         // Mirror the exact same fields onto our local cached copy so the
