@@ -560,7 +560,11 @@
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
-  .meta-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
+  /* Column, not row: the series name gets its own full-width line (as
+     much space as the card can give it) with build type/owner tags on a
+     second line below, rather than everything competing for space
+     side-by-side on one line. */
+  .meta-row{ display:flex; flex-direction:column; gap: 6px; }
 
   .deck-meta{
     font-family: var(--font-ui);
@@ -568,12 +572,22 @@
     color: var(--muted-2);
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    /* Full width of the card, but a single line — if the series name is
+       long enough that it would wrap, it truncates with an ellipsis
+       instead. The full name is always still visible after tapping into
+       the deck's info view. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   /* Rendered on every card, whether or not it actually has a series —
      see the render() comment near seriesTag for why. Kept in normal flow
      (not display:none) so it always occupies exactly the same box a real
      series tag would, but invisible and out of the accessibility tree. */
   .deck-meta.deck-meta-placeholder{ visibility: hidden; }
+
+  .deck-tags-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
 
   /* ---------- Most-used deck emblem ---------- */
   /* Sits inline in the top row (before the name) rather than absolutely
@@ -4005,6 +4019,7 @@
       const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
       if(series){
         seriesTag.textContent = series.name;
+        seriesTag.title = series.name;
       } else {
         // Invisible placeholder: rendered on every card (not just ones
         // without a series) so the meta row is always exactly as tall as
@@ -4017,11 +4032,19 @@
       }
       metaRow.appendChild(seriesTag);
 
+      // Build type and owner sit on their own row below the series name,
+      // so the series line above gets the full width of the card to
+      // itself (it's the one most likely to need it, and truncates with
+      // an ellipsis via CSS if it's still too long — the full name is
+      // always visible in the deck's info view after tapping the card).
+      const tagsRow = document.createElement('div');
+      tagsRow.className = 'deck-tags-row';
+
       if(deck.buildType){
         const buildTag = document.createElement('div');
         buildTag.className = 'build-tag';
         buildTag.textContent = buildTypeName(deck.buildType);
-        metaRow.appendChild(buildTag);
+        tagsRow.appendChild(buildTag);
       }
 
       if(deck.ownerUid){
@@ -4030,9 +4053,11 @@
           const ownerTag = document.createElement('div');
           ownerTag.className = 'owner-tag';
           ownerTag.textContent = deck.ownerUid === (currentUser && currentUser.uid) ? 'You' : ownerName;
-          metaRow.appendChild(ownerTag);
+          tagsRow.appendChild(ownerTag);
         }
       }
+
+      metaRow.appendChild(tagsRow);
 
       // Always appended — even with zero tags — so every card reserves the
       // same vertical space here. Appending it only when non-empty (the
