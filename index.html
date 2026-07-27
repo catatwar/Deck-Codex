@@ -4957,11 +4957,12 @@
     };
   }
 
-  // Appends a new entry (newest first) to a deck's `history` array, capped
-  // to a reasonable length so the doc doesn't grow forever. `snapshot` is
-  // the deck's state right before this change, so tapping the entry later
-  // can show exactly what it looked like at that point in time.
-  const DECK_HISTORY_MAX_ENTRIES = 20;
+  // Appends a new entry (newest first) to a deck's `history` array. Capped
+  // to just the single most recent previous version — only the state right
+  // before the current edit — rather than a growing log, per how this is
+  // meant to be used: one step of "what was this before the last change,"
+  // not a full audit trail.
+  const DECK_HISTORY_MAX_ENTRIES = 1;
   function withAppendedHistory(existingHistory, text, snapshot){
     const prior = Array.isArray(existingHistory) ? existingHistory : [];
     return [{ ts: Date.now(), text, snapshot }, ...prior].slice(0, DECK_HISTORY_MAX_ENTRIES);
