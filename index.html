@@ -409,6 +409,8 @@
   }
   .pip-toggle.pip-toggle-black[data-active="true"]{ color: #ece8f2; }
 
+  .series-filter-select{ width: 100%; }
+
   .build-filters{ display:flex; gap: 9px; }
   .build-filter-btn{
     border: 1px solid var(--line);
@@ -567,6 +569,35 @@
     letter-spacing: 0.03em;
     text-transform: uppercase;
   }
+  /* Rendered on every card, whether or not it actually has a series —
+     see the render() comment near seriesTag for why. Kept in normal flow
+     (not display:none) so it always occupies exactly the same box a real
+     series tag would, but invisible and out of the accessibility tree. */
+  .deck-meta.deck-meta-placeholder{ visibility: hidden; }
+
+  /* ---------- Most-used deck emblem ---------- */
+  /* Sits inline in the top row (before the name) rather than absolutely
+     positioned, so it can never drift over the name text or the favorite
+     button, and never adds height to the card — it's shorter than the
+     favorite icon that already sets this row's height. */
+  .most-used-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: linear-gradient(135deg, #f6dd8c, #c99a3e);
+    color: #362702;
+    font-family: var(--font-ui);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 1px 4px -1px #00000070;
+  }
+  .most-used-badge .icon-svg{ width: 9px; height: 9px; }
 
   .build-tag{
     display: inline-flex;
@@ -1157,6 +1188,13 @@
     margin-top: 6px; cursor: pointer;
   }
   .btn-text-delete:hover{ color: #ff9a8a; text-decoration: underline; }
+
+  .btn-text-edit{
+    background: none; border: none; color: var(--gold);
+    padding: 6px 2px; font-size: 0.82rem; font-weight: 600;
+    margin-top: 6px; margin-right: 14px; cursor: pointer;
+  }
+  .btn-text-edit:hover{ text-decoration: underline; filter: brightness(1.15); }
 
   /* ---------- Loading overlay ---------- */
   .loading-overlay{
@@ -2332,7 +2370,7 @@
     <div class="group-setup-panel" id="panelCreateGroup" style="display:none;">
       <p>You'll be the group's leader, with editing rights over every member's decks.</p>
       <div class="field-row">
-        <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family">
+        <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family" maxlength="15">
         <button type="button" id="btnCreateGroup">Create</button>
       </div>
     </div>
@@ -2367,7 +2405,7 @@
         <button type="button" class="btn-drawer-secondary" id="btnDrawerAddGroup">+ Add Another Group</button>
 
         <div class="group-name-row">
-          <input type="text" id="groupNameInput" placeholder="Group name">
+          <input type="text" id="groupNameInput" placeholder="Group name" maxlength="15">
           <button type="button" id="btnSaveGroupName">Save</button>
         </div>
       </div>
@@ -2413,7 +2451,7 @@
       <div class="group-setup-panel" id="drawerCreatePanel" style="display:none;">
         <p>You'll be this group's leader, with editing rights over every member's decks.</p>
         <div class="field-row">
-          <input type="text" id="drawerNewGroupInput" placeholder="e.g. The Smith Family">
+          <input type="text" id="drawerNewGroupInput" placeholder="e.g. The Smith Family" maxlength="15">
           <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
         </div>
       </div>
@@ -2440,7 +2478,7 @@
       <div class="group-section-label">Display Name</div>
       <p class="invite-hint">This is the name other members of your groups see on your decks. Changing it updates every group you're in.</p>
       <div class="group-name-row">
-        <input type="text" id="profileNameInput" placeholder="Your name">
+        <input type="text" id="profileNameInput" placeholder="Your name" maxlength="15">
         <button type="button" id="btnSaveProfileName">Save</button>
       </div>
       <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
@@ -2515,6 +2553,10 @@
         <div class="filter-modal-section">
           <div class="filter-modal-label">Build type</div>
           <div class="build-filters" id="buildFilters"></div>
+        </div>
+        <div class="filter-modal-section">
+          <div class="filter-modal-label">Series</div>
+          <select class="sort-select series-filter-select" id="seriesFilterSelect"></select>
         </div>
       </div>
     </div>
@@ -2593,15 +2635,16 @@
         <label for="formSeries">Series <span class="optional-tag">(optional)</span></label>
         <select id="formSeries"></select>
         <div class="inline-add-row" id="seriesAddRow" style="display:none;">
-          <input type="text" id="newSeriesInput" placeholder="New series name…">
+          <input type="text" id="newSeriesInput" placeholder="New series name…" maxlength="15">
           <button type="button" id="btnConfirmAddSeries">Add</button>
           <button type="button" class="btn-text-cancel" id="btnCancelAddSeries">Cancel</button>
         </div>
+        <button type="button" class="btn-text-edit" id="btnEditSeries" style="display:none;">Rename this series</button>
         <button type="button" class="btn-text-delete" id="btnDeleteSeries" style="display:none;">Delete this series</button>
       </div>
       <div class="field">
         <label for="formName">Deck name <span class="optional-tag">(required)</span></label>
-        <input type="text" id="formName" placeholder="e.g. Mono-Red Aggro">
+        <input type="text" id="formName" placeholder="e.g. Mono-Red Aggro" maxlength="15">
       </div>
       <div class="field">
         <label>Color identity <span class="optional-tag">(required)</span></label>
@@ -2693,7 +2736,7 @@
     </div>
     <div class="collection-list" id="collectionList"></div>
     <div class="add-collection-row" id="addCollectionRow">
-      <input type="text" id="newCollectionInput" placeholder="New collection name…">
+      <input type="text" id="newCollectionInput" placeholder="New collection name…" maxlength="15">
       <button id="btnAddCollection">Add</button>
     </div>
   </div>
@@ -2832,6 +2875,8 @@
   let activeCollectionId = null;
   let activeFilters = new Set(); // color keys only (W/U/B/R/G)
   let activeBuildFilters = new Set(); // build type keys: homemade/precon/edited
+  const NO_SERIES_FILTER_VALUE = '__no_series__';
+  let activeSeriesFilter = ''; // '' = all series, NO_SERIES_FILTER_VALUE = untagged only, else a series id
   let searchTerm = '';
   let sortMode = 'name';
   let editingId = null; // null = new deck
@@ -3254,6 +3299,7 @@
         const results = [];
         snap.forEach(d => results.push(d.data()));
         seriesList = results;
+        buildSeriesFilterOptions();
         if(!firstLoadDone){
           firstLoadDone = true;
           resolve();
@@ -3274,6 +3320,16 @@
     const entry = { id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
     await setDoc(doc(SERIES_COL, entry.id), entry);
     return entry;
+  }
+
+  // Renames a series entry (leader-only — enforced by the rename button's
+  // visibility, same as deleteSeriesEntry below). Decks tagged with this
+  // series aren't touched here; they just look up the series by id, so
+  // the new name shows up for them automatically everywhere it's read.
+  async function renameSeriesEntry(id, name){
+    await updateDoc(doc(SERIES_COL, id), { name });
+    const s = seriesList.find(x => x.id === id);
+    if(s) s.name = name;
   }
 
   // Deletes a series entry only. Unlike deleteCollection() above, this
@@ -3488,6 +3544,15 @@
     return `Can't use the character "${ch}" here. Avoid : " { } [ ] < >`;
   }
 
+  // Applies to deck/group/series/collection/profile names (matches the
+  // maxlength="15" set on their inputs) — not to free-text fields like
+  // deck descriptions, or to the card-scanner lookup field, which is a
+  // Magic card name and can legitimately run much longer than 15 letters.
+  const NAME_MAX_LEN = 15;
+  function nameTooLongMessage(){
+    return `Names can't be longer than ${NAME_MAX_LEN} characters.`;
+  }
+
   // Player names are always shown with a capitalized first letter, no
   // matter how they were typed or derived from an email address.
   function capitalizeName(name){
@@ -3653,7 +3718,7 @@
   const filterModalClose = $('filterModalClose');
 
   function updateFilterBadge(){
-    const count = activeFilters.size + activeBuildFilters.size;
+    const count = activeFilters.size + activeBuildFilters.size + (activeSeriesFilter ? 1 : 0);
     if(count > 0){
       filterBadge.textContent = String(count);
       filterBadge.style.display = 'inline-flex';
@@ -3721,16 +3786,55 @@
     });
   }
 
+  // Rebuilt any time seriesList changes (series added/renamed/deleted) so
+  // the dropdown never shows a stale name or a since-deleted series. If the
+  // currently active filter no longer exists (its series was deleted),
+  // falls back to "All series" rather than silently filtering on a dead id.
+  function buildSeriesFilterOptions(){
+    const sel = $('seriesFilterSelect');
+    if(!sel) return;
+    if(activeSeriesFilter && activeSeriesFilter !== NO_SERIES_FILTER_VALUE && !seriesList.find(s => s.id === activeSeriesFilter)){
+      activeSeriesFilter = '';
+    }
+    sel.innerHTML = '';
+
+    const allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.textContent = 'All series';
+    sel.appendChild(allOpt);
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = NO_SERIES_FILTER_VALUE;
+    noneOpt.textContent = 'No series';
+    sel.appendChild(noneOpt);
+
+    seriesList.forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+
+    sel.value = activeSeriesFilter;
+  }
+  $('seriesFilterSelect').addEventListener('change', (e)=>{
+    activeSeriesFilter = e.target.value;
+    updateFilterBadge();
+    render();
+  });
+
   $('btnClearFilters').addEventListener('click', ()=>{
-    const hasAnything = activeFilters.size > 0 || activeBuildFilters.size > 0 || searchTerm !== '';
+    const hasAnything = activeFilters.size > 0 || activeBuildFilters.size > 0 || activeSeriesFilter !== '' || searchTerm !== '';
     if(!hasAnything) return;
     if(!confirm('Clear all filters and search?')) return;
     activeFilters.clear();
     activeBuildFilters.clear();
+    activeSeriesFilter = '';
     searchTerm = '';
     $('searchInput').value = '';
     buildColorFilterChips();
     buildBuildFilterChips();
+    buildSeriesFilterOptions();
     updateFilterBadge();
     render();
   });
@@ -3748,6 +3852,13 @@
       }
       if(activeBuildFilters.size > 0){
         if(!d.buildType || !activeBuildFilters.has(d.buildType)) return false;
+      }
+      if(activeSeriesFilter){
+        if(activeSeriesFilter === NO_SERIES_FILTER_VALUE){
+          if(d.seriesId) return false;
+        } else if(d.seriesId !== activeSeriesFilter){
+          return false;
+        }
       }
       return true;
     });
@@ -3797,9 +3908,27 @@
   window.addEventListener('resize', updateScrollability);
   window.addEventListener('orientationchange', updateScrollability);
 
+  // A collection's "most used" deck is whichever has logged the most total
+  // games (wins + losses, tracked by MTG Tracker) — ties or all-zero mean
+  // no deck is singled out. Computed off the full per-collection deck list
+  // (not the filtered/sorted one) so the badge stays put regardless of
+  // whatever search/filter/sort is currently applied.
+  function computeMostUsedDeckId(decksInCollection){
+    let bestId = null, bestGames = 0;
+    decksInCollection.forEach(d=>{
+      const games = (d.wins || 0) + (d.losses || 0);
+      if(games > 0 && games > bestGames){
+        bestGames = games;
+        bestId = d.id;
+      }
+    });
+    return bestId;
+  }
+
   function render(){
     const decksInCollection = decks.filter(d => d.collectionId === activeCollectionId && !pendingDeleteIds.has(d.id));
     const list = getFilteredSorted();
+    const mostUsedId = computeMostUsedDeckId(decksInCollection);
     content.innerHTML = '';
 
     if(decksInCollection.length === 0){
@@ -3829,10 +3958,18 @@
       card.style.setProperty('--stripe', stripeGradient(deck.colors));
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.setAttribute('aria-label', `View ${deck.name}`);
+      card.setAttribute('aria-label', deck.id === mostUsedId ? `View ${deck.name} (most used deck)` : `View ${deck.name}`);
 
       const topRow = document.createElement('div');
       topRow.className = 'deck-top-row';
+
+      if(deck.id === mostUsedId){
+        const badge = document.createElement('div');
+        badge.className = 'most-used-badge';
+        badge.setAttribute('aria-label', 'Most used deck in this collection');
+        badge.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 7.1-1.01z"/></svg><span>Most Used</span>';
+        topRow.appendChild(badge);
+      }
 
       const name = document.createElement('div');
       name.className = 'deck-name';
@@ -3863,15 +4000,22 @@
       const metaRow = document.createElement('div');
       metaRow.className = 'meta-row';
 
-      if(deck.seriesId){
-        const series = seriesList.find(s => s.id === deck.seriesId);
-        if(series){
-          const seriesTag = document.createElement('div');
-          seriesTag.className = 'deck-meta';
-          seriesTag.textContent = series.name;
-          metaRow.appendChild(seriesTag);
-        }
+      const seriesTag = document.createElement('div');
+      seriesTag.className = 'deck-meta';
+      const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
+      if(series){
+        seriesTag.textContent = series.name;
+      } else {
+        // Invisible placeholder: rendered on every card (not just ones
+        // without a series) so the meta row is always exactly as tall as
+        // it would be with a real series tag in it — same font, same box,
+        // just not shown. This is what actually fixes cards being a
+        // different height depending on whether they have a series.
+        seriesTag.classList.add('deck-meta-placeholder');
+        seriesTag.textContent = '\u00A0';
+        seriesTag.setAttribute('aria-hidden', 'true');
       }
+      metaRow.appendChild(seriesTag);
 
       if(deck.buildType){
         const buildTag = document.createElement('div');
@@ -5049,16 +5193,20 @@
 
     sel.value = selectedId || '';
     hideSeriesAddRow();
-    updateDeleteSeriesBtnVisibility();
+    updateSeriesActionBtnsVisibility();
   }
 
   // Leader-only, and only for an actual existing series (not "No series"
-  // or the "+ Add new series…" placeholder row).
-  function updateDeleteSeriesBtnVisibility(){
-    const btn = $('btnDeleteSeries');
-    if(!btn) return;
+  // or the "+ Add new series…" placeholder row). Covers both the rename
+  // and delete buttons, which share the exact same visibility rule.
+  function updateSeriesActionBtnsVisibility(){
+    const delBtn = $('btnDeleteSeries');
+    const editBtn = $('btnEditSeries');
+    if(!delBtn || !editBtn) return;
     const val = $('formSeries').value;
-    btn.style.display = (isLeader() && val && val !== ADD_NEW_SERIES_VALUE) ? 'inline-block' : 'none';
+    const show = !!(isLeader() && val && val !== ADD_NEW_SERIES_VALUE);
+    delBtn.style.display = show ? 'inline-block' : 'none';
+    editBtn.style.display = show ? 'inline-block' : 'none';
   }
 
   function showSeriesAddRow(){
@@ -5076,18 +5224,19 @@
     } else {
       hideSeriesAddRow();
     }
-    updateDeleteSeriesBtnVisibility();
+    updateSeriesActionBtnsVisibility();
   });
 
   $('btnCancelAddSeries').addEventListener('click', ()=>{
     hideSeriesAddRow();
     $('formSeries').value = '';
-    updateDeleteSeriesBtnVisibility();
+    updateSeriesActionBtnsVisibility();
   });
 
   $('btnConfirmAddSeries').addEventListener('click', async ()=>{
     const name = $('newSeriesInput').value.trim();
     if(!name) return;
+    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnConfirmAddSeries');
@@ -5104,6 +5253,36 @@
   });
   $('newSeriesInput').addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ e.preventDefault(); $('btnConfirmAddSeries').click(); }
+  });
+
+  // Renames whichever series is currently selected in the form. Leader-only
+  // (enforced by updateSeriesActionBtnsVisibility, same as delete below).
+  // Every deck tagged with this series just looks the id up in seriesList,
+  // so the new name shows up everywhere automatically — nothing else to update.
+  $('btnEditSeries').addEventListener('click', async ()=>{
+    const id = $('formSeries').value;
+    if(!id || id === ADD_NEW_SERIES_VALUE) return;
+    const series = seriesList.find(s => s.id === id);
+    if(!series) return;
+    const next = prompt('Rename series', series.name);
+    if(next === null) return;
+    const trimmed = next.trim();
+    if(!trimmed || trimmed === series.name) return;
+    if(trimmed.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
+    const badChar = forbiddenCharIn(trimmed);
+    if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
+    const btn = $('btnEditSeries');
+    btn.disabled = true;
+    try{
+      await renameSeriesEntry(id, trimmed);
+      buildSeriesSelect(id);
+      buildSeriesFilterOptions();
+    }catch(e){
+      alert('Could not rename that series. Please try again.');
+      console.error(e);
+    }finally{
+      btn.disabled = false;
+    }
   });
 
   // Deletes whichever series is currently selected in the form. The decks
@@ -5124,6 +5303,7 @@
     try{
       await deleteSeriesEntry(id);
       buildSeriesSelect('');
+      buildSeriesFilterOptions();
     }catch(e){
       alert('Could not delete that series. Please try again.');
       console.error(e);
@@ -5257,6 +5437,12 @@
 
     if(!name){
       errorEl.textContent = 'Give this deck a name before saving.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if(name.length > NAME_MAX_LEN){
+      errorEl.textContent = nameTooLongMessage();
       errorEl.style.display = 'block';
       return;
     }
@@ -5407,6 +5593,7 @@
           if(next === null) return;
           const trimmed = next.trim();
           if(!trimmed || trimmed === current) return;
+          if(trimmed.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
           const badChar = forbiddenCharIn(trimmed);
           if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
           try{
@@ -5497,6 +5684,7 @@
     const input = $('newCollectionInput');
     const name = input.value.trim();
     if(!name) return;
+    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnAddCollection');
@@ -6064,6 +6252,7 @@
     const name = createGroupNameInput.value.trim();
     clearGroupSetupError();
     if(!name){ showGroupSetupError('Give your group a name.'); return; }
+    if(name.length > NAME_MAX_LEN){ showGroupSetupError(nameTooLongMessage()); return; }
     const groupBadChar = forbiddenCharIn(name);
     if(groupBadChar){ showGroupSetupError(forbiddenCharMessage(groupBadChar)); return; }
     btnCreateGroup.disabled = true;
@@ -6109,6 +6298,7 @@
   async function renameSelfEverywhere(newNameRaw){
     const trimmed = (newNameRaw || '').trim();
     if(!trimmed) throw new Error('Enter a name.');
+    if(trimmed.length > NAME_MAX_LEN) throw new Error(nameTooLongMessage());
     const badChar = forbiddenCharIn(trimmed);
     if(badChar) throw new Error(forbiddenCharMessage(badChar));
     const newName = capitalizeName(trimmed);
@@ -6308,6 +6498,7 @@
 
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
+      nameInput.maxLength = NAME_MAX_LEN;
       const displayValue = capitalizeName(m.displayName);
       nameInput.value = displayValue;
       nameInput.setAttribute('aria-label', `Display name for ${displayValue}`);
@@ -6316,6 +6507,7 @@
       nameInput.addEventListener('change', async ()=>{
         const newName = capitalizeName(nameInput.value.trim());
         if(!newName || newName === displayValue){ nameInput.value = displayValue; return; }
+        if(newName.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); nameInput.value = displayValue; return; }
         const badChar = forbiddenCharIn(newName);
         if(badChar){ alert(forbiddenCharMessage(badChar)); nameInput.value = displayValue; return; }
         try{
@@ -6490,6 +6682,7 @@
     const name = drawerNewGroupInput.value.trim();
     drawerGroupError.style.display = 'none';
     if(!name){ showDrawerGroupError('Give your new group a name.'); return; }
+    if(name.length > NAME_MAX_LEN){ showDrawerGroupError(nameTooLongMessage()); return; }
     const newGroupBadChar = forbiddenCharIn(name);
     if(newGroupBadChar){ showDrawerGroupError(forbiddenCharMessage(newGroupBadChar)); return; }
     btnDrawerConfirmNewGroup.disabled = true;
@@ -6567,6 +6760,7 @@
     if(!isLeader()) return;
     const name = groupNameInput.value.trim();
     if(!name) return;
+    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     btnSaveGroupName.disabled = true;
