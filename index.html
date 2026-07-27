@@ -3204,6 +3204,18 @@
     await updateDoc(doc(USERS_COL, uid), { groupId });
   }
 
+  // Looks up the name already saved on the account (set at signup, kept
+  // current by renameSelfEverywhere) so that joining or creating a new
+  // group always starts from the user's real profile name rather than
+  // re-deriving a fresh one from their email address every time.
+  async function accountDisplayName(user){
+    try{
+      const snap = await getDoc(doc(USERS_COL, user.uid));
+      if(snap.exists() && snap.data().displayName) return capitalizeName(snap.data().displayName);
+    }catch(e){ /* fall through to the email-derived default below */ }
+    return capitalizeName((user.email || 'Player').split('@')[0]);
+  }
+
   // ---------- Storage: groups & members ----------
   function groupSubcollection(groupId, name){
     return collection(db, 'groups', groupId, name);
@@ -3259,7 +3271,8 @@
     const groupId = 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
     const groupData = { id: groupId, name, leaderUid: user.uid, createdAt: Date.now() };
     await setDoc(doc(GROUPS_COL, groupId), groupData);
-    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Leader').split('@')[0]), email: user.email || '', role: 'leader', joinedAt: Date.now() };
+    const displayName = await accountDisplayName(user);
+    const memberData = { uid: user.uid, displayName, email: user.email || '', role: 'leader', joinedAt: Date.now() };
     await setDoc(doc(groupSubcollection(groupId, 'members'), user.uid), memberData);
     await setUserGroup(user.uid, groupId);
     return groupId;
@@ -3360,7 +3373,8 @@
     // viaCode is stored (not just checked) so the security rule granting this
     // write can verify it against the shareCodes doc, and so there's an
     // audit trail of which invite a member joined through.
-    const memberData = { uid: user.uid, displayName: capitalizeName((user.email || 'Player').split('@')[0]), email: user.email || '', role: 'member', joinedAt: Date.now(), viaCode: code };
+    const displayName = await accountDisplayName(user);
+    const memberData = { uid: user.uid, displayName, email: user.email || '', role: 'member', joinedAt: Date.now(), viaCode: code };
     await setDoc(doc(groupSubcollection(data.groupId, 'members'), user.uid), memberData);
     await setUserGroup(user.uid, data.groupId);
     // Single use: the code is spent the moment it's redeemed, so it can't
@@ -6073,6 +6087,7 @@
       appRoot.style.display = 'none';
       groupSetupScreen.style.display = 'none';
       closeGroupDrawer();
+      closeProfile();
       authScreen.style.display = 'flex';
       authEmail.value = '';
       authPassword.value = '';
