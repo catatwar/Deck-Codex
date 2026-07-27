@@ -217,7 +217,7 @@
   header{
     display:flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
     margin-bottom: 32px;
@@ -225,6 +225,23 @@
     border-bottom: 1px solid var(--line);
   }
   .header-left{ display:flex; align-items:center; gap: 14px; }
+
+  /* Right side of the header: the profile/group stack sits on top
+     (its top edge lands flush with the header's top, matching the
+     title), and the connection/scanner/notifications/+New Deck row
+     keeps its own previous position underneath. */
+  .header-right{
+    display:flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 18px;
+  }
+  .header-account-stack{
+    display:flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
 
   .menu-btn{
     background: var(--surface);
@@ -1195,25 +1212,29 @@
     .title-block h1{ font-size: 1.5rem; }
     .modal-body{ padding: 22px 18px 20px; }
 
-    /* Balance the header controls: on desktop these all hug the right
-       edge (fine when there's room to spare), but on a narrow phone that
-       left everything bunched up with ragged empty space beside it. Here
-       the icon row spreads evenly edge-to-edge, and "+ New Deck" gets its
+    /* Balance the header controls: the profile/group stack stays pinned
+       top-right (matching desktop), and the connection/scanner/notif
+       row keeps sitting underneath it, right-aligned — just tightened
+       up a bit for the narrower screen. "+ New Deck" still gets its
        own full-width row underneath as a clear, prominent action. */
     header{
-      flex-direction: column;
-      align-items: stretch;
-      gap: 12px;
+      flex-wrap: nowrap;
+      gap: 10px;
     }
-    .account-badge{
-      width: 100%;
-      justify-content: space-between;
-      gap: 8px;
+    .header-right{
+      gap: 10px;
     }
-    .account-badge .group-chip{
+    .header-account-stack{
+      gap: 6px;
+    }
+    .header-account-stack .group-chip{
       max-width: 118px;
       padding: 7px 10px;
       font-size: 0.78rem;
+    }
+    .account-badge{
+      justify-content: flex-end;
+      gap: 8px;
     }
     .btn-new{
       flex: 1 1 100%;
@@ -2369,13 +2390,17 @@
 
       </div>
     </div>
-    <div class="account-badge">
-      <span class="connection-status" id="connectionStatus" data-state="online"><span class="connection-status-dot"></span><span id="connectionStatusText">Online</span></span>
-      <button class="notif-btn" id="btnScanCard" title="Scan a card for price" aria-label="Scan a card for price"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-      <button class="notif-btn" id="btnNotifications" title="What's new" aria-label="What's new"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
-      <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
-      <button class="group-chip" id="btnProfileChip" title="Your profile" aria-label="Your profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="profileNameLabel">Account</span></button>
-      <button class="btn-new" id="btnNewDeck">+ New Deck</button>
+    <div class="header-right">
+      <div class="header-account-stack">
+        <button class="group-chip" id="btnProfileChip" title="Your profile" aria-label="Your profile"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="profileNameLabel">Account</span></button>
+        <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
+      </div>
+      <div class="account-badge">
+        <span class="connection-status" id="connectionStatus" data-state="online"><span class="connection-status-dot"></span><span id="connectionStatusText">Online</span></span>
+        <button class="notif-btn" id="btnScanCard" title="Scan a card for price" aria-label="Scan a card for price"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+        <button class="notif-btn" id="btnNotifications" title="What's new" aria-label="What's new"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
+        <button class="btn-new" id="btnNewDeck">+ New Deck</button>
+      </div>
     </div>
   </header>
 
@@ -4327,7 +4352,92 @@
     return plausible[plausible.length - 1][1];
   }
 
-  scannerFileInput.addEventListener('change', async ()=>{
+  // Feeding Tesseract a whole card photo means it has to fight through
+  // art, colored frames, and rules/flavor text to find the name — that
+  // fight is where most misreads actually come from, not the OCR engine
+  // itself. Cropping straight to the printed name band (and, separately,
+  // the collector-number corner), upscaling it, and stretching contrast
+  // hands the recognizer a tight, high-DPI, mostly-text image instead —
+  // much closer to what its model was trained on than a full photo.
+  async function loadImageBitmapFromFile(file){
+    if(window.createImageBitmap){
+      try{ return await createImageBitmap(file); }catch(e){ /* fall through to <img> */ }
+    }
+    return await new Promise((resolve, reject)=>{
+      const img = new Image();
+      img.onload = ()=> resolve(img);
+      img.onerror = ()=> reject(new Error('Could not read the photo.'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Crops a normalized [x, y, w, h] region (fractions of the full image),
+  // scales it up so the text sits at a healthier effective resolution,
+  // and converts it to contrast-stretched grayscale. The min/max stretch
+  // (rather than a fixed brightness threshold) pulls faint text up to
+  // full black/white range whether the card frame is light or dark, foil
+  // or matte, instead of a single cutoff that only works for one of those.
+  function cropAndEnhance(bitmap, [xf, yf, wf, hf], targetWidth){
+    const srcW = bitmap.width, srcH = bitmap.height;
+    const sx = Math.round(xf * srcW), sy = Math.round(yf * srcH);
+    const sw = Math.round(wf * srcW), sh = Math.round(hf * srcH);
+    const scale = Math.max(1, targetWidth / sw);
+    const outW = Math.round(sw * scale), outH = Math.round(sh * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW; canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, outW, outH);
+
+    const imgData = ctx.getImageData(0, 0, outW, outH);
+    const d = imgData.data;
+    let min = 255, max = 0;
+    const gray = new Uint8ClampedArray(outW * outH);
+    for(let i = 0, p = 0; i < d.length; i += 4, p++){
+      const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      gray[p] = g;
+      if(g < min) min = g;
+      if(g > max) max = g;
+    }
+    const range = Math.max(1, max - min);
+    for(let i = 0, p = 0; i < d.length; i += 4, p++){
+      const stretched = ((gray[p] - min) / range) * 255;
+      d[i] = d[i+1] = d[i+2] = stretched;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+  }
+
+  // Standard modern Magic frames print the name in a band roughly 3–13%
+  // down from the top, spanning most of the width — trimming the right
+  // edge keeps the mana cost symbols mostly out of the crop rather than
+  // relying entirely on after-the-fact artifact filtering. The collector
+  // number sits as small print in the bottom-left corner, shaped like
+  // "141/264". Borderless/extended-art cards don't reliably match either
+  // band, which is what the whole-photo fallback below is for.
+  const NAME_BAND = [0.04, 0.03, 0.80, 0.10];
+  const NUMBER_BAND = [0.02, 0.905, 0.46, 0.06];
+
+  const PSM_SINGLE_LINE = '7';
+  const PSM_AUTO = '3';
+
+  async function runOcrOnCrops(worker, bitmap){
+    const nameCrop = cropAndEnhance(bitmap, NAME_BAND, 900);
+    const numberCrop = cropAndEnhance(bitmap, NUMBER_BAND, 700);
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_SINGLE_LINE, tessedit_char_whitelist: '' });
+    const nameData = (await worker.recognize(nameCrop)).data;
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_SINGLE_LINE, tessedit_char_whitelist: '0123456789/' });
+    const numberData = (await worker.recognize(numberCrop)).data;
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_AUTO, tessedit_char_whitelist: '' });
+    return { nameData, numberData };
+  }
+
+
     const file = scannerFileInput.files && scannerFileInput.files[0];
     if(!file) return;
     scannerError.style.display = 'none';
@@ -4345,19 +4455,34 @@
     btnScannerLookup.textContent = 'Reading photo…';
     try{
       const worker = await getOcrWorker();
-      const { data } = await worker.recognize(file);
-      // Tesseract reports an overall 0–100 confidence for the recognition
-      // pass itself, separate from how plausible any single line looks.
-      // Below this bar the "text" it returned is often close to noise —
-      // better to say so plainly than quietly fill in a guess that looks
-      // considered but isn't actually backed by a confident read.
       const MIN_OCR_CONFIDENCE = 35;
-      const lowConfidence = typeof data.confidence === 'number' && data.confidence < MIN_OCR_CONFIDENCE;
-      const guess = lowConfidence ? '' : bestGuessCardName(data.text);
-      const numberGuess = lowConfidence ? '' : bestGuessCollectorNumber(data.text);
+
+      let guess = '', numberGuess = '', lowConfidence = true;
+      try{
+        const bitmap = await loadImageBitmapFromFile(file);
+        const { nameData, numberData } = await runOcrOnCrops(worker, bitmap);
+        lowConfidence = typeof nameData.confidence === 'number' && nameData.confidence < MIN_OCR_CONFIDENCE;
+        guess = lowConfidence ? '' : bestGuessCardName(nameData.text);
+        numberGuess = bestGuessCollectorNumber(numberData.text);
+      }catch(cropErr){
+        console.error('Cropped OCR pass failed, falling back to whole photo', cropErr);
+      }
+
+      // The name band assumes a standard card frame — borderless/extended
+      // art (or a crop that missed for some other reason) can come back
+      // empty even on a perfectly readable photo, so fall back to reading
+      // the whole image rather than reporting failure too early.
+      if(!guess){
+        const { data } = await worker.recognize(file);
+        const wholePhotoLowConfidence = typeof data.confidence === 'number' && data.confidence < MIN_OCR_CONFIDENCE;
+        lowConfidence = lowConfidence && wholePhotoLowConfidence;
+        guess = wholePhotoLowConfidence ? '' : bestGuessCardName(data.text);
+        if(!numberGuess) numberGuess = bestGuessCollectorNumber(data.text);
+      }
+
       if(guess) scannerNameInput.value = guess;
       if(numberGuess) scannerNumberInput.value = numberGuess;
-      if(lowConfidence){
+      if(lowConfidence && !guess){
         scannerStatus.textContent = "Couldn't get a confident read on this photo — try better lighting or a closer shot, or type the card name in below.";
       } else {
         scannerStatus.textContent = guess
