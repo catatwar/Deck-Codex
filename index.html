@@ -91,7 +91,7 @@
   const firebaseConfig = IS_DEV_ENV ? DEV_FIREBASE_CONFIG : PROD_FIREBASE_CONFIG;
   if(IS_DEV_ENV){
     // Loud and impossible to miss — you never want to accidentally think
-    // you're looking at real family data when you're actually on dev.
+    // you're looking at real data when you're actually on dev.
     console.log('%cDeck Codex — DEV environment (test Firebase project)', 'color:#5b9bd5; font-weight:bold; font-size:14px;');
   }
 
@@ -106,7 +106,8 @@
     localCache: persistentLocalCache()
   });
 
-  // Family members log in once and stay logged in on that device/browser.
+  // Each person logs in once (to their own account) and stays logged in on
+  // that device/browser.
   setPersistence(auth, browserLocalPersistence).catch((err) => {
     console.error("Could not set auth persistence", err);
   });
@@ -1393,21 +1394,25 @@
   .btn-auth-primary:hover{ filter: brightness(1.1); }
   .btn-auth-primary:disabled{ opacity: 0.6; cursor: default; }
 
-  .auth-toggle{
-    text-align:center;
+  .auth-confirm{
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    margin: 0 0 14px;
+  }
+  .auth-confirm-text{
+    margin: 0 0 12px;
+    color: var(--ink);
     font-family: var(--font-ui);
     font-size: 0.86rem;
-    color: var(--muted);
+    line-height: 1.4;
   }
-  .auth-toggle button{
-    background:none;
-    border:none;
-    color: var(--gold);
-    font-weight: 600;
-    font-size: 0.86rem;
-    padding: 0;
-    text-decoration: underline;
+  .auth-confirm-actions{
+    display:flex;
+    gap: 10px;
   }
+  .auth-confirm-actions button{ flex: 1; margin: 0; }
 
   /* ---------- Connection status badge ---------- */
   .connection-status{
@@ -2263,11 +2268,11 @@
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <h1>Deck <span>Codex</span></h1>
-    <p class="auth-sub" id="authSub">Sign in to your family account to see your decks.</p>
+    <p class="auth-sub" id="authSub">Sign in to your Deck Codex account — you'll create or join a group once you're in.</p>
 
     <div class="auth-field">
       <label for="authEmail">Email</label>
-      <input type="email" id="authEmail" autocomplete="email" placeholder="you@family.com">
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
     </div>
     <div class="auth-field">
       <label for="authPassword">Password</label>
@@ -2289,11 +2294,18 @@
     <div class="auth-error" id="authError"></div>
     <div class="auth-notice" id="authNotice"></div>
 
-    <button class="btn-auth-primary" id="btnAuthSubmit">Sign In</button>
-    <div class="auth-toggle">
-      <span id="authToggleText">New to this family collection?</span>
-      <button type="button" id="btnAuthToggleMode">Create an account</button>
+    <!-- Shown instead of a manual "create account" switch: if the email
+         entered doesn't match an existing account, this offers to create
+         one, then double-checks before actually doing it. -->
+    <div class="auth-confirm" id="authConfirm" style="display:none;">
+      <p class="auth-confirm-text" id="authConfirmText"></p>
+      <div class="auth-confirm-actions">
+        <button type="button" class="btn-secondary" id="authConfirmNo">No</button>
+        <button type="button" class="btn-auth-primary" id="authConfirmYes">Yes</button>
+      </div>
     </div>
+
+    <button class="btn-auth-primary" id="btnAuthSubmit">Sign In</button>
   </div>
 </div>
 
@@ -5592,36 +5604,31 @@
   const authError = $('authError');
   const authNotice = $('authNotice');
   const btnAuthSubmit = $('btnAuthSubmit');
-  const btnAuthToggleMode = $('btnAuthToggleMode');
   const btnTogglePassword = $('btnTogglePassword');
   const btnForgotPassword = $('btnForgotPassword');
   const authSub = $('authSub');
-  const authToggleText = $('authToggleText');
 
-  let authMode = 'signin'; // 'signin' | 'signup'
+  // No separate "sign in" vs "create account" mode to switch between —
+  // nobody shares a login here, so there's nothing to toggle up front.
+  // Just attempt to sign in; if Firebase reports no account exists for
+  // that email, offer to create one (with a second, explicit confirmation
+  // before actually doing it, since it's easy to typo an email).
+  const authConfirm = $('authConfirm');
+  const authConfirmText = $('authConfirmText');
+  const authConfirmYes = $('authConfirmYes');
+  const authConfirmNo = $('authConfirmNo');
+  let pendingCreateEmail = null;
+  let pendingCreateStep = null; // null | 'offer' | 'confirm'
 
-  function setAuthMode(mode){
-    authMode = mode;
-    authError.style.display = 'none';
-    authNotice.style.display = 'none';
-    if(mode === 'signup'){
-      btnAuthSubmit.textContent = 'Create Account';
-      authSub.textContent = 'Create your own Deck Codex account, then create or join a group.';
-      authToggleText.textContent = 'Already have an account?';
-      btnAuthToggleMode.textContent = 'Sign in instead';
-      authPassword.setAttribute('autocomplete', 'new-password');
-    } else {
-      btnAuthSubmit.textContent = 'Sign In';
-      authSub.textContent = 'Sign in to your Deck Codex account.';
-      authToggleText.textContent = 'New here?';
-      btnAuthToggleMode.textContent = 'Create an account';
-      authPassword.setAttribute('autocomplete', 'current-password');
-    }
+  function showAuthConfirm(text){
+    authConfirmText.textContent = text;
+    authConfirm.style.display = 'block';
   }
-
-  btnAuthToggleMode.addEventListener('click', ()=>{
-    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
-  });
+  function hideAuthConfirm(){
+    authConfirm.style.display = 'none';
+    pendingCreateEmail = null;
+    pendingCreateStep = null;
+  }
 
   function friendlyAuthError(code){
     switch(code){
@@ -5630,8 +5637,7 @@
       case 'auth/weak-password': return 'Password must be at least 6 characters.';
       case 'auth/email-already-in-use': return 'An account already exists for that email — try signing in instead.';
       case 'auth/invalid-credential':
-      case 'auth/wrong-password':
-      case 'auth/user-not-found': return 'Incorrect email or password.';
+      case 'auth/wrong-password': return 'Incorrect email or password.';
       case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
       default: return 'Something went wrong. Please try again.';
     }
@@ -5641,6 +5647,8 @@
     const email = authEmail.value.trim();
     const password = authPassword.value;
     authError.style.display = 'none';
+    authNotice.style.display = 'none';
+    hideAuthConfirm();
 
     if(!email || !password){
       authError.textContent = 'Enter both an email and a password.';
@@ -5650,24 +5658,70 @@
 
     btnAuthSubmit.disabled = true;
     const prevLabel = btnAuthSubmit.textContent;
-    btnAuthSubmit.textContent = authMode === 'signup' ? 'Creating…' : 'Signing in…';
+    btnAuthSubmit.textContent = 'Signing in…';
 
     try{
-      const authCall = authMode === 'signup'
-        ? createUserWithEmailAndPassword(auth, email, password)
-        : signInWithEmailAndPassword(auth, email, password);
-      await Promise.race([authCall, timeout(15000, 'Signing in')]);
+      await Promise.race([
+        signInWithEmailAndPassword(auth, email, password),
+        timeout(15000, 'Signing in')
+      ]);
       authPassword.value = '';
       // onAuthStateChanged below takes it from here.
     }catch(e){
-      authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
-      authError.style.display = 'block';
+      if(e && e.code === 'auth/user-not-found'){
+        // No account matches this email — offer to create one rather than
+        // just reporting "incorrect email or password" and leaving the
+        // person stuck.
+        pendingCreateEmail = email;
+        pendingCreateStep = 'offer';
+        showAuthConfirm(`We couldn't find an account for ${email} — would you like to create one?`);
+      } else {
+        authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
+        authError.style.display = 'block';
+      }
       console.error(e);
     }finally{
       btnAuthSubmit.disabled = false;
       btnAuthSubmit.textContent = prevLabel;
     }
   }
+
+  async function createPendingAccount(){
+    const email = pendingCreateEmail;
+    const password = authPassword.value;
+    authConfirmYes.disabled = true;
+    authConfirmNo.disabled = true;
+    const prevLabel = authConfirmYes.textContent;
+    authConfirmYes.textContent = 'Creating…';
+    try{
+      await Promise.race([
+        createUserWithEmailAndPassword(auth, email, password),
+        timeout(15000, 'Creating your account')
+      ]);
+      hideAuthConfirm();
+      authPassword.value = '';
+      // onAuthStateChanged below takes it from here.
+    }catch(e){
+      hideAuthConfirm();
+      authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
+      authError.style.display = 'block';
+      console.error(e);
+    }finally{
+      authConfirmYes.disabled = false;
+      authConfirmNo.disabled = false;
+      authConfirmYes.textContent = prevLabel;
+    }
+  }
+
+  authConfirmYes.addEventListener('click', ()=>{
+    if(pendingCreateStep === 'offer'){
+      pendingCreateStep = 'confirm';
+      showAuthConfirm(`Are you sure you want to create an account for ${pendingCreateEmail}? You'll create or join a group right after.`);
+    } else if(pendingCreateStep === 'confirm'){
+      createPendingAccount();
+    }
+  });
+  authConfirmNo.addEventListener('click', hideAuthConfirm);
 
   btnAuthSubmit.addEventListener('click', submitAuth);
   authPassword.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submitAuth(); });
@@ -5728,8 +5782,6 @@
   }
 
   btnForgotPassword.addEventListener('click', submitForgotPassword);
-
-  setAuthMode('signin');
 
   // ---------- Groups ----------
   const groupSetupScreen = $('groupSetupScreen');
@@ -5840,6 +5892,18 @@
   // whenever you ship something worth telling people about. Newest entry's
   // date is what drives the unread dot on the bell icon.
   const CHANGELOG = [
+    {
+      date: '2026-07-27',
+      title: 'Major Update',
+      items: [
+        'Card Price Scanner: snap a photo of a card (or upload one) and it reads the name and collector number for you, looks the card up on Scryfall automatically, and — when it can\'t pin down the exact printing from a name alone — shows every printing of that card so you can pick the one matching yours and compare foil vs. non-foil prices.',
+        'Favoriting: tap the heart icon on any deck to favorite it. Favorited decks are pinned to the top of your deck list ahead of everything else, so the ones you\'re actively playing are always the first thing you see.',
+        'Undo, anytime: every create, delete, favorite, and unfavorite you make is now logged to a personal "Recent Actions" history (your last 10), viewable from your profile. You can undo any of them whenever you notice a mistake — not just in the few seconds right after you did it.',
+        'Swipe to delete: swipe a deck card to the left to reveal its delete action. Deleting isn\'t instant — a banner with a 5-second countdown bar appears afterward so you can undo it before it\'s actually gone.',
+        'Deck editing: edit any deck you created right in place — name, colors, description, and everything else — using the same form you used to create it, no more delete-and-redo.',
+        'Deck edit history: every change you make to a deck is now recorded. Open a deck\'s update history to see a timeline of prior versions with what changed and when, and tap into any entry to see exactly how the deck looked at that point in time.'
+      ]
+    },
     {
       date: '2026-07-26',
       title: 'Update alerts, easier sign-in, and this "What\'s New" tab',
