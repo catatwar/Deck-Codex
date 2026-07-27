@@ -29,6 +29,7 @@
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
+    fetchSignInMethodsForEmail,
     signOut,
     deleteUser,
     EmailAuthProvider,
@@ -121,6 +122,7 @@
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
+    fetchSignInMethodsForEmail,
     signOut,
     deleteUser,
     EmailAuthProvider,
@@ -2756,6 +2758,7 @@
 
   function boot(fb){
   const { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+          fetchSignInMethodsForEmail,
           signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
           collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
           query, where, orderBy, onSnapshot } = fb;
@@ -5658,8 +5661,45 @@
 
     btnAuthSubmit.disabled = true;
     const prevLabel = btnAuthSubmit.textContent;
-    btnAuthSubmit.textContent = 'Signing in…';
+    btnAuthSubmit.textContent = 'Checking…';
 
+    // Check whether an account exists for this email *before* attempting to
+    // sign in. Many current Firebase projects return the same generic
+    // "invalid-credential" error for both a wrong password and a
+    // nonexistent account, so the sign-in attempt's error code alone often
+    // can't tell those two cases apart — this explicit check can.
+    let accountExists = null; // true | false | null (couldn't determine)
+    try{
+      const methods = await Promise.race([
+        fetchSignInMethodsForEmail(auth, email),
+        timeout(15000, 'Checking that email')
+      ]);
+      accountExists = methods.length > 0;
+    }catch(checkErr){
+      if(checkErr && checkErr.code === 'auth/invalid-email'){
+        authError.textContent = friendlyAuthError('auth/invalid-email');
+        authError.style.display = 'block';
+        btnAuthSubmit.disabled = false;
+        btnAuthSubmit.textContent = prevLabel;
+        return;
+      }
+      // Couldn't determine either way (e.g. a network hiccup, or this
+      // project has enumeration protection enabled and always reports no
+      // methods) — accountExists stays null and the sign-in attempt below
+      // decides what to show instead.
+      console.error('Could not check whether an account exists, falling back to a normal sign-in attempt', checkErr);
+    }
+
+    if(accountExists === false){
+      pendingCreateEmail = email;
+      pendingCreateStep = 'offer';
+      showAuthConfirm(`We couldn't find an account for ${email} — would you like to create one?`);
+      btnAuthSubmit.disabled = false;
+      btnAuthSubmit.textContent = prevLabel;
+      return;
+    }
+
+    btnAuthSubmit.textContent = 'Signing in…';
     try{
       await Promise.race([
         signInWithEmailAndPassword(auth, email, password),
@@ -5668,10 +5708,11 @@
       authPassword.value = '';
       // onAuthStateChanged below takes it from here.
     }catch(e){
-      if(e && e.code === 'auth/user-not-found'){
-        // No account matches this email — offer to create one rather than
-        // just reporting "incorrect email or password" and leaving the
-        // person stuck.
+      // Fallback path for when the existence check above couldn't run: on
+      // some projects both "no such account" and "wrong password" surface
+      // as one of these two codes, so offer to create an account rather
+      // than just reporting a dead-end "incorrect password" error.
+      if(accountExists === null && e && (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')){
         pendingCreateEmail = email;
         pendingCreateStep = 'offer';
         showAuthConfirm(`We couldn't find an account for ${email} — would you like to create one?`);
