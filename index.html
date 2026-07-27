@@ -1819,6 +1819,53 @@
     margin: 4px 0 0;
   }
 
+  /* ---------- Action history (Profile — Recent Actions / Undo) ---------- */
+  .action-history-list{
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .action-history-row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .action-history-text{
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .action-history-undo{
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    transition: border-color 0.15s ease;
+  }
+  .action-history-undo:hover{ border-color: var(--gold-soft); }
+  .action-history-empty{
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--muted-2);
+    margin: 10px 0 0;
+  }
+
   /* ---------- Collection edit (rename) button ---------- */
   .collection-item .edit-btn{
     background: none; border: none; color: var(--muted-2);
@@ -2059,7 +2106,7 @@
   // deploy by watching this page's own Last-Modified/ETag header — no
   // manual version bump needed, no service worker required.
   (function(){
-    var CHECK_INTERVAL_MS = 5 * 60 * 1000; // re-check every 5 minutes
+    var CHECK_INTERVAL_MS = 30 * 1000; // re-check every 30 seconds
     var COUNTDOWN_SECONDS = 10;
     var MAX_SNOOZES = 2;
 
@@ -2343,6 +2390,11 @@
         <button type="button" id="btnSaveProfileName">Save</button>
       </div>
       <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
+
+      <div class="group-section-label">Recent Actions</div>
+      <p class="invite-hint">Your last 10 create/delete/favorite actions in this group — undo any of them here.</p>
+      <div class="action-history-list" id="actionHistoryList"></div>
+      <p class="action-history-empty" id="actionHistoryEmpty">No recent actions yet.</p>
 
       <button type="button" class="btn-drawer-danger" id="btnProfileSignOut">Sign Out</button>
       <div class="account-danger-zone">
@@ -2887,6 +2939,101 @@
     try{
       await updateDoc(doc(groupSubcollection(currentGroup.id, 'members'), currentUser.uid), { favorites: next });
     }catch(e){ console.error('Could not update favorites', e); }
+  }
+
+  // ---------- Action history (Profile panel — Undo) ----------
+  // Keeps the last 10 create/delete/favorite/unfavorite actions this
+  // account has taken, stored on their own member doc (same pattern as
+  // favorites above) so it's private to them and follows their profile
+  // across devices — scoped per group, same as everything else a member
+  // doc holds. "Delete" entries carry a full snapshot of the deck so
+  // Undo can recreate it exactly; the others only need the deck's id.
+  const MAX_ACTION_HISTORY = 10;
+
+  function actionHistoryList(){
+    return Array.isArray(currentMember && currentMember.actionHistory) ? currentMember.actionHistory : [];
+  }
+
+  async function recordAction(type, deck){
+    if(!currentGroup || !currentUser || !currentMember || !deck) return;
+    const entry = {
+      id: 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      type, // 'create' | 'delete' | 'favorite' | 'unfavorite'
+      deckId: deck.id,
+      deckName: deck.name,
+      ts: Date.now(),
+      snapshot: type === 'delete' ? { ...deck } : null
+    };
+    const next = [entry, ...actionHistoryList()].slice(0, MAX_ACTION_HISTORY);
+    currentMember.actionHistory = next; // optimistic, mirrors favorites above
+    renderActionHistory();
+    try{
+      await updateDoc(doc(groupSubcollection(currentGroup.id, 'members'), currentUser.uid), { actionHistory: next });
+    }catch(e){ console.error('Could not record action history', e); }
+  }
+
+  const ACTION_LABELS = {
+    create: deck => `Created "${deck}"`,
+    delete: deck => `Deleted "${deck}"`,
+    favorite: deck => `Favorited "${deck}"`,
+    unfavorite: deck => `Unfavorited "${deck}"`
+  };
+
+  async function undoHistoryAction(entryId){
+    const list = actionHistoryList();
+    const entry = list.find(e => e.id === entryId);
+    if(!entry || !DECKS_COL) return;
+    try{
+      if(entry.type === 'create'){
+        // Undo a create = remove the deck again. Already gone (e.g. someone
+        // deleted it since) is fine — that's the same end state anyway.
+        await deleteDoc(doc(DECKS_COL, entry.deckId)).catch(()=>{});
+      } else if(entry.type === 'delete'){
+        // Undo a delete = restore it from the snapshot taken at delete time.
+        if(entry.snapshot) await setDoc(doc(DECKS_COL, entry.snapshot.id), entry.snapshot);
+      } else if(entry.type === 'favorite'){
+        await setFavorite(entry.deckId, false);
+      } else if(entry.type === 'unfavorite'){
+        await setFavorite(entry.deckId, true);
+      }
+      // Consumed — can't undo the same entry twice.
+      const next = list.filter(e => e.id !== entryId);
+      currentMember.actionHistory = next;
+      renderActionHistory();
+      await updateDoc(doc(groupSubcollection(currentGroup.id, 'members'), currentUser.uid), { actionHistory: next });
+      render();
+    }catch(e){
+      console.error('Could not undo this action', e);
+      alert("Couldn't undo that — please try again.");
+    }
+  }
+
+  function renderActionHistory(){
+    const list = $('actionHistoryList');
+    const empty = $('actionHistoryEmpty');
+    if(!list || !empty) return;
+    const entries = actionHistoryList();
+    list.innerHTML = '';
+    empty.style.display = entries.length ? 'none' : 'block';
+    entries.forEach(entry=>{
+      const row = document.createElement('div');
+      row.className = 'action-history-row';
+
+      const text = document.createElement('span');
+      text.className = 'action-history-text';
+      const label = ACTION_LABELS[entry.type];
+      text.textContent = label ? label(entry.deckName || 'Untitled Deck') : (entry.deckName || 'Untitled Deck');
+      row.appendChild(text);
+
+      const undoBtn = document.createElement('button');
+      undoBtn.type = 'button';
+      undoBtn.className = 'action-history-undo';
+      undoBtn.textContent = 'Undo';
+      undoBtn.addEventListener('click', ()=> undoHistoryAction(entry.id));
+      row.appendChild(undoBtn);
+
+      list.appendChild(row);
+    });
   }
 
   // ---------- Last-opened (personal, local only) ----------
@@ -3620,6 +3767,7 @@
         e.stopPropagation();
         const next = !isFavorite(deck.id);
         setFavorite(deck.id, next);
+        recordAction(next ? 'favorite' : 'unfavorite', deck);
         render();
       });
       topRow.appendChild(favBtn);
@@ -3916,9 +4064,13 @@
     undoBannerBar.style.width = '100%';
   }
 
-  function finalizeDelete(id){
+  function finalizeDelete(deck){
+    const id = deck.id;
     deleteDeck(id)
-      .then(()=>{ pendingDeleteIds.delete(id); })
+      .then(()=>{
+        pendingDeleteIds.delete(id);
+        recordAction('delete', deck);
+      })
       .catch(e=>{
         console.error('Could not delete this deck', e);
         // Deletion failed — put the deck back so it doesn't vanish forever.
@@ -3930,7 +4082,7 @@
   function commitActiveUndoIfAny(){
     if(activeUndo){
       clearTimeout(activeUndo.timeoutId);
-      finalizeDelete(activeUndo.id);
+      finalizeDelete(activeUndo.deck);
       activeUndo = null;
     }
   }
@@ -3943,11 +4095,11 @@
     render();
     showUndoBanner(deck.name);
     const timeoutId = setTimeout(()=>{
-      finalizeDelete(deck.id);
+      finalizeDelete(deck);
       activeUndo = null;
       hideUndoBanner();
     }, 5000);
-    activeUndo = { id: deck.id, timeoutId };
+    activeUndo = { id: deck.id, deck, timeoutId };
   }
 
   function undoDelete(){
@@ -4968,12 +5120,14 @@
           buildType: buildType,
           ownerUid: targetOwnerUid,
           ownerName: targetOwnerName,
+          price: null,
           wins: 0,
           losses: 0,
           createdAt: Date.now(),
           history: [{ ts: Date.now(), text: 'Deck created' }]
         };
         await createDeck(deck);
+        await recordAction('create', deck);
         // Not pushing to `decks` here on purpose — attachLiveDecks' live
         // listener already adds it (often before this line even runs),
         // and pushing again here was what caused the deck to show up
@@ -5448,6 +5602,7 @@
       ? capitalizeName(currentMember.displayName)
       : (currentUser && currentUser.email ? capitalizeName(currentUser.email.split('@')[0]) : '');
     profileNameError.style.display = 'none';
+    renderActionHistory();
     profileOverlay.classList.add('show');
     lockBodyScroll();
     setTimeout(()=> profileModalClose.focus(), 30);
