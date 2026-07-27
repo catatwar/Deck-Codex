@@ -409,7 +409,83 @@
   }
   .pip-toggle.pip-toggle-black[data-active="true"]{ color: #ece8f2; }
 
-  .series-filter-select{ width: 100%; }
+  /* ---------- Custom dropdown (series filter) ---------- */
+  /* A styled stand-in for a native <select> — same idea (pick one value
+     from a list) but rendered entirely in the app's own look, and the
+     option list expands in normal document flow right below the trigger
+     rather than as an OS-native popup/sheet. */
+  .custom-select{ position: relative; }
+  .custom-select-trigger{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .custom-select-trigger:hover{ border-color: var(--gold-soft); }
+  .custom-select.open .custom-select-trigger{ border-color: var(--gold); }
+  .custom-select-trigger span{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .custom-select-chevron{
+    width: 16px; height: 16px; flex-shrink: 0;
+    color: var(--muted-2);
+    transition: transform 0.15s ease;
+  }
+  .custom-select.open .custom-select-chevron{ transform: rotate(180deg); }
+
+  .custom-select-options{
+    margin-top: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .custom-select-option{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    padding: 9px 10px;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .custom-select-option:hover{ background: var(--surface-3); }
+  .custom-select-option[data-active="true"]{ background: var(--gold-soft); color: var(--gold); font-weight: 600; }
+  .custom-select-option .option-name{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+  .custom-select-option .check-icon{
+    width: 14px; height: 14px; flex-shrink: 0;
+    opacity: 0;
+  }
+  .custom-select-option[data-active="true"] .check-icon{ opacity: 1; }
 
   .build-filters{ display:flex; gap: 9px; }
   .build-filter-btn{
@@ -2574,7 +2650,13 @@
         </div>
         <div class="filter-modal-section">
           <div class="filter-modal-label">Series</div>
-          <select class="sort-select series-filter-select" id="seriesFilterSelect"></select>
+          <div class="custom-select" id="seriesFilterCustomSelect">
+            <button type="button" class="custom-select-trigger" id="seriesFilterTrigger" aria-haspopup="listbox" aria-expanded="false">
+              <span id="seriesFilterTriggerLabel">All series</span>
+              <svg class="icon-svg custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="custom-select-options" id="seriesFilterOptions" role="listbox" aria-label="Series" style="display:none;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -3762,7 +3844,12 @@
     lockBodyScroll();
     setTimeout(()=>{ const f = focusableIn(filterModal); if(f.length) f[0].focus(); }, 30);
   }
-  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); unlockBodyScroll(); restoreFocus(); }
+  function closeFilterModal(){
+    filterModalOverlay.classList.remove('show');
+    unlockBodyScroll();
+    restoreFocus();
+    closeSeriesFilterOptions();
+  }
   btnOpenFilters.addEventListener('click', openFilterModal);
   filterModalClose.addEventListener('click', closeFilterModal);
   filterModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'filterModalOverlay') closeFilterModal(); });
@@ -3817,37 +3904,80 @@
   // the dropdown never shows a stale name or a since-deleted series. If the
   // currently active filter no longer exists (its series was deleted),
   // falls back to "All series" rather than silently filtering on a dead id.
+  let seriesFilterOpen = false;
+  function seriesFilterLabel(){
+    if(!activeSeriesFilter) return 'All series';
+    if(activeSeriesFilter === NO_SERIES_FILTER_VALUE) return 'No series';
+    const s = seriesList.find(x => x.id === activeSeriesFilter);
+    return s ? s.name : 'All series';
+  }
+  function openSeriesFilterOptions(){
+    seriesFilterOpen = true;
+    $('seriesFilterCustomSelect').classList.add('open');
+    $('seriesFilterOptions').style.display = 'block';
+    $('seriesFilterTrigger').setAttribute('aria-expanded', 'true');
+  }
+  function closeSeriesFilterOptions(){
+    seriesFilterOpen = false;
+    $('seriesFilterCustomSelect').classList.remove('open');
+    $('seriesFilterOptions').style.display = 'none';
+    $('seriesFilterTrigger').setAttribute('aria-expanded', 'false');
+  }
   function buildSeriesFilterOptions(){
-    const sel = $('seriesFilterSelect');
-    if(!sel) return;
+    const trigger = $('seriesFilterTrigger');
+    if(!trigger) return;
     if(activeSeriesFilter && activeSeriesFilter !== NO_SERIES_FILTER_VALUE && !seriesList.find(s => s.id === activeSeriesFilter)){
       activeSeriesFilter = '';
     }
-    sel.innerHTML = '';
+    $('seriesFilterTriggerLabel').textContent = seriesFilterLabel();
 
-    const allOpt = document.createElement('option');
-    allOpt.value = '';
-    allOpt.textContent = 'All series';
-    sel.appendChild(allOpt);
+    const wrap = $('seriesFilterOptions');
+    wrap.innerHTML = '';
 
-    const noneOpt = document.createElement('option');
-    noneOpt.value = NO_SERIES_FILTER_VALUE;
-    noneOpt.textContent = 'No series';
-    sel.appendChild(noneOpt);
+    const makeOption = (value, label)=>{
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'custom-select-option';
+      opt.setAttribute('role', 'option');
+      const isActive = activeSeriesFilter === value;
+      opt.dataset.active = isActive ? 'true' : 'false';
+      opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
 
-    seriesList.forEach(s=>{
-      const opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = s.name;
-      sel.appendChild(opt);
-    });
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'option-name';
+      nameSpan.textContent = label;
+      opt.appendChild(nameSpan);
 
-    sel.value = activeSeriesFilter;
+      const checkIcon = document.createElement('span');
+      checkIcon.className = 'check-icon';
+      checkIcon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      opt.appendChild(checkIcon);
+
+      opt.addEventListener('click', ()=>{
+        activeSeriesFilter = value;
+        buildSeriesFilterOptions();
+        updateFilterBadge();
+        closeSeriesFilterOptions();
+        render();
+      });
+      wrap.appendChild(opt);
+    };
+
+    makeOption('', 'All series');
+    makeOption(NO_SERIES_FILTER_VALUE, 'No series');
+    seriesList.forEach(s => makeOption(s.id, s.name));
   }
-  $('seriesFilterSelect').addEventListener('change', (e)=>{
-    activeSeriesFilter = e.target.value;
-    updateFilterBadge();
-    render();
+  $('seriesFilterTrigger').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(seriesFilterOpen) closeSeriesFilterOptions();
+    else openSeriesFilterOptions();
+  });
+  // Any other click inside the filter modal (a color chip, the build-type
+  // row, the modal's own background) collapses the option list back down —
+  // clicks on the trigger or on an option itself are inside
+  // #seriesFilterCustomSelect, so they're excluded here and handled above.
+  filterModal.addEventListener('click', (e)=>{
+    if(seriesFilterOpen && !$('seriesFilterCustomSelect').contains(e.target)) closeSeriesFilterOptions();
   });
 
   $('btnClearFilters').addEventListener('click', ()=>{
