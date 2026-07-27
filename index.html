@@ -165,6 +165,10 @@
     --g: #5c8f6f;
     --c: #6f7178;
 
+    --pink: #ff5c8a;
+    --status-online: #4caf6f;
+    --status-offline: #e0555a;
+
     --radius: 12px;
     --font-display: 'Inter', sans-serif;
     --font-body: 'Inter', sans-serif;
@@ -572,7 +576,39 @@
     color: var(--ink);
     margin: 0;
     line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+
+  /* ---------- Favorite (heart) button ---------- */
+  .favorite-btn{
+    background: none;
+    border: none;
+    padding: 4px;
+    margin: -4px 0;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .favorite-btn .heart-icon{
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    transition: fill 0.15s ease, stroke 0.15s ease, transform 0.15s ease;
+  }
+  .favorite-btn:hover{ color: var(--pink); }
+  .favorite-btn[data-active="true"]{ color: var(--pink); }
+  .favorite-btn[data-active="true"] .heart-icon{ fill: var(--pink); stroke: var(--pink); }
+  .favorite-btn:active .heart-icon{ transform: scale(0.82); }
+
 
   .pip-row{ display:flex; gap: 5px; }
   .pip{
@@ -729,6 +765,45 @@
     font-size: 0.76rem;
     color: var(--muted-2);
     margin: 0;
+  }
+  .record-last-played{
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 2px 0 0;
+  }
+
+  /* ---------- Deck update history ---------- */
+  .history-block{ margin: 18px 0; }
+  .history-list{
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .history-entry{
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    padding-left: 12px;
+    border-left: 2px solid var(--line);
+  }
+  .history-entry-date{
+    display: block;
+    color: var(--muted-2);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 1px;
+  }
+  .history-entry-text{ color: var(--muted); }
+  .history-empty{
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: var(--muted-2);
+    margin: 8px 0 0;
   }
 
   .scanner-photo-row{
@@ -1259,6 +1334,39 @@
     justify-content: flex-end;
     gap: 10px;
   }
+
+  /* ---------- Connection status badge ---------- */
+  .connection-status{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted-2);
+    background: transparent;
+  }
+  .connection-status-dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .connection-status[data-state="online"]{
+    color: var(--status-online);
+    border-color: var(--status-online);
+  }
+  .connection-status[data-state="offline"]{
+    color: var(--status-offline);
+    border-color: var(--status-offline);
+  }
+
   .btn-signout{
     background: var(--surface);
     border: 1px solid var(--line);
@@ -1891,6 +1999,27 @@
 </script>
 
 <script>
+  // ---------- Connection status badge ----------
+  // Plain script, independent of Firebase — reflects the browser's own
+  // online/offline signal so it works even before auth/Firestore resolve,
+  // and keeps working if Firestore's own connection differs momentarily.
+  (function(){
+    function paint(){
+      var el = document.getElementById('connectionStatus');
+      var textEl = document.getElementById('connectionStatusText');
+      if(!el || !textEl) return;
+      var online = navigator.onLine;
+      el.dataset.state = online ? 'online' : 'offline';
+      textEl.textContent = online ? 'Online' : 'Offline';
+    }
+    window.addEventListener('online', paint);
+    window.addEventListener('offline', paint);
+    document.addEventListener('DOMContentLoaded', paint);
+    paint();
+  })();
+</script>
+
+<script>
   // ---------- Update checker ----------
   // Plain script (not a module), independent of Firebase/auth, so it keeps
   // working even if the rest of the app fails to load. Detects a new
@@ -2203,6 +2332,7 @@
       </div>
     </div>
     <div class="account-badge">
+      <span class="connection-status" id="connectionStatus" data-state="online"><span class="connection-status-dot"></span><span id="connectionStatusText">Online</span></span>
       <button class="notif-btn" id="btnScanCard" title="Scan a card for price" aria-label="Scan a card for price"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
       <button class="notif-btn" id="btnNotifications" title="What's new" aria-label="What's new"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
       <button class="group-chip" id="btnGroupChip" title="Manage group"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span id="groupChipName">Group</span></button>
@@ -2271,10 +2401,16 @@
           <span class="record-summary" id="infoRecordSummary">0 – 0</span>
           <span class="record-winrate" id="infoRecordWinrate"></span>
         </div>
+        <p class="record-last-played" id="infoLastPlayed" style="display:none;"></p>
         <p class="record-note">Tracked in MTG Tracker — logged there, shown here.</p>
       </div>
       <div class="desc-label">Description</div>
       <p class="desc-text" id="infoDesc"></p>
+      <div class="history-block">
+        <div class="desc-label">Update History</div>
+        <ul class="history-list" id="infoHistoryList"></ul>
+        <p class="history-empty" id="infoHistoryEmpty">No edits recorded yet.</p>
+      </div>
       <div class="modal-actions">
         <button class="btn-secondary" id="infoEdit">Edit</button>
         <button class="btn-danger" id="infoDelete">Delete</button>
@@ -2673,7 +2809,49 @@
     return pips;
   }
 
-  // ---------- Storage: collections (Firestore, live) ----------
+  // ---------- Storage: favorites + last-opened (personal, local only) ----------
+  // These are a personal viewing preference — which decks *you* pin, and
+  // when *you* last looked at one — not shared group data, so they live in
+  // this browser's localStorage (keyed by group + user) rather than on the
+  // shared deck doc. That also sidesteps needing write access to a deck you
+  // don't own just to favorite or open it.
+  function favoritesKey(){
+    return (currentGroup && currentUser) ? `ui:favorites:${currentGroup.id}:${currentUser.uid}` : null;
+  }
+  function lastOpenedKey(){
+    return (currentGroup && currentUser) ? `ui:last-opened:${currentGroup.id}:${currentUser.uid}` : null;
+  }
+  function readJsonMap(key){
+    if(!key) return {};
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function writeJsonMap(key, map){
+    if(!key) return;
+    try{ localStorage.setItem(key, JSON.stringify(map)); }catch(e){ /* non-fatal */ }
+  }
+  function isFavorite(deckId){
+    return !!readJsonMap(favoritesKey())[deckId];
+  }
+  function setFavorite(deckId, value){
+    const key = favoritesKey();
+    const map = readJsonMap(key);
+    if(value) map[deckId] = true; else delete map[deckId];
+    writeJsonMap(key, map);
+  }
+  function lastOpenedAt(deckId){
+    return readJsonMap(lastOpenedKey())[deckId] || 0;
+  }
+  function markOpened(deckId){
+    const key = lastOpenedKey();
+    const map = readJsonMap(key);
+    map[deckId] = Date.now();
+    writeJsonMap(key, map);
+  }
+
+
   function personalCollectionId(uid){
     return 'personal_' + uid;
   }
@@ -3272,6 +3450,21 @@
       if(sortMode === 'oldest') return (a.createdAt||0) - (b.createdAt||0);
       return 0;
     });
+
+    // Favorited decks are pinned above everything else, most-recently-
+    // active one first (whichever is more recent: opened in Codex, or
+    // played in MTG Tracker) — non-favorites keep the sort above untouched.
+    const favSet = new Set(list.filter(d => isFavorite(d.id)).map(d => d.id));
+    if(favSet.size){
+      const activityOf = d => Math.max(lastOpenedAt(d.id), d.lastPlayedAt || 0);
+      list.sort((a,b)=>{
+        const aFav = favSet.has(a.id), bFav = favSet.has(b.id);
+        if(aFav && !bFav) return -1;
+        if(!aFav && bFav) return 1;
+        if(aFav && bFav) return activityOf(b) - activityOf(a);
+        return 0; // both non-favorite: preserve the ordering already applied above
+      });
+    }
     return list;
   }
 
@@ -3331,6 +3524,24 @@
       name.className = 'deck-name';
       name.textContent = deck.name;
       topRow.appendChild(name);
+
+      const favBtn = document.createElement('button');
+      favBtn.type = 'button';
+      favBtn.className = 'favorite-btn';
+      const favActive = isFavorite(deck.id);
+      favBtn.dataset.active = favActive ? 'true' : 'false';
+      favBtn.setAttribute('aria-label', favActive ? `Unfavorite ${deck.name}` : `Favorite ${deck.name}`);
+      favBtn.setAttribute('aria-pressed', favActive ? 'true' : 'false');
+      favBtn.innerHTML = '<svg class="icon-svg heart-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21C12 21 4 14.5 4 9.5C4 6.46 6.46 4 9.5 4C11 4 12 5 12 5C12 5 13 4 14.5 4C17.54 4 20 6.46 20 9.5C20 14.5 12 21 12 21Z"/></svg>';
+      favBtn.addEventListener('pointerdown', (e)=> e.stopPropagation());
+      favBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        const next = !isFavorite(deck.id);
+        setFavorite(deck.id, next);
+        render();
+      });
+      topRow.appendChild(favBtn);
 
       card.appendChild(topRow);
 
@@ -3676,6 +3887,7 @@
     const deck = decks.find(d => d.id === id);
     if(!deck) return;
     currentInfoId = id;
+    markOpened(id);
     $('infoStripe').style.setProperty('--stripe', stripeGradient(deck.colors));
     $('infoName').textContent = deck.name;
 
@@ -3708,6 +3920,7 @@
     });
 
     renderInfoRecord(deck);
+    renderInfoHistory(deck);
 
     const descEl = $('infoDesc');
     if(deck.description){
@@ -3722,6 +3935,10 @@
     $('infoOverlay').classList.add('show');
     lockBodyScroll();
     setTimeout(()=> $('infoClose').focus(), 30);
+    // Re-render the grid behind the modal so a newly-favorited-and-opened
+    // deck's pin position (which depends on this open time) is already
+    // correct by the time this modal is closed.
+    render();
   }
 
   function closeInfo(){
@@ -3755,6 +3972,11 @@
   // the aggregate wins/losses onto this same deck doc in Firestore. Codex
   // just displays whatever's there — no editing UI, so there's no way for
   // a Codex edit to clobber what Tracker has recorded.
+  function formatTimestamp(ms){
+    if(!ms) return '';
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   function renderInfoRecord(deck){
     const wins = deck.wins || 0;
     const losses = deck.losses || 0;
@@ -3763,6 +3985,44 @@
     $('infoRecordWinrate').textContent = total > 0
       ? `(${Math.round((wins / total) * 100)}% Win)`
       : 'No games logged yet';
+    const lastPlayedEl = $('infoLastPlayed');
+    if(deck.lastPlayedAt){
+      lastPlayedEl.textContent = `Last played ${formatTimestamp(deck.lastPlayedAt)}`;
+      lastPlayedEl.style.display = '';
+    } else {
+      lastPlayedEl.style.display = 'none';
+    }
+  }
+
+  // Shows the most recent edits made to this deck (name, description, color
+  // identity, build type, collection, series) — a plain read of the
+  // `history` array Firestore already has, newest entry first. Purely
+  // informational, so there's nothing to wire up beyond painting the list.
+  function renderInfoHistory(deck){
+    const listEl = $('infoHistoryList');
+    const emptyEl = $('infoHistoryEmpty');
+    const entries = Array.isArray(deck.history) ? deck.history : [];
+    if(!entries.length){
+      listEl.innerHTML = '';
+      listEl.style.display = 'none';
+      emptyEl.style.display = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.style.display = '';
+    const shown = entries.slice(0, 8);
+    listEl.innerHTML = shown.map(entry => `
+      <li class="history-entry">
+        <span class="history-entry-date">${formatTimestamp(entry.ts)}</span>
+        <span class="history-entry-text"></span>
+      </li>
+    `).join('');
+    // Set text via textContent (not the template above) to avoid ever
+    // interpreting a deck name/description that made it into a history
+    // line as HTML.
+    listEl.querySelectorAll('.history-entry-text').forEach((el, i)=>{
+      el.textContent = shown[i].text || '';
+    });
   }
 
   // ---------- Card price scanner ----------
@@ -4241,6 +4501,45 @@
     if(e.key === 'Enter'){ e.preventDefault(); $('btnConfirmAddSeries').click(); }
   });
 
+  // Compares a deck's fields before/after a save and produces a short,
+  // human-readable summary of what actually changed — used to build the
+  // Update History log. Returns null if nothing meaningful changed (e.g.
+  // just re-saving without edits).
+  function summarizeDeckChanges(before, patch){
+    const parts = [];
+    if((patch.name || '') !== (before.name || '')){
+      parts.push(`renamed to "${patch.name}"`);
+    }
+    if((patch.description || '') !== (before.description || '')){
+      parts.push('description updated');
+    }
+    const beforeColors = [...(before.colors || [])].sort().join(',');
+    const afterColors = [...(patch.colors || [])].sort().join(',');
+    const beforeColorless = !!before.colorless || !(before.colors && before.colors.length);
+    const afterColorless = !!patch.colorless;
+    if(beforeColors !== afterColors || beforeColorless !== afterColorless){
+      parts.push('color identity changed');
+    }
+    if((patch.buildType || null) !== (before.buildType || null)){
+      parts.push(`build set to ${patch.buildType ? buildTypeName(patch.buildType) : 'none'}`);
+    }
+    if((patch.collectionId || null) !== (before.collectionId || null)){
+      parts.push('moved to a different collection');
+    }
+    if((patch.seriesId || null) !== (before.seriesId || null)){
+      parts.push('series changed');
+    }
+    return parts.length ? parts.join('; ') : null;
+  }
+
+  // Appends a new entry (newest first) to a deck's `history` array, capped
+  // to a reasonable length so the doc doesn't grow forever.
+  const DECK_HISTORY_MAX_ENTRIES = 20;
+  function withAppendedHistory(existingHistory, text){
+    const prior = Array.isArray(existingHistory) ? existingHistory : [];
+    return [{ ts: Date.now(), text }, ...prior].slice(0, DECK_HISTORY_MAX_ENTRIES);
+  }
+
   function openForm(idToEdit){
     if(idToEdit){
       const existing = decks.find(d=>d.id===idToEdit);
@@ -4369,6 +4668,10 @@
           patch.ownerUid = targetOwnerUid;
           patch.ownerName = ownerDisplayName(targetOwnerUid) || 'Member';
         }
+        const changeSummary = summarizeDeckChanges(deck, patch);
+        if(changeSummary){
+          patch.history = withAppendedHistory(deck.history, changeSummary);
+        }
         await updateDeckFields(editingId, patch);
         // Mirror the exact same fields onto our local cached copy so the
         // UI updates instantly instead of waiting on the snapshot echo —
@@ -4397,7 +4700,8 @@
           ownerName: targetOwnerName,
           wins: 0,
           losses: 0,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          history: [{ ts: Date.now(), text: 'Deck created' }]
         };
         await createDeck(deck);
         // Not pushing to `decks` here on purpose — attachLiveDecks' live
@@ -5633,7 +5937,6 @@
   <p class="update-banner-sub">Refreshing in <span class="update-banner-countdown" id="updateBannerCountdown">10</span>s…</p>
   <div class="update-banner-actions">
     <button type="button" class="btn-update-refresh" id="btnUpdateRefreshNow">Refresh now</button>
-    <button type="button" class="btn-update-snooze" id="btnUpdateSnooze">+10 more seconds</button>
   </div>
 </div>
 
