@@ -591,7 +591,7 @@
     outline-offset: 2px;
   }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
-  .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 2.5, 0.64, 1); }
+  .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
   /* Used only for the return-to-closed snap: the bouncy easing above
      overshoots past its target mid-animation, which for opening just means
      briefly revealing a little extra red (harmless, already covered) — but
@@ -599,6 +599,19 @@
      the "bouncing right" that should never reveal the delete layer. This
      easing approaches 0 without ever passing it. */
   .deck-card.swipe-snap-close{ transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* Chained after the main open bounce above (see openCard) for a couple of
+     quick, small, decaying rubber-band wobbles — overshoot back the other
+     way slightly, then forward again slightly less, then settle — instead
+     of stopping dead the instant the main bounce first arrives. Plain
+     ease-out curves are enough here: the oscillation itself comes from
+     alternating which side of the target each step's endpoint is on, not
+     from any overshoot built into the easing curve. Each step is quick and
+     the amplitude keeps shrinking, so it reads as a settling spring rather
+     than a separate, second bounce. */
+  .deck-card.swipe-bounce-2{ transition: transform 0.11s ease-out; }
+  .deck-card.swipe-bounce-3{ transition: transform 0.09s ease-out; }
+  .deck-card.swipe-bounce-settle{ transition: transform 0.09s ease-out; }
 
   /* Swipeable cards: the border/radius/hover-lift move up to the wrapper so
      the delete button sits flush inside the same bordered, rounded box
@@ -665,8 +678,11 @@
     overflow: hidden;
   }
   .deck-delete-action.swipe-dragging{ transition: none; }
-  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 2.5, 0.64, 1); }
+  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
   .deck-delete-action.swipe-snap-close{ transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+  .deck-delete-action.swipe-bounce-2{ transition: width 0.11s ease-out; }
+  .deck-delete-action.swipe-bounce-3{ transition: width 0.09s ease-out; }
+  .deck-delete-action.swipe-bounce-settle{ transition: width 0.09s ease-out; }
 
   /* Stays pinned to the right 84px of whatever the current width is (see
      .deck-delete-action above), matching SWIPE_OPEN_OFFSET. */
@@ -4938,9 +4954,15 @@
       if(dragRafId !== null){ cancelAnimationFrame(dragRafId); dragRafId = null; }
     }
 
-    function animateTo(x, onDone, opts){
-      const noBounce = !!(opts && opts.noBounce);
-      cancelThrottledTransform();
+    const ALL_SWIPE_TRANSITION_CLASSES = ['swipe-dragging', 'swipe-snap', 'swipe-snap-close', 'swipe-bounce-2', 'swipe-bounce-3', 'swipe-bounce-settle'];
+
+    // Low-level: animate to x using whichever named transition class,
+    // applied identically to the card (transform) and the delete layer
+    // (width) so the two always interpolate in perfect lockstep — then
+    // call onDone once that transition actually finishes. animateTo below
+    // is the single-shot version of this; openCard chains several calls to
+    // this directly, one per wobble, to build up the settling-spring feel.
+    function animateToPhase(x, transitionClass, onDone){
       // Clear out any in-flight snap animation first — if a transition was
       // interrupted (e.g. the user grabbed the card again mid-animation),
       // its leftover class/listener would otherwise still be attached,
@@ -4950,39 +4972,44 @@
         card.removeEventListener('transitionend', card._swipeTransitionHandler);
         card._swipeTransitionHandler = null;
       }
-      card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
-      deleteBtn.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
+      card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
+      deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
       // Force layout to flush before re-adding the transition class, so the
       // browser always animates from the current on-screen position instead
       // of possibly collapsing this into the tail end of the class it just
       // had (which reads as a stutter rather than one fluid motion).
       void card.offsetWidth;
       void deleteBtn.offsetWidth;
-      const transitionClass = noBounce ? 'swipe-snap-close' : 'swipe-snap';
       card.classList.add(transitionClass);
       // Same class, same timing, on the delete layer too — that's what
       // keeps its width transition perfectly in sync with the card's
-      // transform transition, including through the bounce's overshoot.
+      // transform transition, including through any overshoot.
       deleteBtn.classList.add(transitionClass);
       setTransform(x);
       const handler = (e)=>{
         if(e && e.propertyName !== 'transform') return;
         card.removeEventListener('transitionend', handler);
         card._swipeTransitionHandler = null;
-        card.classList.remove('swipe-snap', 'swipe-snap-close');
-        deleteBtn.classList.remove('swipe-snap', 'swipe-snap-close');
+        card.classList.remove(transitionClass);
+        deleteBtn.classList.remove(transitionClass);
         if(onDone) onDone();
       };
       card._swipeTransitionHandler = handler;
       card.addEventListener('transitionend', handler);
     }
 
+    function animateTo(x, onDone, opts){
+      const noBounce = !!(opts && opts.noBounce);
+      cancelThrottledTransform();
+      animateToPhase(x, noBounce ? 'swipe-snap-close' : 'swipe-snap', onDone);
+    }
+
     function closeCard(animate){
       wrap.dataset.open = 'false';
       if(animate === false){
         cancelThrottledTransform();
-        card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
-        deleteBtn.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
+        card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
+        deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
         card.style.transform = '';
         deleteBtn.style.width = '';
         return;
@@ -4992,15 +5019,25 @@
 
     function openCard(){
       wrap.dataset.open = 'true';
-      // Just the one normal bouncy snap, same as ever, regardless of how
-      // far the drag started from — the delete layer's own width (see
-      // setTransform/.deck-delete-action) is what keeps a big overshoot
-      // from ever showing red on the card's left edge, so the animation
-      // itself doesn't need to compensate for that at all.
-      animateTo(SWIPE_OPEN_OFFSET);
+      cancelThrottledTransform();
+      // The main bounce (unchanged: 0.42s, normal overshoot) settling into
+      // place, then two small, quick, decaying rubber-band wobbles rather
+      // than stopping dead the instant it first arrives — back past the
+      // target slightly, forward again slightly less, then settle exactly.
+      // The delete layer's width can't dip below 0 no matter what these
+      // steps do (see .deck-delete-action / setTransform), so none of this
+      // risks showing red on the card's left edge either.
+      animateToPhase(SWIPE_OPEN_OFFSET, 'swipe-snap', ()=>{
+        animateToPhase(SWIPE_OPEN_OFFSET + 5, 'swipe-bounce-2', ()=>{
+          animateToPhase(SWIPE_OPEN_OFFSET - 2, 'swipe-bounce-3', ()=>{
+            animateToPhase(SWIPE_OPEN_OFFSET, 'swipe-bounce-settle');
+          });
+        });
+      });
     }
 
     wrap._closeSwipe = ()=> closeCard(true);
+
 
     card.addEventListener('pointerdown', (e)=>{
       if(e.pointerType === 'mouse' && e.button !== 0) return;
@@ -5016,9 +5053,9 @@
         card.removeEventListener('transitionend', card._swipeTransitionHandler);
         card._swipeTransitionHandler = null;
       }
-      card.classList.remove('swipe-snap', 'swipe-snap-close');
+      card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
       card.classList.add('swipe-dragging');
-      deleteBtn.classList.remove('swipe-snap', 'swipe-snap-close');
+      deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
       deleteBtn.classList.add('swipe-dragging');
       try{ card.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
     });
