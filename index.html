@@ -658,6 +658,42 @@
   .deck-delete-action .icon-svg{ width: 18px; height: 18px; }
   .deck-delete-action:active{ background: #a1584c; }
 
+  /* ---------- Delete explosion ---------- */
+  /* Plays once on the exact card that was just deleted, before the next
+     render() call removes it from the grid — so it visibly bursts apart
+     instead of just vanishing the instant Delete is pressed. Targets the
+     whole wrap (not just the inner .deck-card) so the border/background
+     tile and its content shrink and fade away together, rather than leaving
+     a hollow bordered box behind once the content itself faded out. */
+  .deck-card-wrap.exploding{
+    animation: deck-explode 0.5s cubic-bezier(0.36, 0, 0.66, -0.02) forwards;
+    pointer-events: none;
+    z-index: 5;
+  }
+  @keyframes deck-explode{
+    0%{ transform: scale(1) rotate(0deg); filter: brightness(1) blur(0px); opacity: 1; }
+    30%{ transform: scale(1.07) rotate(-1.5deg); filter: brightness(1.35) blur(0px); opacity: 1; }
+    100%{ transform: scale(0.25) rotate(7deg); filter: brightness(1.6) blur(5px); opacity: 0; }
+  }
+
+  /* Fragments fly outward from the card's center — appended to <body> as
+     position:fixed (not children of the card) so they can travel past its
+     bounds instead of being clipped by the card/wrap's own overflow:hidden.
+     --tx/--ty/--rot/--shard-color are set per-shard, inline, by JS. */
+  .deck-explode-shard{
+    position: fixed;
+    top: 0; left: 0;
+    border-radius: 3px;
+    background: var(--shard-color, var(--gold));
+    pointer-events: none;
+    z-index: 9000;
+    animation: deck-shard-fly 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes deck-shard-fly{
+    0%{ transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
+    100%{ transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0.35); opacity: 0; }
+  }
+
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
   /* Column, not row: the series name gets its own full-width line (as
@@ -4623,6 +4659,51 @@
     }, true);
   }
 
+  // Plays the burst animation on the exact card tile that was just deleted,
+  // then calls onDone (which is what actually starts the undo countdown and
+  // triggers the render() that removes it from the grid) — so the visible
+  // explosion finishes before the card's grid slot disappears, rather than
+  // the card just vanishing instantly and an animation trying to play on a
+  // DOM node that's already gone.
+  const EXPLODE_DURATION_MS = 550;
+  function explodeCard(wrap, colors, onDone){
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    // Shards draw from the deck's own color identity (falling back to
+    // colorless) so the burst reads as belonging to this specific card
+    // rather than a generic canned effect.
+    const palette = (colors && colors.length) ? colors.map(cssColorVar) : ['var(--c)'];
+
+    const SHARD_COUNT = 14;
+    const shards = [];
+    for(let i = 0; i < SHARD_COUNT; i++){
+      const shard = document.createElement('div');
+      shard.className = 'deck-explode-shard';
+      const angle = (Math.PI * 2 * i / SHARD_COUNT) + (Math.random() * 0.6 - 0.3);
+      const distance = 80 + Math.random() * 90;
+      const size = 6 + Math.random() * 9;
+      shard.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+      shard.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+      shard.style.setProperty('--rot', `${Math.round(Math.random() * 360 - 180)}deg`);
+      shard.style.setProperty('--shard-color', palette[i % palette.length]);
+      shard.style.width = `${size}px`;
+      shard.style.height = `${size}px`;
+      shard.style.left = `${cx}px`;
+      shard.style.top = `${cy}px`;
+      document.body.appendChild(shard);
+      shards.push(shard);
+    }
+
+    wrap.classList.add('exploding');
+
+    setTimeout(()=>{
+      shards.forEach(s => s.remove());
+      if(onDone) onDone();
+    }, EXPLODE_DURATION_MS);
+  }
+
   function attachSwipeToDelete(wrap, card, deleteBtn, deck){
     let dragging = false;
     let axisLocked = null; // 'x' | 'y' | null
@@ -4779,7 +4860,7 @@
     deleteBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       vibrate(15);
-      startDeleteWithUndo(deck);
+      explodeCard(wrap, deck.colors, ()=> startDeleteWithUndo(deck));
     });
 
     // Keyboard users never drag, so they need Enter/Space to open the info
