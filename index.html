@@ -627,28 +627,41 @@
     border: none;
     border-radius: 0;
   }
+  /* Anchored to the right, but with NO fixed width of its own — its width
+     is driven live by JS (see setTransform in attachSwipeToDelete) to
+     always be exactly Math.max(0, -cardTransformX): precisely how far left
+     the card has currently moved, however far that is. That's what lets it
+     fill in with red for any amount of drag/overshoot, no matter how
+     large, with no gap ever opening up between where the card's edge is
+     and where the red stops. And because a CSS width can never go
+     negative, the instant the card's position reaches (or, during a
+     bounce, swings past) 0 this collapses to 0 on its own — there's no red
+     left to reveal on the card's *left* side at that point, by
+     construction, regardless of how far the original drag went or how big
+     the bounce is. The .swipe-dragging/.swipe-snap/.swipe-snap-close
+     classes below are the exact same ones applied to .deck-card itself,
+     with matching timing, so this width and the card's transform
+     interpolate in perfect lockstep through every drag, snap, and bounce.
+     overflow:hidden keeps the pinned-right icon+label (below) from
+     spilling out while this is narrower than 84px. */
   .deck-delete-action{
     position: absolute;
     top: 0; right: 0; bottom: 0;
     left: auto;
-    width: 140px;
+    width: 0;
     z-index: 1;
     border: none;
     background: #b5675a;
     color: #fff;
     padding: 0;
+    overflow: hidden;
   }
-  /* Anchored to the right (see .deck-delete-action above) with a fixed
-     width comfortably wider than the actual reveal (84px) — that width is
-     what a normal bounce might legitimately overshoot into, so it's still
-     covered in red rather than the wrap's plain background peeking
-     through, exactly like before. The difference is this red zone stops
-     140px in from the right: it never spans the whole wrap, so however
-     bouncy the snap-back animation is and however far a drag started from,
-     the delete layer itself has no red to show past that point — it simply
-     can't paint anywhere near the card's *left* edge, regardless of how
-     far the foreground card's own transform swings. This inner content
-     stays pinned to the right 84px, matching SWIPE_OPEN_OFFSET. */
+  .deck-delete-action.swipe-dragging{ transition: none; }
+  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  .deck-delete-action.swipe-snap-close{ transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* Stays pinned to the right 84px of whatever the current width is (see
+     .deck-delete-action above), matching SWIPE_OPEN_OFFSET. */
   .deck-delete-action-content{
     position: absolute;
     top: 0; right: 0; bottom: 0;
@@ -4873,6 +4886,12 @@
     function setTransform(x){
       currentTranslate = x;
       card.style.transform = `translateX(${x}px)`;
+      // See the big comment on .deck-delete-action in the CSS: this width
+      // always exactly mirrors how far left the card currently is, and
+      // self-clamps to 0 the moment x reaches or crosses 0 — CSS simply
+      // won't render a negative width — so there's never any red to show
+      // on the card's left side, at any drag distance or bounce size.
+      deleteBtn.style.width = `${Math.max(0, -x)}px`;
     }
 
     function animateTo(x, onDone, opts){
@@ -4887,18 +4906,26 @@
         card._swipeTransitionHandler = null;
       }
       card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
+      deleteBtn.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
       // Force layout to flush before re-adding the transition class, so the
       // browser always animates from the current on-screen position instead
       // of possibly collapsing this into the tail end of the class it just
       // had (which reads as a stutter rather than one fluid motion).
       void card.offsetWidth;
-      card.classList.add(noBounce ? 'swipe-snap-close' : 'swipe-snap');
+      void deleteBtn.offsetWidth;
+      const transitionClass = noBounce ? 'swipe-snap-close' : 'swipe-snap';
+      card.classList.add(transitionClass);
+      // Same class, same timing, on the delete layer too — that's what
+      // keeps its width transition perfectly in sync with the card's
+      // transform transition, including through the bounce's overshoot.
+      deleteBtn.classList.add(transitionClass);
       setTransform(x);
       const handler = (e)=>{
         if(e && e.propertyName !== 'transform') return;
         card.removeEventListener('transitionend', handler);
         card._swipeTransitionHandler = null;
         card.classList.remove('swipe-snap', 'swipe-snap-close');
+        deleteBtn.classList.remove('swipe-snap', 'swipe-snap-close');
         if(onDone) onDone();
       };
       card._swipeTransitionHandler = handler;
@@ -4909,19 +4936,21 @@
       wrap.dataset.open = 'false';
       if(animate === false){
         card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
+        deleteBtn.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
         card.style.transform = '';
+        deleteBtn.style.width = '';
         return;
       }
-      animateTo(0, ()=>{ if(wrap.dataset.open === 'false') card.style.transform = ''; }, { noBounce: true });
+      animateTo(0, ()=>{ if(wrap.dataset.open === 'false'){ card.style.transform = ''; deleteBtn.style.width = ''; } }, { noBounce: true });
     }
 
     function openCard(){
       wrap.dataset.open = 'true';
       // Just the one normal bouncy snap, same as ever, regardless of how
-      // far the drag started from — the delete layer itself is now what
-      // keeps a big overshoot from ever showing red on the card's left
-      // edge (see .deck-delete-action above), so the animation doesn't
-      // need to compensate for that anymore.
+      // far the drag started from — the delete layer's own width (see
+      // setTransform/.deck-delete-action) is what keeps a big overshoot
+      // from ever showing red on the card's left edge, so the animation
+      // itself doesn't need to compensate for that at all.
       animateTo(SWIPE_OPEN_OFFSET);
     }
 
@@ -4942,6 +4971,8 @@
       }
       card.classList.remove('swipe-snap', 'swipe-snap-close');
       card.classList.add('swipe-dragging');
+      deleteBtn.classList.remove('swipe-snap', 'swipe-snap-close');
+      deleteBtn.classList.add('swipe-dragging');
       try{ card.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
     });
 
@@ -4955,7 +4986,7 @@
         if(axisLocked === 'x'){
           closeAllOtherSwipes(wrap);
           suppressNextClick = true;
-        } else{ dragging = false; card.classList.remove('swipe-dragging'); return; }
+        } else{ dragging = false; card.classList.remove('swipe-dragging'); deleteBtn.classList.remove('swipe-dragging'); return; }
       }
       if(axisLocked !== 'x') return;
       e.preventDefault();
@@ -4975,6 +5006,7 @@
       if(!dragging) return;
       dragging = false;
       card.classList.remove('swipe-dragging');
+      deleteBtn.classList.remove('swipe-dragging');
       if(axisLocked !== 'x'){ axisLocked = null; return; }
       if(currentTranslate < SWIPE_OPEN_OFFSET / 2){
         openCard();
