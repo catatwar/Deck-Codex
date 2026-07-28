@@ -154,6 +154,7 @@
     --surface-3: #2a2c33;
     --gold: #5b9bd5;
     --gold-soft: #5b9bd533;
+    --gold-contrast: #0f1115;
     --ink: #e7e8ea;
     --muted: #9a9ca3;
     --muted-2: #6b6d74;
@@ -280,7 +281,7 @@
 
   .btn-new{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
     border: none;
     font-weight: 600;
     font-size: 0.9rem;
@@ -397,7 +398,7 @@
   }
   .pip-toggle[data-active="true"]{
     border-color: var(--pip-color, var(--gold));
-    color: #0d0b16;
+    color: var(--gold-contrast);
     background: var(--pip-color, var(--gold));
     box-shadow: 0 0 12px -2px var(--pip-color, var(--gold));
   }
@@ -1126,7 +1127,7 @@
   .btn-danger:hover{ border-color: #e77a6a; background: #e77a6a18; }
   .btn-primary{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
     border: none;
     margin-left: auto;
   }
@@ -1276,7 +1277,7 @@
   }
   .add-collection-row input:focus{ border-color: var(--gold); }
   .add-collection-row button{
-    background: var(--gold); color: #0f1115; border: none;
+    background: var(--gold); color: var(--gold-contrast); border: none;
     padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
     white-space: nowrap;
   }
@@ -1374,7 +1375,7 @@
   }
   .inline-add-row input:focus{ border-color: var(--gold); }
   .inline-add-row button{
-    background: var(--gold); color: #0f1115; border: none;
+    background: var(--gold); color: var(--gold-contrast); border: none;
     padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
     white-space: nowrap;
   }
@@ -1622,7 +1623,7 @@
   .btn-auth-primary{
     width: 100%;
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
     border: none;
     font-weight: 600;
     font-size: 0.94rem;
@@ -1849,7 +1850,7 @@
   }
   .group-setup-tab[data-active="true"]{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
   }
   .group-setup-panel{
     background: var(--surface-2);
@@ -1890,7 +1891,7 @@
   }
   .group-setup-panel button{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
     border: none;
     padding: 10px 18px;
     border-radius: 9px;
@@ -1929,7 +1930,7 @@
   .group-name-row input:focus{ border-color: var(--gold); }
   .group-name-row input:disabled{ color: var(--muted); }
   .group-name-row button{
-    background: var(--gold); color: #0f1115; border: none;
+    background: var(--gold); color: var(--gold-contrast); border: none;
     padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
     white-space: nowrap; flex-shrink: 0;
   }
@@ -2071,7 +2072,7 @@
   }
   .drawer-tab[data-active="true"]{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
   }
   .drawer-tab-panels{
     flex: 1;
@@ -2105,6 +2106,87 @@
     line-height: 1.5;
     margin: 4px 0 0;
   }
+
+  /* ---------- Accent color picker (Profile) ---------- */
+  .accent-swatch-row{
+    display:flex;
+    align-items:center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 14px;
+  }
+  .accent-preset-swatches{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .accent-swatch{
+    width: 34px; height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: var(--swatch-color, var(--gold));
+    padding: 0;
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px -1px #00000060;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .accent-swatch:hover{ transform: scale(1.08); }
+  .accent-swatch[data-active="true"]{ border-color: var(--ink); }
+  .accent-swatch .check-icon{
+    width: 15px; height: 15px;
+    color: #fff;
+    opacity: 0;
+    filter: drop-shadow(0 1px 1px #00000090);
+  }
+  .accent-swatch[data-active="true"] .check-icon{ opacity: 1; }
+
+  /* A divider between the fixed presets and the "pick anything" option,
+     rather than just another circle in the row — makes clear it's a
+     different kind of control (opens the OS color picker) rather than one
+     more preset to compare against the others at a glance. */
+  .accent-custom-divider{
+    width: 1px;
+    align-self: stretch;
+    background: var(--line);
+    margin: 2px 2px;
+  }
+  .accent-custom-input{
+    width: 34px; height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    padding: 0;
+    cursor: pointer;
+    background: none;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.12s ease;
+  }
+  .accent-custom-input.active{ border-color: var(--ink); }
+  .accent-custom-input::-webkit-color-swatch-wrapper{ padding: 0; border-radius: 50%; }
+  .accent-custom-input::-webkit-color-swatch{ border: none; border-radius: 50%; }
+  .accent-custom-input::-moz-color-swatch{ border: none; border-radius: 50%; }
+  .accent-custom-hint{
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .btn-reset-accent{
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    padding: 0;
+    margin-bottom: 6px;
+  }
+  .btn-reset-accent:hover{ color: var(--gold); }
 
   /* ---------- Action history (Profile — Recent Actions / Undo) ---------- */
   .action-history-list{
@@ -2316,7 +2398,7 @@
   }
   .btn-update-refresh{
     background: var(--gold);
-    color: #0f1115;
+    color: var(--gold-contrast);
     border: none;
     font-weight: 600;
     font-size: 0.86rem;
@@ -2363,6 +2445,91 @@
     el.classList.add('fade-out');
     setTimeout(function(){ el.style.display = 'none'; }, 220);
   }, 2000);
+</script>
+
+<script>
+  // ---------- Accent color (personal display preference) ----------
+  // Everywhere in the app that uses the accent color reads it through the
+  // --gold / --gold-soft / --gold-contrast CSS custom properties (see :root
+  // above) rather than a hardcoded color, so changing the theme is just a
+  // matter of overriding those three properties — no per-component CSS
+  // needs to know a color picker exists. Plain script, independent of
+  // Firebase (like the connection-status/update-checker scripts below), and
+  // stored per-browser rather than on the account: this is a look-and-feel
+  // preference, not app data worth syncing across devices.
+  window.__accent = (function(){
+    var STORAGE_KEY = 'ui:accent-color';
+    var DEFAULT_HEX = '#5b9bd5';
+    var PRESETS = [
+      { name: 'Blue (default)', hex: '#5b9bd5' },
+      { name: 'Purple',         hex: '#9b7fd4' },
+      { name: 'Pink',           hex: '#e0699a' },
+      { name: 'Red',            hex: '#c1594f' },
+      { name: 'Orange',         hex: '#d68a44' },
+      { name: 'Yellow',         hex: '#d0b84a' },
+      { name: 'Green',          hex: '#5fa06b' },
+      { name: 'Teal',           hex: '#4aa3a0' }
+    ];
+
+    function isValidHex(hex){
+      return typeof hex === 'string' && /^#[0-9a-f]{6}$/i.test(hex);
+    }
+
+    function hexToRgb(hex){
+      var num = parseInt(hex.slice(1), 16);
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    // WCAG relative luminance — decides whether near-black or near-white
+    // text reads better on a solid fill of whatever color was picked, so an
+    // unusually dark or light custom color doesn't end up with illegible
+    // button/tab text.
+    function luminance(hex){
+      var c = hexToRgb(hex);
+      var vals = [c.r, c.g, c.b].map(function(v){
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+    }
+
+    function contrastFor(hex){
+      return luminance(hex) > 0.5 ? '#14151a' : '#f5f6f8';
+    }
+
+    function apply(hex){
+      if(!isValidHex(hex)) hex = DEFAULT_HEX;
+      var root = document.documentElement.style;
+      root.setProperty('--gold', hex);
+      root.setProperty('--gold-soft', hex + '33');
+      root.setProperty('--gold-contrast', contrastFor(hex));
+    }
+
+    function get(){
+      try{
+        var stored = localStorage.getItem(STORAGE_KEY);
+        return isValidHex(stored) ? stored : DEFAULT_HEX;
+      }catch(e){ return DEFAULT_HEX; }
+    }
+
+    function set(hex){
+      if(!isValidHex(hex)) return;
+      try{ localStorage.setItem(STORAGE_KEY, hex); }catch(e){}
+      apply(hex);
+    }
+
+    // A genuine revert — clears the saved override entirely rather than
+    // writing DEFAULT_HEX back into storage, so this always tracks the
+    // app's actual current default rather than a frozen copy of it.
+    function reset(){
+      try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+      apply(DEFAULT_HEX);
+    }
+
+    apply(get());
+
+    return { PRESETS: PRESETS, DEFAULT_HEX: DEFAULT_HEX, isValidHex: isValidHex, get: get, set: set, reset: reset };
+  })();
 </script>
 
 <script>
@@ -2684,6 +2851,16 @@
         <button type="button" id="btnSaveProfileName">Save</button>
       </div>
       <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
+
+      <div class="group-section-label">Accent Color</div>
+      <p class="invite-hint">Pick the highlight color used throughout the app. Saved on this device.</p>
+      <div class="accent-swatch-row">
+        <div class="accent-preset-swatches" id="accentPresetSwatches"></div>
+        <div class="accent-custom-divider"></div>
+        <input type="color" id="accentCustomInput" class="accent-custom-input" aria-label="Custom accent color" title="Custom color…">
+        <span class="accent-custom-hint">Custom…</span>
+      </div>
+      <button type="button" class="btn-reset-accent" id="btnResetAccent">Reset to default blue</button>
 
       <div class="group-section-label">Recent Actions</div>
       <p class="invite-hint">Your last 10 create/delete/favorite actions in this group — undo any of them here.</p>
@@ -6573,6 +6750,7 @@
       : (currentUser && currentUser.email ? capitalizeName(currentUser.email.split('@')[0]) : '');
     profileNameError.style.display = 'none';
     renderActionHistory();
+    renderAccentSwatches();
     profileOverlay.classList.add('show');
     lockBodyScroll();
     setTimeout(()=> profileModalClose.focus(), 30);
@@ -6585,6 +6763,52 @@
   btnProfileChip.addEventListener('click', openProfile);
   profileModalClose.addEventListener('click', closeProfile);
   profileOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'profileOverlay') closeProfile(); });
+
+  // ---------- Profile: accent color ----------
+  // window.__accent (defined in its own standalone script near the top of
+  // <body>) owns the actual storage/CSS-variable side of this; everything
+  // here just reflects its current state as swatches and forwards clicks
+  // back into it.
+  function renderAccentSwatches(){
+    const wrap = $('accentPresetSwatches');
+    if(!wrap) return;
+    const current = window.__accent.get().toLowerCase();
+    const presetHexes = window.__accent.PRESETS.map(p => p.hex.toLowerCase());
+
+    wrap.innerHTML = '';
+    window.__accent.PRESETS.forEach(p=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'accent-swatch';
+      btn.style.setProperty('--swatch-color', p.hex);
+      btn.title = p.name;
+      btn.setAttribute('aria-label', p.name);
+      const isActive = current === p.hex.toLowerCase();
+      btn.dataset.active = isActive ? 'true' : 'false';
+      btn.innerHTML = '<svg class="icon-svg check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      btn.addEventListener('click', ()=>{
+        window.__accent.set(p.hex);
+        renderAccentSwatches();
+      });
+      wrap.appendChild(btn);
+    });
+
+    const customInput = $('accentCustomInput');
+    if(customInput){
+      customInput.value = current;
+      // Highlighted whenever the active color isn't one of the fixed
+      // presets above — i.e. this custom swatch itself is "the" selection.
+      customInput.classList.toggle('active', !presetHexes.includes(current));
+    }
+  }
+  $('accentCustomInput').addEventListener('input', (e)=>{
+    window.__accent.set(e.target.value);
+    renderAccentSwatches();
+  });
+  $('btnResetAccent').addEventListener('click', ()=>{
+    window.__accent.reset();
+    renderAccentSwatches();
+  });
 
   // ---------- What's New ----------
   // Plain hand-maintained list: add a new entry to the TOP of this array
