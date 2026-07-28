@@ -4978,53 +4978,51 @@
     }
 
     // The open snap: one continuous, hand-driven animation (requestAnimationFrame,
-    // not chained CSS transitions) — a handful of keyframe stops interpolated
-    // smoothly frame-to-frame, ending in a couple of small, quick, decaying
-    // rubber-band wobbles rather than stopping dead the instant the main
-    // bounce first arrives. Chaining several separate CSS transitions for
-    // this (an earlier attempt) meant forcing a layout reflow at every
-    // hand-off between stages, which is exactly what showed up as jitter;
-    // driving it as one uninterrupted rAF loop over compositor-only
-    // properties (transform + clip-path) avoids that entirely.
+    // not a CSS transition) so it can settle with a decaying rubber-band
+    // wobble rather than stopping dead the instant it first arrives.
+    // Earlier this stitched together several separate keyframe segments,
+    // each with its own independent ease-out curve — but ease-out
+    // decelerates smoothly *into* each waypoint and then the next segment
+    // launches at full speed in a new direction, which is a genuine
+    // velocity discontinuity at every seam. That discontinuity is what was
+    // actually showing up as jitter, not any layout/reflow cost (this was
+    // already transform + clip-path only, no layout properties involved).
+    // Using one continuous elastic-decay formula across the whole
+    // animation instead means velocity never jumps anywhere — it's a
+    // single smooth curve from start to finish, with the "settle wobble"
+    // built into the curve's own decaying oscillation rather than assembled
+    // from separate pieces.
     let openBounceRafId = null;
     function cancelOpenBounce(){
       if(openBounceRafId !== null){ cancelAnimationFrame(openBounceRafId); openBounceRafId = null; }
     }
-    function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+    // Standard damped-oscillation ("elastic") easing: overshoots past 1,
+    // swings back and forth with shrinking amplitude, and converges
+    // smoothly to 1. `period` controls how many wobbles happen before it
+    // settles — smaller = more/faster wobbles, larger = fewer/gentler ones.
+    function easeOutElastic(t, period){
+      if(t <= 0) return 0;
+      if(t >= 1) return 1;
+      return Math.pow(2, -10 * t) * Math.sin((t - period / 4) * (2 * Math.PI) / period) + 1;
+    }
     function runOpenBounce(){
       cancelThrottledTransform();
       cancelOpenBounce();
       clearTransitionState();
       const startX = currentTranslate;
       const target = SWIPE_OPEN_OFFSET;
-      const DURATION = 480; // ms, the whole settle — main bounce + both wobbles
-      // { at: fraction of total duration, x: position at that point }
-      const STOPS = [
-        { at: 0,    x: startX },
-        { at: 0.44, x: target - 8  }, // main bounce: overshoots open a bit further
-        { at: 0.66, x: target + 5  }, // rubber-bands back past the target
-        { at: 0.85, x: target - 2  }, // smaller wobble forward again
-        { at: 1,    x: target }       // settles exactly
-      ];
-      function valueAtFraction(frac){
-        for(let i = 0; i < STOPS.length - 1; i++){
-          const a = STOPS[i], b = STOPS[i + 1];
-          if(frac <= b.at){
-            const span = b.at - a.at;
-            const localT = span > 0 ? (frac - a.at) / span : 1;
-            return a.x + (b.x - a.x) * easeOutCubic(Math.min(1, Math.max(0, localT)));
-          }
-        }
-        return target;
-      }
+      const DURATION = 520; // ms, the whole settle — main bounce + its decaying wobbles
+      const PERIOD = 0.4;   // ~2-3 visible wobbles over the full duration
       const startTime = performance.now();
       function frame(now){
         const frac = Math.min(1, (now - startTime) / DURATION);
-        setTransform(valueAtFraction(frac));
+        const eased = easeOutElastic(frac, PERIOD);
+        setTransform(startX + (target - startX) * eased);
         if(frac < 1){
           openBounceRafId = requestAnimationFrame(frame);
         } else {
           openBounceRafId = null;
+          setTransform(target); // land on the exact target, no residual float drift
         }
       }
       openBounceRafId = requestAnimationFrame(frame);
