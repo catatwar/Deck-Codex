@@ -373,16 +373,10 @@
   .search-input::placeholder{ color: var(--muted-2); }
   .search-input:focus{ border-color: var(--gold); }
 
-  select.sort-select{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    padding: 10px 12px;
-    border-radius: 10px;
-    outline: none;
-  }
+  /* Sort control sizes itself the same way the old native <select> did —
+     see the ".custom-select" block below for its actual look, which is a
+     styled stand-in rather than a real <select>. */
+  .sort-select-wrap{ flex: 1 1 200px; }
 
   .color-filters{
     display:flex;
@@ -496,6 +490,25 @@
     opacity: 0;
   }
   .custom-select-option[data-active="true"] .check-icon{ opacity: 1; }
+
+  /* Floating variant — used by the sort control, which lives in the main
+     controls row rather than inside a modal. The series-filter select above
+     is fine letting its option list push content down because it's already
+     inside a scrollable modal with room to grow; out here in the page flow,
+     doing the same would shove the whole deck grid down every time someone
+     opens the sort menu. Positioning the list absolutely keeps it floating
+     over the page instead, closer to how a native select's popup behaves. */
+  .custom-select.floating .custom-select-options{
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    margin-top: 0;
+    min-width: 100%;
+    width: max-content;
+    max-width: min(280px, 90vw);
+    z-index: 30;
+    box-shadow: 0 10px 28px -6px #00000060;
+  }
 
   .build-filters{ display:flex; gap: 9px; }
   .build-filter-btn{
@@ -2201,7 +2214,7 @@
     /* On wide screens, let inputs/buttons in a row grow to fill the space
        evenly instead of hugging their intrinsic content width. */
     .controls .search-input{ flex: 2 1 320px; }
-    .controls select.sort-select{ flex: 1 1 220px; }
+    .controls .sort-select-wrap{ flex: 1 1 220px; }
     .field-row input, .field-row button,
     .group-name-row input, .group-name-row button,
     .add-collection-row input, .add-collection-row button,
@@ -2717,13 +2730,13 @@
         <span class="filter-badge" id="filterBadge" style="display:none;">0</span>
       </button>
       <button class="btn-clear" id="btnClearFilters">Clear filters</button>
-      <select class="sort-select" id="sortSelect">
-        <option value="name">Sort: Name (A–Z)</option>
-        <option value="colors">Sort: Color identity</option>
-        <option value="buildType">Sort: Build type</option>
-        <option value="newest">Sort: Newest first</option>
-        <option value="oldest">Sort: Oldest first</option>
-      </select>
+      <div class="custom-select sort-select-wrap floating" id="sortCustomSelect">
+        <button type="button" class="custom-select-trigger" id="sortTrigger" aria-haspopup="listbox" aria-expanded="false">
+          <span id="sortTriggerLabel">Sort: Name (A–Z)</span>
+          <svg class="icon-svg custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="custom-select-options" id="sortOptions" role="listbox" aria-label="Sort" style="display:none;"></div>
+      </div>
     </div>
   </div>
 
@@ -6132,10 +6145,76 @@
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(render, 120);
   });
-  $('sortSelect').addEventListener('change', (e)=>{
-    sortMode = e.target.value;
-    render();
+  // ---------- Sort (custom dropdown, same pattern as the series filter) ----------
+  const SORT_OPTIONS = [
+    { value:'name', label:'Sort: Name (A–Z)' },
+    { value:'colors', label:'Sort: Color identity' },
+    { value:'buildType', label:'Sort: Build type' },
+    { value:'newest', label:'Sort: Newest first' },
+    { value:'oldest', label:'Sort: Oldest first' }
+  ];
+  let sortOpen = false;
+  function sortLabel(){
+    const opt = SORT_OPTIONS.find(o => o.value === sortMode);
+    return opt ? opt.label : SORT_OPTIONS[0].label;
+  }
+  function openSortOptions(){
+    sortOpen = true;
+    $('sortCustomSelect').classList.add('open');
+    $('sortOptions').style.display = 'block';
+    $('sortTrigger').setAttribute('aria-expanded', 'true');
+  }
+  function closeSortOptions(){
+    sortOpen = false;
+    $('sortCustomSelect').classList.remove('open');
+    $('sortOptions').style.display = 'none';
+    $('sortTrigger').setAttribute('aria-expanded', 'false');
+  }
+  function buildSortOptions(){
+    $('sortTriggerLabel').textContent = sortLabel();
+    const wrap = $('sortOptions');
+    wrap.innerHTML = '';
+    SORT_OPTIONS.forEach(o=>{
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'custom-select-option';
+      opt.setAttribute('role', 'option');
+      const isActive = sortMode === o.value;
+      opt.dataset.active = isActive ? 'true' : 'false';
+      opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'option-name';
+      nameSpan.textContent = o.label;
+      opt.appendChild(nameSpan);
+
+      const checkIcon = document.createElement('span');
+      checkIcon.className = 'check-icon';
+      checkIcon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      opt.appendChild(checkIcon);
+
+      opt.addEventListener('click', ()=>{
+        sortMode = o.value;
+        buildSortOptions();
+        closeSortOptions();
+        render();
+      });
+      wrap.appendChild(opt);
+    });
+  }
+  $('sortTrigger').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(sortOpen) closeSortOptions();
+    else openSortOptions();
   });
+  // Unlike the series filter (whose outside-click check is scoped to the
+  // filter modal it lives inside), the sort control sits directly in the
+  // page, so this needs its own document-level click listener to collapse
+  // it when the person clicks anywhere else.
+  document.addEventListener('click', (e)=>{
+    if(sortOpen && !$('sortCustomSelect').contains(e.target)) closeSortOptions();
+  });
+  buildSortOptions();
 
   document.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape'){
@@ -6143,6 +6222,7 @@
       closeForm();
       closeDrawer();
       closeGroupDrawer();
+      if(sortOpen) closeSortOptions();
       if(groupSetupScreen.style.display === 'flex' && currentGroup && currentMember){
         groupSetupScreen.style.display = 'none';
         appRoot.style.display = 'block';
