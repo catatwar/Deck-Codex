@@ -591,7 +591,7 @@
     outline-offset: 2px;
   }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
-  .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  .deck-card.swipe-snap{ transition: transform 0.5s cubic-bezier(0.34, 1.8, 0.64, 1); }
   /* Used only for the return-to-closed snap: the bouncy easing above
      overshoots past its target mid-animation, which for opening just means
      briefly revealing a little extra red (harmless, already covered) — but
@@ -657,7 +657,7 @@
     overflow: hidden;
   }
   .deck-delete-action.swipe-dragging{ transition: none; }
-  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  .deck-delete-action.swipe-snap{ transition: width 0.5s cubic-bezier(0.34, 1.8, 0.64, 1); }
   .deck-delete-action.swipe-snap-close{ transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 
   /* Stays pinned to the right 84px of whatever the current width is (see
