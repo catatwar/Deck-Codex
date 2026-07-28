@@ -4849,26 +4849,15 @@
     let suppressNextClick = false;
 
     // A light rubber-band "give" once a drag pulls past the open end, instead
-    // of hitting a dead stop — dampened so it still reads as bounded. The
-    // closed (right) end has no give at all: a right-swipe should never
-    // reveal anything, so it's hard-clamped instead of rubber-banding.
+    // of hitting a dead stop — dampened so it still reads as bounded, but
+    // uncapped: drag as far as you want, the snap-back bounce on release is
+    // what's actually kept in check (see openCard below), not how far this
+    // lets you pull. The closed (right) end has no give at all: a
+    // right-swipe should never reveal anything, so it's hard-clamped
+    // instead of rubber-banding.
     function applyDragResistance(raw){
       const min = SWIPE_OPEN_OFFSET, max = 0;
-      if(raw < min){
-        const resisted = min - (min - raw) * 0.3;
-        // However far past the open threshold the finger drags, hard-cap
-        // how far the card is actually allowed to pull. Without this, a
-        // really long drag rubber-bands the card dozens of pixels past
-        // `min`, and the bouncy snap-back on release overshoots in
-        // proportion to whatever distance it has to travel back — far
-        // enough, that overshoot swings past the card's fully-closed
-        // position and flashes the plain (button-less) part of the delete
-        // layer out along the card's *left* edge for an instant. Capping
-        // the pull keeps that return trip — and its bounce — small no
-        // matter how far someone drags.
-        const MAX_PULL_PAST_OPEN = 36;
-        return Math.max(resisted, min - MAX_PULL_PAST_OPEN);
-      }
+      if(raw < min) return min - (min - raw) * 0.3;
       if(raw > max) return max;
       return raw;
     }
@@ -4920,7 +4909,24 @@
 
     function openCard(){
       wrap.dataset.open = 'true';
-      animateTo(SWIPE_OPEN_OFFSET);
+      // Regardless of how far past the open point the drag went (the
+      // rubber-band above has no upper limit), snap back in two steps so
+      // the bounce at the very end always overshoots by the same small,
+      // fixed amount. A single bounce animated straight from a potentially
+      // huge starting distance overshoots in proportion to that whole
+      // distance — for a big enough drag, that was enough to swing past
+      // the card's closed position and flash the delete layer's plain
+      // (button-less) red out along the card's *left* edge. Approaching
+      // first with no bounce to a fixed point just short of the target,
+      // then bouncing only that last small stretch, keeps the overshoot
+      // bounded no matter how far the original drag was.
+      const BOUNCE_APPROACH_GIVE = 10;
+      const approachPoint = SWIPE_OPEN_OFFSET - BOUNCE_APPROACH_GIVE;
+      if(currentTranslate < approachPoint){
+        animateTo(approachPoint, ()=> animateTo(SWIPE_OPEN_OFFSET), { noBounce: true });
+      } else {
+        animateTo(SWIPE_OPEN_OFFSET);
+      }
     }
 
     wrap._closeSwipe = ()=> closeCard(true);
