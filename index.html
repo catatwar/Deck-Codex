@@ -666,32 +666,69 @@
      tile and its content shrink and fade away together, rather than leaving
      a hollow bordered box behind once the content itself faded out. */
   .deck-card-wrap.exploding{
-    animation: deck-explode 0.5s cubic-bezier(0.36, 0, 0.66, -0.02) forwards;
+    animation: deck-explode 0.56s cubic-bezier(0.36, 0, 0.66, -0.02) forwards;
     pointer-events: none;
     z-index: 5;
   }
+  /* A quick squash-down first (anticipation) makes the pop that follows
+     read as a much bigger hit than scaling straight up from 1 would —
+     the same principle as pulling a slingshot back before it fires. */
   @keyframes deck-explode{
     0%{ transform: scale(1) rotate(0deg); filter: brightness(1) blur(0px); opacity: 1; }
-    30%{ transform: scale(1.07) rotate(-1.5deg); filter: brightness(1.35) blur(0px); opacity: 1; }
-    100%{ transform: scale(0.25) rotate(7deg); filter: brightness(1.6) blur(5px); opacity: 0; }
+    14%{ transform: scale(0.92) rotate(0.5deg); filter: brightness(1) blur(0px); opacity: 1; }
+    32%{ transform: scale(1.22) rotate(-2.5deg); filter: brightness(1.7) blur(0px); opacity: 1; box-shadow: 0 0 60px 10px var(--gold-soft); }
+    100%{ transform: scale(0.15) rotate(9deg); filter: brightness(2) blur(7px); opacity: 0; }
+  }
+
+  /* A bright expanding ring at the moment of impact — the "flash" half of
+     the boom, separate from the shrapnel shards below. Screen blend mode
+     so it reads as light rather than a flat colored disc on top of things. */
+  .deck-explode-flash{
+    position: fixed;
+    top: 0; left: 0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, var(--gold) 45%, transparent 72%);
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 8999;
+    animation: deck-flash-burst 0.4s cubic-bezier(0.11, 0.7, 0.35, 1) forwards;
+  }
+  @keyframes deck-flash-burst{
+    0%{ transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; }
+    100%{ transform: translate(-50%, -50%) scale(5.5); opacity: 0; }
   }
 
   /* Fragments fly outward from the card's center — appended to <body> as
      position:fixed (not children of the card) so they can travel past its
      bounds instead of being clipped by the card/wrap's own overflow:hidden.
-     --tx/--ty/--rot/--shard-color are set per-shard, inline, by JS. */
+     --tx/--ty/--rot/--shard-color/--shard-radius are set per-shard, inline,
+     by JS, so every burst has some natural variety instead of looking like
+     a stamped-out repeating pattern. */
   .deck-explode-shard{
     position: fixed;
     top: 0; left: 0;
-    border-radius: 3px;
+    border-radius: var(--shard-radius, 3px);
     background: var(--shard-color, var(--gold));
+    box-shadow: 0 0 8px -1px var(--shard-color, var(--gold));
     pointer-events: none;
     z-index: 9000;
-    animation: deck-shard-fly 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: deck-shard-fly 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   @keyframes deck-shard-fly{
     0%{ transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
-    100%{ transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0.35); opacity: 0; }
+    100%{ transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0.3); opacity: 0; }
+  }
+
+  /* Brief, small shake on the whole grid so the burst has a little
+     physical "thump" to it rather than only ever affecting the one card. */
+  .grid.deck-explode-shake{ animation: deck-grid-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+  @keyframes deck-grid-shake{
+    0%, 100%{ transform: translate(0, 0); }
+    20%{ transform: translate(-3px, 1px); }
+    40%{ transform: translate(3px, -1px); }
+    60%{ transform: translate(-2px, 1px); }
+    80%{ transform: translate(2px, 0); }
   }
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
@@ -4467,6 +4504,60 @@
     return bestId;
   }
 
+  // ---------- Smooth reflow (FLIP) around delete/undo ----------
+  // render() fully rebuilds the grid from scratch every time (see below),
+  // which is normally fine — a fresh layout just appears — but when a card
+  // is removed (or comes back via Undo), the *other* cards snapping
+  // instantly into their new positions reads as a jump cut rather than a
+  // deck sliding to fill the gap. This is the classic FLIP technique:
+  // capture every card's on-screen position before the rebuild, let
+  // render() do its normal instant rebuild, then for any card that's still
+  // present (matched by data-deck-id) figure out how far it moved and
+  // animate from the old spot to the new one. Intentionally NOT baked into
+  // render() itself — render() is also called on every keystroke in search,
+  // every filter/sort change, etc., where this extra work and motion would
+  // be unwanted; only the delete/undo call sites opt in via renderWithFlip().
+  function captureCardPositions(){
+    const map = new Map();
+    content.querySelectorAll('[data-deck-id]').forEach(el=>{
+      map.set(el.dataset.deckId, el.getBoundingClientRect());
+    });
+    return map;
+  }
+
+  function playFlipAnimation(oldPositions){
+    content.querySelectorAll('[data-deck-id]').forEach(el=>{
+      const oldRect = oldPositions.get(el.dataset.deckId);
+      if(!oldRect) return; // wasn't on screen before (e.g. a brand-new card) — nothing to slide from
+      const newRect = el.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      const dy = oldRect.top - newRect.top;
+      if(!dx && !dy) return;
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      // Force the browser to paint that starting position before switching
+      // the transition back on, or it'll collapse start+end into one frame
+      // (no visible motion) instead of animating between them.
+      void el.offsetWidth;
+      requestAnimationFrame(()=>{
+        el.style.transition = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
+        el.style.transform = '';
+        const clear = (e)=>{
+          if(e && e.propertyName !== 'transform') return;
+          el.style.transition = '';
+          el.removeEventListener('transitionend', clear);
+        };
+        el.addEventListener('transitionend', clear);
+      });
+    });
+  }
+
+  function renderWithFlip(){
+    const oldPositions = captureCardPositions();
+    render();
+    playFlipAnimation(oldPositions);
+  }
+
   function render(){
     const decksInCollection = decks.filter(d => d.collectionId === activeCollectionId && !pendingDeleteIds.has(d.id));
     const list = getFilteredSorted();
@@ -4609,6 +4700,7 @@
         const cardWrap = document.createElement('div');
         cardWrap.className = 'deck-card-wrap';
         cardWrap.dataset.open = 'false';
+        cardWrap.dataset.deckId = deck.id;
         cardWrap.appendChild(card);
 
         const deleteBtn = document.createElement('button');
@@ -4622,6 +4714,7 @@
         grid.appendChild(cardWrap);
       } else {
         card.classList.add('deck-card-standalone');
+        card.dataset.deckId = deck.id;
         card.addEventListener('click', ()=> openInfo(deck.id));
         card.addEventListener('keydown', (e)=>{
           if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openInfo(deck.id); }
@@ -4659,13 +4752,22 @@
     }, true);
   }
 
+  // Shared by explodeCard below and every card's swipe handling further
+  // down — plain wrapper since navigator.vibrate is missing entirely on
+  // some browsers/platforms (notably iOS Safari) and throws in others under
+  // certain conditions, neither of which should ever break the actual
+  // delete/swipe flow.
+  function vibrate(ms){
+    if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){ /* ignore */ } }
+  }
+
   // Plays the burst animation on the exact card tile that was just deleted,
   // then calls onDone (which is what actually starts the undo countdown and
   // triggers the render() that removes it from the grid) — so the visible
   // explosion finishes before the card's grid slot disappears, rather than
   // the card just vanishing instantly and an animation trying to play on a
   // DOM node that's already gone.
-  const EXPLODE_DURATION_MS = 550;
+  const EXPLODE_DURATION_MS = 650;
   function explodeCard(wrap, colors, onDone){
     const rect = wrap.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -4676,18 +4778,29 @@
     // rather than a generic canned effect.
     const palette = (colors && colors.length) ? colors.map(cssColorVar) : ['var(--c)'];
 
-    const SHARD_COUNT = 14;
+    // The bright flash-ring — the "boom" itself, distinct from the shrapnel
+    // flying out below.
+    const flash = document.createElement('div');
+    flash.className = 'deck-explode-flash';
+    flash.style.left = `${cx}px`;
+    flash.style.top = `${cy}px`;
+    document.body.appendChild(flash);
+
+    const SHARD_COUNT = 24;
     const shards = [];
     for(let i = 0; i < SHARD_COUNT; i++){
       const shard = document.createElement('div');
       shard.className = 'deck-explode-shard';
       const angle = (Math.PI * 2 * i / SHARD_COUNT) + (Math.random() * 0.6 - 0.3);
-      const distance = 80 + Math.random() * 90;
-      const size = 6 + Math.random() * 9;
+      const distance = 100 + Math.random() * 160;
+      const size = 5 + Math.random() * 14;
       shard.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
       shard.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
       shard.style.setProperty('--rot', `${Math.round(Math.random() * 360 - 180)}deg`);
       shard.style.setProperty('--shard-color', palette[i % palette.length]);
+      // Mix rounder "sparks" in with squarer "shrapnel" for some visual
+      // variety, rather than every fragment being identically shaped.
+      shard.style.setProperty('--shard-radius', Math.random() < 0.5 ? '50%' : '2px');
       shard.style.width = `${size}px`;
       shard.style.height = `${size}px`;
       shard.style.left = `${cx}px`;
@@ -4698,7 +4811,27 @@
 
     wrap.classList.add('exploding');
 
+    // A small physical "thump" on the whole grid, on top of the one card's
+    // own animation — removed automatically once its own animation ends so
+    // it doesn't linger or block the next shake from re-triggering.
+    const grid = wrap.closest('.grid');
+    if(grid){
+      grid.classList.remove('deck-explode-shake');
+      void grid.offsetWidth;
+      grid.classList.add('deck-explode-shake');
+      grid.addEventListener('animationend', function clearShake(e){
+        if(e.animationName !== 'deck-grid-shake') return;
+        grid.classList.remove('deck-explode-shake');
+        grid.removeEventListener('animationend', clearShake);
+      });
+    }
+
+    // A punchier double-buzz instead of one flat pulse — reads much more
+    // like an actual "boom" landing than a single short vibration does.
+    vibrate([12, 35, 22]);
+
     setTimeout(()=>{
+      flash.remove();
       shards.forEach(s => s.remove());
       if(onDone) onDone();
     }, EXPLODE_DURATION_MS);
@@ -4715,17 +4848,27 @@
     // immediately undone by it.
     let suppressNextClick = false;
 
-    function vibrate(ms){
-      if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){ /* ignore */ } }
-    }
-
     // A light rubber-band "give" once a drag pulls past the open end, instead
     // of hitting a dead stop — dampened so it still reads as bounded. The
     // closed (right) end has no give at all: a right-swipe should never
     // reveal anything, so it's hard-clamped instead of rubber-banding.
     function applyDragResistance(raw){
       const min = SWIPE_OPEN_OFFSET, max = 0;
-      if(raw < min) return min - (min - raw) * 0.3;
+      if(raw < min){
+        const resisted = min - (min - raw) * 0.3;
+        // However far past the open threshold the finger drags, hard-cap
+        // how far the card is actually allowed to pull. Without this, a
+        // really long drag rubber-bands the card dozens of pixels past
+        // `min`, and the bouncy snap-back on release overshoots in
+        // proportion to whatever distance it has to travel back — far
+        // enough, that overshoot swings past the card's fully-closed
+        // position and flashes the plain (button-less) part of the delete
+        // layer out along the card's *left* edge for an instant. Capping
+        // the pull keeps that return trip — and its bounce — small no
+        // matter how far someone drags.
+        const MAX_PULL_PAST_OPEN = 36;
+        return Math.max(resisted, min - MAX_PULL_PAST_OPEN);
+      }
       if(raw > max) return max;
       return raw;
     }
@@ -4859,7 +5002,6 @@
 
     deleteBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      vibrate(15);
       explodeCard(wrap, deck.colors, ()=> startDeleteWithUndo(deck));
     });
 
@@ -4930,7 +5072,7 @@
     // it gets finalized immediately so the new one has a clean 5s window.
     commitActiveUndoIfAny();
     pendingDeleteIds.add(deck.id);
-    render();
+    renderWithFlip();
     showUndoBanner(deck.name);
     const timeoutId = setTimeout(()=>{
       finalizeDelete(deck);
@@ -4946,7 +5088,7 @@
     pendingDeleteIds.delete(activeUndo.id);
     activeUndo = null;
     hideUndoBanner();
-    render();
+    renderWithFlip();
   }
 
   undoBannerBtn.addEventListener('click', undoDelete);
