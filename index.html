@@ -6614,7 +6614,7 @@
         // the moment its own snapshot arrives, rather than appending.
         if(!decks.some(d => d.id === deck.id)) decks.push(deck);
         entryAnimId = deck.id;
-        entryAnimType = 'drop';
+        entryAnimType = 'blip';
         closeForm();
         renderWithFlip();
         try{
