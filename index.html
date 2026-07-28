@@ -2448,15 +2448,20 @@
 </script>
 
 <script>
-  // ---------- Accent color (personal display preference) ----------
+  // ---------- Accent color ----------
   // Everywhere in the app that uses the accent color reads it through the
   // --gold / --gold-soft / --gold-contrast CSS custom properties (see :root
   // above) rather than a hardcoded color, so changing the theme is just a
   // matter of overriding those three properties — no per-component CSS
-  // needs to know a color picker exists. Plain script, independent of
-  // Firebase (like the connection-status/update-checker scripts below), and
-  // stored per-browser rather than on the account: this is a look-and-feel
-  // preference, not app data worth syncing across devices.
+  // needs to know a color picker exists. This module itself is a plain
+  // script, independent of Firebase (like the connection-status/update-
+  // checker scripts below), and only handles applying a color + caching it
+  // in localStorage for an instant repaint on the very next page load.
+  // The actual source of truth is the signed-in account's Firestore doc
+  // (users/{uid}.accentColor, see attachLiveAccentColor/setAccentColorEverywhere
+  // further down) so the same color follows a person into every group and
+  // every device — this local cache just avoids a flash of the default
+  // color while that account doc is still loading.
   window.__accent = (function(){
     var STORAGE_KEY = 'ui:accent-color';
     var DEFAULT_HEX = '#5b9bd5';
@@ -2853,7 +2858,7 @@
       <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
 
       <div class="group-section-label">Accent Color</div>
-      <p class="invite-hint">Pick the highlight color used throughout the app. Saved on this device.</p>
+      <p class="invite-hint">Pick the highlight color used throughout the app. Saved to your account — the same color follows you into every group and device you sign into.</p>
       <div class="accent-swatch-row">
         <div class="accent-preset-swatches" id="accentPresetSwatches"></div>
         <div class="accent-custom-divider"></div>
@@ -3282,6 +3287,13 @@
     unsubscribers.forEach(unsub => { try{ unsub(); }catch(e){ /* non-fatal */ } });
     unsubscribers = [];
   }
+
+  // Separate from the group-scoped listeners above: this one is tied to the
+  // signed-in account, not to whichever group happens to be open, so it must
+  // NOT be torn down by clearSnapshotListeners() every time someone switches
+  // groups (init() calls that on every group entry). It's attached once at
+  // sign-in and only detached at sign-out.
+  let unsubscribeAccentColor = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -3873,9 +3885,53 @@
     const snap = await getDoc(ref);
     if(snap.exists()) return snap.data();
     const displayName = capitalizeName((user.email || 'Player').split('@')[0]);
-    const data = { uid: user.uid, email: user.email || '', displayName, groupId: null, createdAt: Date.now() };
+    const data = { uid: user.uid, email: user.email || '', displayName, groupId: null, accentColor: null, createdAt: Date.now() };
     await setDoc(ref, data);
     return data;
+  }
+
+  // ---------- Accent color: lives on the account doc, not the browser ----------
+  // Saved to users/{uid}.accentColor so it's the same color everywhere the
+  // person signs in — every group, every device — rather than a per-browser
+  // setting. window.__accent still keeps a localStorage cache (so the right
+  // color paints instantly on next load, before Firestore has a chance to
+  // respond) but that cache is just a mirror of this; the account doc is the
+  // source of truth.
+  function attachLiveAccentColor(uid){
+    detachLiveAccentColor();
+    unsubscribeAccentColor = onSnapshot(doc(USERS_COL, uid), (snap)=>{
+      const hex = snap.exists() ? snap.data().accentColor : null;
+      if(hex && window.__accent.isValidHex(hex)) window.__accent.set(hex);
+      else window.__accent.reset();
+      if(profileOverlay.classList.contains('show')) renderAccentSwatches();
+    }, (err)=> console.error('Live accent color update error', err));
+  }
+  function detachLiveAccentColor(){
+    if(unsubscribeAccentColor){ try{ unsubscribeAccentColor(); }catch(e){ /* non-fatal */ } unsubscribeAccentColor = null; }
+  }
+  // Applies instantly (through window.__accent) and saves to the account;
+  // the onSnapshot above will also receive this same write right back and
+  // re-apply it, which is harmless — it's the same color either way, and is
+  // what makes another open tab/device on the same account pick it up live.
+  // The actual save is debounced since dragging the native color picker
+  // fires a burst of rapid updates — the CSS/local application above still
+  // happens on every one of them, only the network write waits for a pause.
+  let accentSaveDebounceTimer = null;
+  function setAccentColorEverywhere(hex){
+    window.__accent.set(hex);
+    if(!currentUser) return;
+    clearTimeout(accentSaveDebounceTimer);
+    accentSaveDebounceTimer = setTimeout(()=>{
+      updateDoc(doc(USERS_COL, currentUser.uid), { accentColor: hex })
+        .catch(e=> console.error('Could not save accent color', e));
+    }, 400);
+  }
+  function resetAccentColorEverywhere(){
+    window.__accent.reset();
+    clearTimeout(accentSaveDebounceTimer);
+    if(!currentUser) return;
+    updateDoc(doc(USERS_COL, currentUser.uid), { accentColor: null })
+      .catch(e=> console.error('Could not reset accent color', e));
   }
 
   async function setUserGroup(uid, groupId){
@@ -6766,9 +6822,11 @@
 
   // ---------- Profile: accent color ----------
   // window.__accent (defined in its own standalone script near the top of
-  // <body>) owns the actual storage/CSS-variable side of this; everything
-  // here just reflects its current state as swatches and forwards clicks
-  // back into it.
+  // <body>) owns the CSS-variable/localStorage-cache side of this; the
+  // setAccentColorEverywhere/resetAccentColorEverywhere functions above wrap
+  // it to also save to (and live-sync from) the account doc, which is the
+  // actual source of truth. Everything here just reflects the current state
+  // as swatches and forwards clicks into those wrapper functions.
   function renderAccentSwatches(){
     const wrap = $('accentPresetSwatches');
     if(!wrap) return;
@@ -6787,7 +6845,7 @@
       btn.dataset.active = isActive ? 'true' : 'false';
       btn.innerHTML = '<svg class="icon-svg check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       btn.addEventListener('click', ()=>{
-        window.__accent.set(p.hex);
+        setAccentColorEverywhere(p.hex);
         renderAccentSwatches();
       });
       wrap.appendChild(btn);
@@ -6802,11 +6860,11 @@
     }
   }
   $('accentCustomInput').addEventListener('input', (e)=>{
-    window.__accent.set(e.target.value);
+    setAccentColorEverywhere(e.target.value);
     renderAccentSwatches();
   });
   $('btnResetAccent').addEventListener('click', ()=>{
-    window.__accent.reset();
+    resetAccentColorEverywhere();
     renderAccentSwatches();
   });
 
@@ -7522,6 +7580,7 @@
       (async ()=>{
         try{
           const userDoc = await Promise.race([ensureUserDoc(user), timeout(15000, 'Loading your account')]);
+          attachLiveAccentColor(user.uid);
           if(userDoc.groupId){
             try{
               await enterGroup(userDoc.groupId);
@@ -7543,6 +7602,8 @@
     } else {
       // Signed out: reset everything so a fresh sign-in starts clean.
       clearSnapshotListeners();
+      detachLiveAccentColor();
+      window.__accent.reset();
       currentUser = null;
       currentGroup = null;
       currentMember = null;
