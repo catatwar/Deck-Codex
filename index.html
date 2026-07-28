@@ -695,7 +695,7 @@
      tile and its content shrink and fade away together, rather than leaving
      a hollow bordered box behind once the content itself faded out. */
   .deck-card-wrap.exploding{
-    animation: deck-explode 0.56s cubic-bezier(0.36, 0, 0.66, -0.02) forwards;
+    animation: deck-explode 0.58s cubic-bezier(0.36, 0, 0.66, -0.02) forwards;
     pointer-events: none;
     z-index: 5;
   }
@@ -704,14 +704,33 @@
      the same principle as pulling a slingshot back before it fires. */
   @keyframes deck-explode{
     0%{ transform: scale(1) rotate(0deg); filter: brightness(1) blur(0px); opacity: 1; }
-    14%{ transform: scale(0.92) rotate(0.5deg); filter: brightness(1) blur(0px); opacity: 1; }
-    32%{ transform: scale(1.22) rotate(-2.5deg); filter: brightness(1.7) blur(0px); opacity: 1; box-shadow: 0 0 60px 10px var(--gold-soft); }
-    100%{ transform: scale(0.15) rotate(9deg); filter: brightness(2) blur(7px); opacity: 0; }
+    14%{ transform: scale(0.9) rotate(0.5deg); filter: brightness(1) blur(0px); opacity: 1; }
+    34%{ transform: scale(1.32) rotate(-3deg); filter: brightness(2) blur(0px); opacity: 1; box-shadow: 0 0 90px 18px var(--gold-soft); }
+    100%{ transform: scale(0.12) rotate(10deg); filter: brightness(2.2) blur(8px); opacity: 0; }
   }
 
-  /* A bright expanding ring at the moment of impact — the "flash" half of
-     the boom, separate from the shrapnel shards below. Screen blend mode
-     so it reads as light rather than a flat colored disc on top of things. */
+  /* A full-viewport flash — the "camera flash" half of the impact, on top
+     of (and separate from) the localized colored flash-ring below. Very
+     brief and blended rather than a flat overlay, so it reads as a flash
+     of light across the whole screen without ever fully whiting it out. */
+  .deck-flash-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 8997;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    animation: deck-flash-overlay-anim 0.24s ease-out forwards;
+  }
+  @keyframes deck-flash-overlay-anim{
+    0%{ opacity: 0.5; }
+    100%{ opacity: 0; }
+  }
+
+  /* The localized flash — a bright expanding disc right at the point of
+     impact. Screen blend mode so it reads as light rather than a flat
+     colored disc on top of things. */
   .deck-explode-flash{
     position: fixed;
     top: 0; left: 0;
@@ -721,44 +740,74 @@
     mix-blend-mode: screen;
     pointer-events: none;
     z-index: 8999;
-    animation: deck-flash-burst 0.4s cubic-bezier(0.11, 0.7, 0.35, 1) forwards;
+    animation: deck-flash-burst 0.42s cubic-bezier(0.11, 0.7, 0.35, 1) forwards;
   }
   @keyframes deck-flash-burst{
     0%{ transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; }
-    100%{ transform: translate(-50%, -50%) scale(5.5); opacity: 0; }
+    100%{ transform: translate(-50%, -50%) scale(6.5); opacity: 0; }
+  }
+
+  /* A thin expanding shockwave ring alongside the filled flash above —
+     stroked rather than filled, so it reads as a distinct "wave" pushing
+     outward instead of just a second, redundant glow. */
+  .deck-explode-ring{
+    position: fixed;
+    top: 0; left: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 3px solid var(--gold);
+    pointer-events: none;
+    z-index: 8998;
+    animation: deck-ring-burst 0.5s cubic-bezier(0.11, 0.7, 0.35, 1) forwards;
+  }
+  @keyframes deck-ring-burst{
+    0%{ transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; border-width: 4px; }
+    100%{ transform: translate(-50%, -50%) scale(9); opacity: 0; border-width: 0.5px; }
   }
 
   /* Fragments fly outward from the card's center — appended to <body> as
      position:fixed (not children of the card) so they can travel past its
      bounds instead of being clipped by the card/wrap's own overflow:hidden.
-     --tx/--ty/--rot/--shard-color/--shard-radius are set per-shard, inline,
-     by JS, so every burst has some natural variety instead of looking like
-     a stamped-out repeating pattern. */
+     --tx/--ty is the initial outward burst; --tx2/--ty2 is where each shard
+     actually ends up, adding a bit of extra fall + drift so the tail end of
+     the flight arcs and settles like real debris instead of flying in one
+     flat straight line the whole way. --rot/--shard-color/--shard-radius
+     are all set per-shard, inline, by JS, so every burst has some natural
+     variety instead of looking like a stamped-out repeating pattern. */
   .deck-explode-shard{
     position: fixed;
     top: 0; left: 0;
     border-radius: var(--shard-radius, 3px);
     background: var(--shard-color, var(--gold));
-    box-shadow: 0 0 8px -1px var(--shard-color, var(--gold));
+    box-shadow: 0 0 9px -1px var(--shard-color, var(--gold));
     pointer-events: none;
     z-index: 9000;
-    animation: deck-shard-fly 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: deck-shard-fly 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   @keyframes deck-shard-fly{
     0%{ transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
-    100%{ transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0.3); opacity: 0; }
+    55%{ transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(calc(var(--rot) * 0.55)) scale(0.9); opacity: 1; }
+    100%{ transform: translate(calc(-50% + var(--tx2)), calc(-50% + var(--ty2))) rotate(var(--rot)) scale(0.22); opacity: 0; }
+  }
+  /* The delayed second wave (see spawnShardWave's `sparkle` option) —
+     quicker and shorter-lived so it reads as trailing sparkle filling out
+     the burst, not a second, redundant explosion. */
+  .deck-explode-shard.sparkle{ animation-duration: 0.45s; }
+
+  /* A brief but bigger physical "thump" on the whole grid — a shake plus a
+     tiny scale pulse — so the burst lands with real weight instead of only
+     ever affecting the one card. */
+  .grid.deck-explode-shake{ animation: deck-grid-shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+  @keyframes deck-grid-shake{
+    0%, 100%{ transform: translate(0, 0) scale(1); }
+    12%{ transform: translate(-5px, 3px) scale(1.006); }
+    26%{ transform: translate(5px, -3px) scale(0.996); }
+    40%{ transform: translate(-4px, 2px) scale(1.003); }
+    55%{ transform: translate(3px, -2px); }
+    70%{ transform: translate(-2px, 1px); }
+    85%{ transform: translate(1px, 0); }
   }
 
-  /* Brief, small shake on the whole grid so the burst has a little
-     physical "thump" to it rather than only ever affecting the one card. */
-  .grid.deck-explode-shake{ animation: deck-grid-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-  @keyframes deck-grid-shake{
-    0%, 100%{ transform: translate(0, 0); }
-    20%{ transform: translate(-3px, 1px); }
-    40%{ transform: translate(3px, -1px); }
-    60%{ transform: translate(-2px, 1px); }
-    80%{ transform: translate(2px, 0); }
-  }
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
@@ -4796,7 +4845,7 @@
   // explosion finishes before the card's grid slot disappears, rather than
   // the card just vanishing instantly and an animation trying to play on a
   // DOM node that's already gone.
-  const EXPLODE_DURATION_MS = 650;
+  const EXPLODE_DURATION_MS = 760;
   function explodeCard(wrap, colors, onDone){
     const rect = wrap.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -4806,41 +4855,75 @@
     // colorless) so the burst reads as belonging to this specific card
     // rather than a generic canned effect.
     const palette = (colors && colors.length) ? colors.map(cssColorVar) : ['var(--c)'];
+    const spawned = [];
 
-    // The bright flash-ring — the "boom" itself, distinct from the shrapnel
-    // flying out below.
+    // A brief whole-screen flash, on top of (and in addition to) the
+    // localized flash-ring below — the "camera flash" half of the impact.
+    const flashOverlay = document.createElement('div');
+    flashOverlay.className = 'deck-flash-overlay';
+    document.body.appendChild(flashOverlay);
+    spawned.push(flashOverlay);
+
+    // The localized flash-ring — the "boom" itself, distinct from the
+    // shrapnel flying out below.
     const flash = document.createElement('div');
     flash.className = 'deck-explode-flash';
     flash.style.left = `${cx}px`;
     flash.style.top = `${cy}px`;
     document.body.appendChild(flash);
+    spawned.push(flash);
 
-    const SHARD_COUNT = 24;
-    const shards = [];
-    for(let i = 0; i < SHARD_COUNT; i++){
-      const shard = document.createElement('div');
-      shard.className = 'deck-explode-shard';
-      const angle = (Math.PI * 2 * i / SHARD_COUNT) + (Math.random() * 0.6 - 0.3);
-      const distance = 100 + Math.random() * 160;
-      const size = 5 + Math.random() * 14;
-      shard.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
-      shard.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
-      shard.style.setProperty('--rot', `${Math.round(Math.random() * 360 - 180)}deg`);
-      shard.style.setProperty('--shard-color', palette[i % palette.length]);
-      // Mix rounder "sparks" in with squarer "shrapnel" for some visual
-      // variety, rather than every fragment being identically shaped.
-      shard.style.setProperty('--shard-radius', Math.random() < 0.5 ? '50%' : '2px');
-      shard.style.width = `${size}px`;
-      shard.style.height = `${size}px`;
-      shard.style.left = `${cx}px`;
-      shard.style.top = `${cy}px`;
-      document.body.appendChild(shard);
-      shards.push(shard);
+    // A thin expanding shockwave ring alongside the filled flash — reads as
+    // a distinct pushed-outward wave rather than just a second glow.
+    const ring = document.createElement('div');
+    ring.className = 'deck-explode-ring';
+    ring.style.left = `${cx}px`;
+    ring.style.top = `${cy}px`;
+    document.body.appendChild(ring);
+    spawned.push(ring);
+
+    // Spawns one wave of shards. `sparkle` (the delayed second wave) uses a
+    // shorter lifespan/smaller size so it reads as trailing debris rather
+    // than a second, redundant explosion.
+    function spawnShardWave(count, opts){
+      const sparkle = !!(opts && opts.sparkle);
+      for(let i = 0; i < count; i++){
+        const shard = document.createElement('div');
+        shard.className = 'deck-explode-shard' + (sparkle ? ' sparkle' : '');
+        const angle = (Math.PI * 2 * i / count) + (Math.random() * 0.7 - 0.35);
+        const distance = (sparkle ? 60 : 110) + Math.random() * (sparkle ? 90 : 170);
+        const size = (sparkle ? 3 : 5) + Math.random() * (sparkle ? 7 : 15);
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        shard.style.setProperty('--tx', `${tx}px`);
+        shard.style.setProperty('--ty', `${ty}px`);
+        // The tail end of the flight: a bit more outward drift plus real
+        // downward gravity, so the last stretch arcs and falls instead of
+        // flying dead straight the whole way, like actual debris settling.
+        shard.style.setProperty('--tx2', `${tx * 1.2}px`);
+        shard.style.setProperty('--ty2', `${ty * 1.1 + 40 + Math.random() * 50}px`);
+        shard.style.setProperty('--rot', `${Math.round(Math.random() * 360 - 180)}deg`);
+        shard.style.setProperty('--shard-color', palette[i % palette.length]);
+        // Mix rounder "sparks" in with squarer "shrapnel" for some visual
+        // variety, rather than every fragment being identically shaped.
+        shard.style.setProperty('--shard-radius', Math.random() < 0.5 ? '50%' : '2px');
+        shard.style.width = `${size}px`;
+        shard.style.height = `${size}px`;
+        shard.style.left = `${cx}px`;
+        shard.style.top = `${cy}px`;
+        document.body.appendChild(shard);
+        spawned.push(shard);
+      }
     }
+
+    spawnShardWave(30);
+    // A second, smaller wave a beat later — trailing sparkle that fills the
+    // burst out rather than everything arriving and fading in one flat hit.
+    const sparkleTimer = setTimeout(()=> spawnShardWave(16, { sparkle: true }), 90);
 
     wrap.classList.add('exploding');
 
-    // A small physical "thump" on the whole grid, on top of the one card's
+    // A bigger physical "thump" on the whole grid, on top of the one card's
     // own animation — removed automatically once its own animation ends so
     // it doesn't linger or block the next shake from re-triggering.
     const grid = wrap.closest('.grid');
@@ -4855,13 +4938,13 @@
       });
     }
 
-    // A punchier double-buzz instead of one flat pulse — reads much more
-    // like an actual "boom" landing than a single short vibration does.
-    vibrate([12, 35, 22]);
+    // A punchier triple-buzz instead of a single flat pulse — reads much
+    // more like an actual "boom" landing than one short vibration does.
+    vibrate([14, 40, 20, 40, 24]);
 
     setTimeout(()=>{
-      flash.remove();
-      shards.forEach(s => s.remove());
+      clearTimeout(sparkleTimer);
+      spawned.forEach(el => el.remove());
       if(onDone) onDone();
     }, EXPLODE_DURATION_MS);
   }
