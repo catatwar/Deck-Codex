@@ -591,27 +591,16 @@
     outline-offset: 2px;
   }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
-  .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
-  /* Used only for the return-to-closed snap: the bouncy easing above
-     overshoots past its target mid-animation, which for opening just means
-     briefly revealing a little extra red (harmless, already covered) — but
-     for closing it means overshooting past 0 to the right, which is exactly
-     the "bouncing right" that should never reveal the delete layer. This
-     easing approaches 0 without ever passing it. */
+  /* Used only for the return-to-closed snap: it approaches 0 without ever
+     passing it, so closing can never itself reveal the delete layer via
+     its own overshoot. The open direction has its own settle-wobble
+     animation entirely driven from JS (see runOpenBounce in
+     attachSwipeToDelete) rather than a CSS transition class, since a
+     multi-step spring feel needs smooth continuous interpolation that a
+     single CSS transition/keyframe can't easily express without either
+     forcing a reflow at every hand-off between steps (visible as jitter)
+     or a lot of fragile calc()/custom-property gymnastics. */
   .deck-card.swipe-snap-close{ transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
-
-  /* Chained after the main open bounce above (see openCard) for a couple of
-     quick, small, decaying rubber-band wobbles — overshoot back the other
-     way slightly, then forward again slightly less, then settle — instead
-     of stopping dead the instant the main bounce first arrives. Plain
-     ease-out curves are enough here: the oscillation itself comes from
-     alternating which side of the target each step's endpoint is on, not
-     from any overshoot built into the easing curve. Each step is quick and
-     the amplitude keeps shrinking, so it reads as a settling spring rather
-     than a separate, second bounce. */
-  .deck-card.swipe-bounce-2{ transition: transform 0.11s ease-out; }
-  .deck-card.swipe-bounce-3{ transition: transform 0.09s ease-out; }
-  .deck-card.swipe-bounce-settle{ transition: transform 0.09s ease-out; }
 
   /* Swipeable cards: the border/radius/hover-lift move up to the wrapper so
      the delete button sits flush inside the same bordered, rounded box
@@ -648,44 +637,39 @@
        all move together as a single bitmap instead. */
     will-change: transform;
   }
-  /* Anchored to the right, but with NO fixed width of its own — its width
-     is driven live by JS (see setTransform in attachSwipeToDelete) to
-     always be exactly Math.max(0, -cardTransformX): precisely how far left
-     the card has currently moved, however far that is. That's what lets it
-     fill in with red for any amount of drag/overshoot, no matter how
-     large, with no gap ever opening up between where the card's edge is
-     and where the red stops. And because a CSS width can never go
-     negative, the instant the card's position reaches (or, during a
-     bounce, swings past) 0 this collapses to 0 on its own — there's no red
-     left to reveal on the card's *left* side at that point, by
-     construction, regardless of how far the original drag went or how big
-     the bounce is. The .swipe-dragging/.swipe-snap/.swipe-snap-close
-     classes below are the exact same ones applied to .deck-card itself,
-     with matching timing, so this width and the card's transform
-     interpolate in perfect lockstep through every drag, snap, and bounce.
-     overflow:hidden keeps the pinned-right icon+label (below) from
-     spilling out while this is narrower than 84px. */
+  /* Anchored to the right, but its reveal is driven by clip-path rather
+     than width — clip-path is a paint/compositing-time operation, not a
+     layout one, so updating it every drag frame doesn't compete with (or
+     lag behind) the card's own compositor-driven transform the way
+     resizing width did. inset(0 0 0 calc(100% - Npx)) clips away
+     everything except the rightmost N px, where N = Math.max(0,
+     -cardTransformX): exactly how far left the card has moved, however far
+     that is. At N=0 the whole thing is 100% clipped (fully hidden) — since
+     N can never be negative, the moment the card's position reaches or
+     (mid-bounce) swings past 0 this is fully hidden, by construction, so
+     there's no red left to show on the card's *left* side at any drag
+     distance or bounce size. If N ever exceeds this element's own width,
+     the calc'd inset goes negative, which simply clips nothing — so a huge
+     drag still shows full-width red with no separate "moat" gap either.
+     One formula handles every case; see setTransform in
+     attachSwipeToDelete. overflow:hidden keeps the pinned-right icon+label
+     (below) from spilling out while less than 84px is revealed. */
   .deck-delete-action{
     position: absolute;
-    top: 0; right: 0; bottom: 0;
-    left: auto;
-    width: 0;
+    inset: 0;
     z-index: 1;
     border: none;
     background: #b5675a;
     color: #fff;
     padding: 0;
     overflow: hidden;
+    clip-path: inset(0 0 0 100%);
   }
   .deck-delete-action.swipe-dragging{ transition: none; }
-  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 1.8, 0.64, 1); }
-  .deck-delete-action.swipe-snap-close{ transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
-  .deck-delete-action.swipe-bounce-2{ transition: width 0.11s ease-out; }
-  .deck-delete-action.swipe-bounce-3{ transition: width 0.09s ease-out; }
-  .deck-delete-action.swipe-bounce-settle{ transition: width 0.09s ease-out; }
+  .deck-delete-action.swipe-snap-close{ transition: clip-path 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 
-  /* Stays pinned to the right 84px of whatever the current width is (see
-     .deck-delete-action above), matching SWIPE_OPEN_OFFSET. */
+  /* Stays pinned to the right 84px regardless of how much is currently
+     revealed (see .deck-delete-action above), matching SWIPE_OPEN_OFFSET. */
   .deck-delete-action-content{
     position: absolute;
     top: 0; right: 0; bottom: 0;
@@ -4896,8 +4880,8 @@
     // A light rubber-band "give" once a drag pulls past the open end, instead
     // of hitting a dead stop — dampened so it still reads as bounded, but
     // uncapped: drag as far as you want, the snap-back bounce on release is
-    // what's actually kept in check (see openCard below), not how far this
-    // lets you pull. The closed (right) end has no give at all: a
+    // what's actually kept in check (see runOpenBounce below), not how far
+    // this lets you pull. The closed (right) end has no give at all: a
     // right-swipe should never reveal anything, so it's hard-clamped
     // instead of rubber-banding.
     function applyDragResistance(raw){
@@ -4907,34 +4891,34 @@
       return raw;
     }
 
+    // The delete layer's visible reveal is driven by clip-path, not width.
+    // width triggers a real layout pass on every update; clip-path is a
+    // paint/compositing-time operation only, same performance class as the
+    // card's own transform — which is what actually fixes the mobile
+    // background/content desync (updating width every drag frame was
+    // competing with, and lagging behind, the card's compositor-driven
+    // transform). inset(0 0 0 calc(100% - Npx)) clips away everything
+    // except the rightmost N px: at N=0 that's a 100% clip (fully hidden —
+    // this is what keeps red from ever showing on the card's left side,
+    // however far a drag or bounce swings past 0, since N can never be
+    // negative here), and if N ever exceeds the element's own width the
+    // calc'd inset goes negative, which clips nothing at all — i.e. it
+    // simply shows fully, with no separate "moat" gap to worry about for
+    // an extreme drag either. One formula handles every case.
     function setTransform(x){
       currentTranslate = x;
       card.style.transform = `translateX(${x}px)`;
-      // See the big comment on .deck-delete-action in the CSS: this width
-      // always exactly mirrors how far left the card currently is, and
-      // self-clamps to 0 the moment x reaches or crosses 0 — CSS simply
-      // won't render a negative width — so there's never any red to show
-      // on the card's left side, at any drag distance or bounce size.
-      deleteBtn.style.width = `${Math.max(0, -x)}px`;
+      const revealed = Math.max(0, -x);
+      deleteBtn.style.clipPath = `inset(0 0 0 calc(100% - ${revealed}px))`;
     }
 
-    // Width triggers a real layout/paint pass, unlike transform (which the
-    // compositor can handle on its own) — and raw pointermove can fire far
-    // more often than the screen actually repaints. Writing a new width on
-    // every single one of those events is more main-thread work than
-    // necessary and, on some mobile browsers, can compete with — and
-    // visibly lag a frame or two behind — the card's own (compositor-only)
-    // transform updates. This collapses those writes to at most one per
-    // animation frame during an active drag, always using whatever the
-    // latest value is by the time that frame runs.
-    // currentTranslate itself still updates immediately/synchronously
-    // (never deferred) so anything reading it — like endDrag's open/close
-    // decision — always sees the true up-to-the-moment value regardless of
-    // whether the frame has flushed yet.
-    // Only used for the drag itself: animateTo's snap/bounce calls
-    // setTransform() directly and just the once, so there's no flood of
-    // events to batch there, and doing so would only delay that
-    // transition's start by a frame for no benefit.
+    // Pointermove can fire far more often than the screen actually
+    // repaints; collapsing writes to at most one per animation frame during
+    // an active drag cuts down on unnecessary main-thread work. currentTranslate
+    // itself still updates immediately/synchronously (never deferred) so
+    // anything reading it — like endDrag's open/close decision — always
+    // sees the true up-to-the-moment value regardless of whether the frame
+    // has flushed yet.
     let dragRafId = null;
     let latestDragX = 0;
     function setTransformThrottled(x){
@@ -4943,101 +4927,128 @@
       if(dragRafId !== null) return;
       dragRafId = requestAnimationFrame(()=>{
         dragRafId = null;
-        card.style.transform = `translateX(${latestDragX}px)`;
-        deleteBtn.style.width = `${Math.max(0, -latestDragX)}px`;
+        setTransform(latestDragX);
       });
     }
     // A throttled frame queued mid-drag could otherwise still fire (and
-    // stomp on) whatever animateTo sets a moment later, once the drag ends
-    // and the snap/bounce/close animation takes over.
+    // stomp on) whatever a snap/bounce/close sets a moment later, once the
+    // drag ends and one of those takes over.
     function cancelThrottledTransform(){
       if(dragRafId !== null){ cancelAnimationFrame(dragRafId); dragRafId = null; }
     }
 
-    const ALL_SWIPE_TRANSITION_CLASSES = ['swipe-dragging', 'swipe-snap', 'swipe-snap-close', 'swipe-bounce-2', 'swipe-bounce-3', 'swipe-bounce-settle'];
+    const ALL_SWIPE_TRANSITION_CLASSES = ['swipe-dragging', 'swipe-snap-close'];
 
-    // Low-level: animate to x using whichever named transition class,
-    // applied identically to the card (transform) and the delete layer
-    // (width) so the two always interpolate in perfect lockstep — then
-    // call onDone once that transition actually finishes. animateTo below
-    // is the single-shot version of this; openCard chains several calls to
-    // this directly, one per wobble, to build up the settling-spring feel.
-    function animateToPhase(x, transitionClass, onDone){
-      // Clear out any in-flight snap animation first — if a transition was
-      // interrupted (e.g. the user grabbed the card again mid-animation),
-      // its leftover class/listener would otherwise still be attached,
-      // making the *next* animation inherit the wrong transition timing or
-      // fire its onDone callback at the wrong moment.
+    function clearTransitionState(){
       if(card._swipeTransitionHandler){
         card.removeEventListener('transitionend', card._swipeTransitionHandler);
         card._swipeTransitionHandler = null;
       }
       card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
       deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
+    }
+
+    // Simple, single-motion animation via a plain CSS transition — used
+    // only for closing, which never bounces at all (see .swipe-snap-close's
+    // easing: it approaches 0 without ever passing it), so there's no
+    // wobble to choreograph and a plain transition is the simplest thing
+    // that works.
+    function animateTo(x, onDone){
+      cancelThrottledTransform();
+      cancelOpenBounce();
+      clearTransitionState();
       // Force layout to flush before re-adding the transition class, so the
       // browser always animates from the current on-screen position instead
       // of possibly collapsing this into the tail end of the class it just
       // had (which reads as a stutter rather than one fluid motion).
       void card.offsetWidth;
-      void deleteBtn.offsetWidth;
-      card.classList.add(transitionClass);
-      // Same class, same timing, on the delete layer too — that's what
-      // keeps its width transition perfectly in sync with the card's
-      // transform transition, including through any overshoot.
-      deleteBtn.classList.add(transitionClass);
+      card.classList.add('swipe-snap-close');
+      deleteBtn.classList.add('swipe-snap-close');
       setTransform(x);
       const handler = (e)=>{
         if(e && e.propertyName !== 'transform') return;
         card.removeEventListener('transitionend', handler);
         card._swipeTransitionHandler = null;
-        card.classList.remove(transitionClass);
-        deleteBtn.classList.remove(transitionClass);
+        card.classList.remove('swipe-snap-close');
+        deleteBtn.classList.remove('swipe-snap-close');
         if(onDone) onDone();
       };
       card._swipeTransitionHandler = handler;
       card.addEventListener('transitionend', handler);
     }
 
-    function animateTo(x, onDone, opts){
-      const noBounce = !!(opts && opts.noBounce);
+    // The open snap: one continuous, hand-driven animation (requestAnimationFrame,
+    // not chained CSS transitions) — a handful of keyframe stops interpolated
+    // smoothly frame-to-frame, ending in a couple of small, quick, decaying
+    // rubber-band wobbles rather than stopping dead the instant the main
+    // bounce first arrives. Chaining several separate CSS transitions for
+    // this (an earlier attempt) meant forcing a layout reflow at every
+    // hand-off between stages, which is exactly what showed up as jitter;
+    // driving it as one uninterrupted rAF loop over compositor-only
+    // properties (transform + clip-path) avoids that entirely.
+    let openBounceRafId = null;
+    function cancelOpenBounce(){
+      if(openBounceRafId !== null){ cancelAnimationFrame(openBounceRafId); openBounceRafId = null; }
+    }
+    function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+    function runOpenBounce(){
       cancelThrottledTransform();
-      animateToPhase(x, noBounce ? 'swipe-snap-close' : 'swipe-snap', onDone);
+      cancelOpenBounce();
+      clearTransitionState();
+      const startX = currentTranslate;
+      const target = SWIPE_OPEN_OFFSET;
+      const DURATION = 480; // ms, the whole settle — main bounce + both wobbles
+      // { at: fraction of total duration, x: position at that point }
+      const STOPS = [
+        { at: 0,    x: startX },
+        { at: 0.44, x: target - 8  }, // main bounce: overshoots open a bit further
+        { at: 0.66, x: target + 5  }, // rubber-bands back past the target
+        { at: 0.85, x: target - 2  }, // smaller wobble forward again
+        { at: 1,    x: target }       // settles exactly
+      ];
+      function valueAtFraction(frac){
+        for(let i = 0; i < STOPS.length - 1; i++){
+          const a = STOPS[i], b = STOPS[i + 1];
+          if(frac <= b.at){
+            const span = b.at - a.at;
+            const localT = span > 0 ? (frac - a.at) / span : 1;
+            return a.x + (b.x - a.x) * easeOutCubic(Math.min(1, Math.max(0, localT)));
+          }
+        }
+        return target;
+      }
+      const startTime = performance.now();
+      function frame(now){
+        const frac = Math.min(1, (now - startTime) / DURATION);
+        setTransform(valueAtFraction(frac));
+        if(frac < 1){
+          openBounceRafId = requestAnimationFrame(frame);
+        } else {
+          openBounceRafId = null;
+        }
+      }
+      openBounceRafId = requestAnimationFrame(frame);
     }
 
     function closeCard(animate){
       wrap.dataset.open = 'false';
       if(animate === false){
         cancelThrottledTransform();
-        card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
-        deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
+        cancelOpenBounce();
+        clearTransitionState();
         card.style.transform = '';
-        deleteBtn.style.width = '';
+        deleteBtn.style.clipPath = '';
         return;
       }
-      animateTo(0, ()=>{ if(wrap.dataset.open === 'false'){ card.style.transform = ''; deleteBtn.style.width = ''; } }, { noBounce: true });
+      animateTo(0, ()=>{ if(wrap.dataset.open === 'false'){ card.style.transform = ''; deleteBtn.style.clipPath = ''; } });
     }
 
     function openCard(){
       wrap.dataset.open = 'true';
-      cancelThrottledTransform();
-      // The main bounce (unchanged: 0.42s, normal overshoot) settling into
-      // place, then two small, quick, decaying rubber-band wobbles rather
-      // than stopping dead the instant it first arrives — back past the
-      // target slightly, forward again slightly less, then settle exactly.
-      // The delete layer's width can't dip below 0 no matter what these
-      // steps do (see .deck-delete-action / setTransform), so none of this
-      // risks showing red on the card's left edge either.
-      animateToPhase(SWIPE_OPEN_OFFSET, 'swipe-snap', ()=>{
-        animateToPhase(SWIPE_OPEN_OFFSET + 5, 'swipe-bounce-2', ()=>{
-          animateToPhase(SWIPE_OPEN_OFFSET - 2, 'swipe-bounce-3', ()=>{
-            animateToPhase(SWIPE_OPEN_OFFSET, 'swipe-bounce-settle');
-          });
-        });
-      });
+      runOpenBounce();
     }
 
     wrap._closeSwipe = ()=> closeCard(true);
-
 
     card.addEventListener('pointerdown', (e)=>{
       if(e.pointerType === 'mouse' && e.button !== 0) return;
@@ -5049,13 +5060,9 @@
       startY = e.clientY;
       baseOffset = wrap.dataset.open === 'true' ? SWIPE_OPEN_OFFSET : 0;
       cancelThrottledTransform();
-      if(card._swipeTransitionHandler){
-        card.removeEventListener('transitionend', card._swipeTransitionHandler);
-        card._swipeTransitionHandler = null;
-      }
-      card.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
+      cancelOpenBounce();
+      clearTransitionState();
       card.classList.add('swipe-dragging');
-      deleteBtn.classList.remove(...ALL_SWIPE_TRANSITION_CLASSES);
       deleteBtn.classList.add('swipe-dragging');
       try{ card.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
     });
