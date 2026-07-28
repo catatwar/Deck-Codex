@@ -91,7 +91,7 @@
   const firebaseConfig = IS_DEV_ENV ? DEV_FIREBASE_CONFIG : PROD_FIREBASE_CONFIG;
   if(IS_DEV_ENV){
     // Loud and impossible to miss — you never want to accidentally think
-    // you're looking at real data when you're actually on dev.
+    // you're looking at real family data when you're actually on dev.
     console.log('%cDeck Codex — DEV environment (test Firebase project)', 'color:#5b9bd5; font-weight:bold; font-size:14px;');
   }
 
@@ -106,8 +106,7 @@
     localCache: persistentLocalCache()
   });
 
-  // Each person logs in once (to their own account) and stays logged in on
-  // that device/browser.
+  // Family members log in once and stay logged in on that device/browser.
   setPersistence(auth, browserLocalPersistence).catch((err) => {
     console.error("Could not set auth persistence", err);
   });
@@ -373,16 +372,100 @@
   .search-input::placeholder{ color: var(--muted-2); }
   .search-input:focus{ border-color: var(--gold); }
 
-  select.sort-select{
+  /* Custom "Sort by" dropdown — replaces the native <select> so the open
+     menu matches the app's own theme instead of the OS/browser's. */
+  .sort-dropdown{
+    position: relative;
+  }
+  .sort-dropdown-btn{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    width: 100%;
     background: var(--surface);
     border: 1px solid var(--line);
     color: var(--ink);
     font-family: var(--font-ui);
     font-size: 0.88rem;
+    font-weight: 500;
     padding: 10px 12px;
     border-radius: 10px;
     outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    white-space: nowrap;
   }
+  .sort-dropdown-btn:hover{ border-color: var(--gold-soft); }
+  .sort-dropdown-btn .sort-dropdown-label{
+    flex: 1 1 auto;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sort-dropdown-btn .icon-svg{
+    width: 15px;
+    height: 15px;
+    color: var(--muted-2);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .sort-dropdown.open .sort-dropdown-btn{ border-color: var(--gold-soft); color: var(--gold); }
+  .sort-dropdown.open .sort-dropdown-btn .icon-svg{ transform: rotate(180deg); color: var(--gold); }
+
+  .sort-dropdown-menu{
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-width: 260px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 6px;
+    box-shadow: 0 12px 28px -8px rgba(0,0,0,0.55);
+    z-index: 30;
+    list-style: none;
+    margin: 0;
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .sort-dropdown.open .sort-dropdown-menu{
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .sort-dropdown-option{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 7px;
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sort-dropdown-option:hover,
+  .sort-dropdown-option.highlighted{
+    background: var(--surface-3);
+    color: var(--ink);
+  }
+  .sort-dropdown-option.selected{
+    color: var(--gold);
+  }
+  .sort-dropdown-option .sort-check{
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0;
+    color: var(--gold);
+  }
+  .sort-dropdown-option.selected .sort-check{ opacity: 1; }
 
   .color-filters{
     display:flex;
@@ -408,94 +491,6 @@
     box-shadow: 0 0 12px -2px var(--pip-color, var(--gold));
   }
   .pip-toggle.pip-toggle-black[data-active="true"]{ color: #ece8f2; }
-
-  /* ---------- Custom dropdown (series filter) ---------- */
-  /* A styled stand-in for a native <select> — same idea (pick one value
-     from a list) but rendered entirely in the app's own look, and the
-     option list expands in normal document flow right below the trigger
-     rather than as an OS-native popup/sheet. */
-  .custom-select{ position: relative; }
-  .custom-select-trigger{
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    padding: 10px 12px;
-    border-radius: 10px;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color 0.15s ease;
-  }
-  .custom-select-trigger:hover{ border-color: var(--gold-soft); }
-  .custom-select.open .custom-select-trigger{ border-color: var(--gold); }
-  .custom-select-trigger span{
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .custom-select-chevron{
-    width: 16px; height: 16px; flex-shrink: 0;
-    color: var(--muted-2);
-    transition: transform 0.15s ease;
-  }
-  .custom-select.open .custom-select-chevron{ transform: rotate(180deg); }
-
-  .custom-select-options{
-    margin-top: 8px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    max-height: 220px;
-    overflow-y: auto;
-    padding: 6px;
-  }
-  .custom-select-option{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    width: 100%;
-    background: none;
-    border: none;
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 0.86rem;
-    padding: 9px 10px;
-    border-radius: 8px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .custom-select-option:hover{ background: var(--surface-3); }
-  .custom-select-option[data-active="true"]{ background: var(--gold-soft); color: var(--gold); font-weight: 600; }
-  /* Used for the "+ Add new series…" row — an action, not a value, so it's
-     set apart from the real options above it with a divider and gold text. */
-  .custom-select-option.custom-select-option-action{
-    color: var(--gold);
-    font-weight: 600;
-    border-top: 1px solid var(--line);
-    margin-top: 4px;
-    padding-top: 12px;
-  }
-  .custom-select-option.custom-select-option-action:hover{ background: var(--gold-soft); }
-  .custom-select-option .option-name{
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-    flex: 1;
-  }
-  .custom-select-option .check-icon{
-    width: 14px; height: 14px; flex-shrink: 0;
-    opacity: 0;
-  }
-  .custom-select-option[data-active="true"] .check-icon{ opacity: 1; }
 
   .build-filters{ display:flex; gap: 9px; }
   .build-filter-btn{
@@ -572,7 +567,8 @@
   .menu-btn:focus-visible, .btn-filter:focus-visible, .btn-clear:focus-visible,
   .drawer-close:focus-visible, .modal-close:focus-visible, .del-btn:focus-visible,
   .edit-btn:focus-visible, .group-chip:focus-visible, .pip-toggle:focus-visible,
-  .build-filter-btn:focus-visible, .color-pick-btn:focus-visible{
+  .build-filter-btn:focus-visible, .color-pick-btn:focus-visible,
+  .sort-dropdown-btn:focus-visible, .sort-dropdown-option:focus-visible{
     outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
@@ -646,11 +642,7 @@
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
-  /* Column, not row: the series name gets its own full-width line (as
-     much space as the card can give it) with build type/owner tags on a
-     second line below, rather than everything competing for space
-     side-by-side on one line. */
-  .meta-row{ display:flex; flex-direction:column; gap: 6px; }
+  .meta-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
 
   .deck-meta{
     font-family: var(--font-ui);
@@ -658,50 +650,7 @@
     color: var(--muted-2);
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    /* Full width of the card, but a single line — if the series name is
-       long enough that it would wrap, it truncates with an ellipsis
-       instead. The full name is always still visible after tapping into
-       the deck's info view. */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
   }
-  /* Rendered on every card, whether or not it actually has a series —
-     see the render() comment near seriesTag for why. Kept in normal flow
-     (not display:none) so it always occupies exactly the same box a real
-     series tag would, but invisible and out of the accessibility tree. */
-  .deck-meta.deck-meta-placeholder{ visibility: hidden; }
-
-  .deck-tags-row{ display:flex; align-items:center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
-
-  /* ---------- Most-used deck emblem ---------- */
-  /* Absolutely positioned in a strip of extra top padding reserved only on
-     this card (see .has-most-used-badge below) — not inline next to the
-     name, which was squeezing the name down to almost nothing on cards
-     with longer names. This way the name always keeps its full width. */
-  .deck-card.has-most-used-badge{ padding: 42px 16px 16px; }
-  .most-used-badge{
-    position: absolute;
-    top: 14px;
-    left: 16px;
-    z-index: 3;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    background: linear-gradient(135deg, #f6dd8c, #c99a3e);
-    color: #362702;
-    font-family: var(--font-ui);
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 3px 8px;
-    border-radius: 999px;
-    white-space: nowrap;
-    box-shadow: 0 1px 4px -1px #00000070;
-  }
-  .most-used-badge .icon-svg{ width: 9px; height: 9px; }
 
   .build-tag{
     display: inline-flex;
@@ -1042,40 +991,6 @@
   }
   .scanner-result-link:hover{ color: var(--ink); }
 
-  .prints-list{
-    display:flex; flex-direction:column; gap:10px;
-    max-height:50vh; overflow-y:auto; margin-top:4px;
-  }
-  .prints-row{
-    display:flex; gap:12px; align-items:center;
-    padding:10px; border:1px solid var(--line); border-radius:10px;
-    background: var(--surface-3);
-    cursor:pointer; text-align:left;
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-  .prints-row:hover, .prints-row:focus-visible{
-    border-color: var(--gold-soft);
-    background: var(--surface);
-    outline: none;
-  }
-  .prints-row img{ width:54px; border-radius:6px; flex-shrink:0; }
-  .prints-info{
-    flex:1; min-width:0;
-    font-family: var(--font-ui); font-size:0.85rem; color: var(--ink);
-  }
-  .prints-set{
-    color: var(--muted); font-size:0.76rem; margin-top:2px;
-  }
-  .prints-prices{
-    font-family: var(--font-ui); font-size:0.76rem; color: var(--muted);
-    text-align:right; white-space:nowrap; line-height:1.6; flex-shrink:0;
-  }
-  .prints-prices b{ color: var(--gold); }
-  .prints-note{
-    font-family: var(--font-ui); font-size:0.74rem; color: var(--muted-2);
-    margin: 10px 0 0;
-  }
-
   .desc-label{
     font-family: var(--font-ui);
     text-transform: uppercase;
@@ -1268,91 +1183,6 @@
     white-space: nowrap;
   }
 
-  /* ---------- Search-all-collections (inside the collection switcher) ---------- */
-  .drawer-search-input{
-    width: 100%;
-    flex-shrink: 0;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    padding: 10px 12px;
-    border-radius: 8px;
-    outline: none;
-    margin-bottom: 14px;
-    transition: border-color 0.15s ease;
-  }
-  .drawer-search-input::placeholder{ color: var(--muted-2); }
-  .drawer-search-input:focus{ border-color: var(--gold); }
-
-  /* Swaps in over the normal collection-list while there's a search
-     query — same flex/scroll behavior as .collection-list so the drawer
-     doesn't jump around switching between the two. */
-  .search-all-results{
-    flex: 1; overflow-y: auto;
-    display:flex; flex-direction: column; gap: 6px;
-    margin-bottom: 16px;
-  }
-  .search-all-item{
-    display:flex; flex-direction: column; align-items: flex-start; gap: 3px;
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .search-all-item:hover{ border-color: var(--gold-soft); background: var(--gold-soft); }
-  .search-all-item-name{
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 0.92rem;
-    color: var(--ink);
-    max-width: 100%;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .search-all-item-collection{
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--muted-2);
-    max-width: 100%;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .search-all-empty{
-    color: var(--muted-2);
-    font-family: var(--font-ui);
-    font-size: 0.86rem;
-    text-align: center;
-    padding: 30px 10px;
-  }
-  /* Separates plain name matches from decks pulled in only because their
-     series name matched — a labeled line rather than just more rows, so
-     it's clear these turned up for a different reason. */
-  .search-all-divider{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 6px 2px 0;
-    color: var(--muted-2);
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .search-all-divider::before, .search-all-divider::after{
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--line);
-  }
-
   .inline-add-row{ display:flex; gap: 8px; margin-top: 8px; }
   .inline-add-row input{
     flex:1; background: var(--surface-3); border: 1px solid var(--line);
@@ -1370,20 +1200,6 @@
     padding: 9px 6px; font-size: 0.85rem;
   }
   .inline-add-row .btn-text-cancel:hover{ color: var(--ink); }
-
-  .btn-text-delete{
-    background: none; border: none; color: #e77a6a;
-    padding: 6px 2px; font-size: 0.82rem; font-weight: 600;
-    margin-top: 6px; cursor: pointer;
-  }
-  .btn-text-delete:hover{ color: #ff9a8a; text-decoration: underline; }
-
-  .btn-text-edit{
-    background: none; border: none; color: var(--gold);
-    padding: 6px 2px; font-size: 0.82rem; font-weight: 600;
-    margin-top: 6px; margin-right: 14px; cursor: pointer;
-  }
-  .btn-text-edit:hover{ text-decoration: underline; filter: brightness(1.15); }
 
   /* ---------- Loading overlay ---------- */
   .loading-overlay{
@@ -1621,25 +1437,21 @@
   .btn-auth-primary:hover{ filter: brightness(1.1); }
   .btn-auth-primary:disabled{ opacity: 0.6; cursor: default; }
 
-  .auth-confirm{
-    background: var(--surface-3);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 14px;
-    margin: 0 0 14px;
-  }
-  .auth-confirm-text{
-    margin: 0 0 12px;
-    color: var(--ink);
+  .auth-toggle{
+    text-align:center;
     font-family: var(--font-ui);
     font-size: 0.86rem;
-    line-height: 1.4;
+    color: var(--muted);
   }
-  .auth-confirm-actions{
-    display:flex;
-    gap: 10px;
+  .auth-toggle button{
+    background:none;
+    border:none;
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 0;
+    text-decoration: underline;
   }
-  .auth-confirm-actions button{ flex: 1; margin: 0; }
 
   /* ---------- Connection status badge ---------- */
   .connection-status{
@@ -2201,7 +2013,7 @@
     /* On wide screens, let inputs/buttons in a row grow to fill the space
        evenly instead of hugging their intrinsic content width. */
     .controls .search-input{ flex: 2 1 320px; }
-    .controls select.sort-select{ flex: 1 1 220px; }
+    .controls .sort-dropdown{ flex: 1 1 220px; }
     .field-row input, .field-row button,
     .group-name-row input, .group-name-row button,
     .add-collection-row input, .add-collection-row button,
@@ -2495,11 +2307,11 @@
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <h1>Deck <span>Codex</span></h1>
-    <p class="auth-sub" id="authSub">Sign in to your Deck Codex account — you'll create or join a group once you're in.</p>
+    <p class="auth-sub" id="authSub">Sign in to your family account to see your decks.</p>
 
     <div class="auth-field">
       <label for="authEmail">Email</label>
-      <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@family.com">
     </div>
     <div class="auth-field">
       <label for="authPassword">Password</label>
@@ -2521,18 +2333,11 @@
     <div class="auth-error" id="authError"></div>
     <div class="auth-notice" id="authNotice"></div>
 
-    <!-- Shown instead of a manual "create account" switch: if the email
-         entered doesn't match an existing account, this offers to create
-         one, then double-checks before actually doing it. -->
-    <div class="auth-confirm" id="authConfirm" style="display:none;">
-      <p class="auth-confirm-text" id="authConfirmText"></p>
-      <div class="auth-confirm-actions">
-        <button type="button" class="btn-secondary" id="authConfirmNo">No</button>
-        <button type="button" class="btn-auth-primary" id="authConfirmYes">Yes</button>
-      </div>
-    </div>
-
     <button class="btn-auth-primary" id="btnAuthSubmit">Sign In</button>
+    <div class="auth-toggle">
+      <span id="authToggleText">New to this family collection?</span>
+      <button type="button" id="btnAuthToggleMode">Create an account</button>
+    </div>
   </div>
 </div>
 
@@ -2559,7 +2364,7 @@
     <div class="group-setup-panel" id="panelCreateGroup" style="display:none;">
       <p>You'll be the group's leader, with editing rights over every member's decks.</p>
       <div class="field-row">
-        <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family" maxlength="50">
+        <input type="text" id="createGroupNameInput" placeholder="e.g. The Smith Family">
         <button type="button" id="btnCreateGroup">Create</button>
       </div>
     </div>
@@ -2594,7 +2399,7 @@
         <button type="button" class="btn-drawer-secondary" id="btnDrawerAddGroup">+ Add Another Group</button>
 
         <div class="group-name-row">
-          <input type="text" id="groupNameInput" placeholder="Group name" maxlength="50">
+          <input type="text" id="groupNameInput" placeholder="Group name">
           <button type="button" id="btnSaveGroupName">Save</button>
         </div>
       </div>
@@ -2640,7 +2445,7 @@
       <div class="group-setup-panel" id="drawerCreatePanel" style="display:none;">
         <p>You'll be this group's leader, with editing rights over every member's decks.</p>
         <div class="field-row">
-          <input type="text" id="drawerNewGroupInput" placeholder="e.g. The Smith Family" maxlength="50">
+          <input type="text" id="drawerNewGroupInput" placeholder="e.g. The Smith Family">
           <button type="button" id="btnDrawerConfirmNewGroup">Create</button>
         </div>
       </div>
@@ -2667,7 +2472,7 @@
       <div class="group-section-label">Display Name</div>
       <p class="invite-hint">This is the name other members of your groups see on your decks. Changing it updates every group you're in.</p>
       <div class="group-name-row">
-        <input type="text" id="profileNameInput" placeholder="Your name" maxlength="15">
+        <input type="text" id="profileNameInput" placeholder="Your name">
         <button type="button" id="btnSaveProfileName">Save</button>
       </div>
       <p class="group-setup-error" id="profileNameError" style="display:none;"></p>
@@ -2717,13 +2522,34 @@
         <span class="filter-badge" id="filterBadge" style="display:none;">0</span>
       </button>
       <button class="btn-clear" id="btnClearFilters">Clear filters</button>
-      <select class="sort-select" id="sortSelect">
-        <option value="name">Sort: Name (A–Z)</option>
-        <option value="colors">Sort: Color identity</option>
-        <option value="buildType">Sort: Build type</option>
-        <option value="newest">Sort: Newest first</option>
-        <option value="oldest">Sort: Oldest first</option>
-      </select>
+      <div class="sort-dropdown" id="sortDropdown">
+        <button type="button" class="sort-dropdown-btn" id="sortDropdownBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="sortDropdownMenu">
+          <span class="sort-dropdown-label" id="sortDropdownLabel">Sort: Name (A–Z)</span>
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <ul class="sort-dropdown-menu" id="sortDropdownMenu" role="listbox" tabindex="-1" aria-labelledby="sortDropdownBtn">
+          <li class="sort-dropdown-option selected" role="option" aria-selected="true" data-value="name" data-label="Sort: Name (A–Z)">
+            <span>Sort: Name (A–Z)</span>
+            <svg class="icon-svg sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </li>
+          <li class="sort-dropdown-option" role="option" aria-selected="false" data-value="colors" data-label="Sort: Color identity">
+            <span>Sort: Color identity</span>
+            <svg class="icon-svg sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </li>
+          <li class="sort-dropdown-option" role="option" aria-selected="false" data-value="buildType" data-label="Sort: Build type">
+            <span>Sort: Build type</span>
+            <svg class="icon-svg sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </li>
+          <li class="sort-dropdown-option" role="option" aria-selected="false" data-value="newest" data-label="Sort: Newest first">
+            <span>Sort: Newest first</span>
+            <svg class="icon-svg sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </li>
+          <li class="sort-dropdown-option" role="option" aria-selected="false" data-value="oldest" data-label="Sort: Oldest first">
+            <span>Sort: Oldest first</span>
+            <svg class="icon-svg sort-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -2742,16 +2568,6 @@
         <div class="filter-modal-section">
           <div class="filter-modal-label">Build type</div>
           <div class="build-filters" id="buildFilters"></div>
-        </div>
-        <div class="filter-modal-section">
-          <div class="filter-modal-label">Series</div>
-          <div class="custom-select" id="seriesFilterCustomSelect">
-            <button type="button" class="custom-select-trigger" id="seriesFilterTrigger" aria-haspopup="listbox" aria-expanded="false">
-              <span id="seriesFilterTriggerLabel">All series</span>
-              <svg class="icon-svg custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="custom-select-options" id="seriesFilterOptions" role="listbox" aria-label="Series" style="display:none;"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -2818,7 +2634,7 @@
 
 <!-- Add/Edit Modal -->
 <div class="overlay" id="formOverlay">
-  <div class="modal" id="deckFormModal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
     <div class="modal-body">
       <button class="modal-close" id="formClose" aria-label="Cancel and close"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
       <h2 id="formTitle">New Deck</h2>
@@ -2827,25 +2643,17 @@
         <select id="formCollection"></select>
       </div>
       <div class="field">
-        <label id="formSeriesLabel">Series <span class="optional-tag">(optional)</span></label>
-        <div class="custom-select" id="formSeriesCustomSelect">
-          <button type="button" class="custom-select-trigger" id="formSeriesTrigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="formSeriesLabel">
-            <span id="formSeriesTriggerLabel">No series</span>
-            <svg class="icon-svg custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="custom-select-options" id="formSeriesOptions" role="listbox" aria-label="Series" style="display:none;"></div>
-        </div>
+        <label for="formSeries">Series <span class="optional-tag">(optional)</span></label>
+        <select id="formSeries"></select>
         <div class="inline-add-row" id="seriesAddRow" style="display:none;">
-          <input type="text" id="newSeriesInput" placeholder="New series name…" maxlength="50">
+          <input type="text" id="newSeriesInput" placeholder="New series name…">
           <button type="button" id="btnConfirmAddSeries">Add</button>
           <button type="button" class="btn-text-cancel" id="btnCancelAddSeries">Cancel</button>
         </div>
-        <button type="button" class="btn-text-edit" id="btnEditSeries" style="display:none;">Rename this series</button>
-        <button type="button" class="btn-text-delete" id="btnDeleteSeries" style="display:none;">Delete this series</button>
       </div>
       <div class="field">
         <label for="formName">Deck name <span class="optional-tag">(required)</span></label>
-        <input type="text" id="formName" placeholder="e.g. Mono-Red Aggro" maxlength="50">
+        <input type="text" id="formName" placeholder="e.g. Mono-Red Aggro">
       </div>
       <div class="field">
         <label>Color identity <span class="optional-tag">(required)</span></label>
@@ -2903,20 +2711,6 @@
   </div>
 </div>
 
-<!-- Choose printing — shown after a name-only scanner match, so the
-     person can pick the exact set/foil that matches their physical card. -->
-<div class="overlay" id="printsPickOverlay">
-  <div class="modal" style="max-width:460px;" role="dialog" aria-modal="true" aria-labelledby="printsPickTitle">
-    <div class="modal-body">
-      <button class="modal-close" id="printsPickClose" aria-label="Close printing picker"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
-      <h2 id="printsPickTitle">Choose Printing</h2>
-      <p class="modal-subtitle" id="printsPickSubtitle">Pick the printing that matches your card.</p>
-      <div class="prints-list" id="printsPickList"></div>
-      <p class="prints-note" id="printsPickNote"></p>
-    </div>
-  </div>
-</div>
-
 <!-- What's New Drawer -->
 <div class="drawer-overlay" id="notifDrawerOverlay">
   <div class="drawer-panel" id="notifDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="notifDrawerTitle">
@@ -2935,11 +2729,9 @@
       <h3 id="collectionsDrawerTitle">Collections</h3>
       <button class="drawer-close" id="drawerClose" aria-label="Close collections panel"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
     </div>
-    <input type="text" id="searchAllCollectionsInput" class="drawer-search-input" placeholder="Search all collections…" aria-label="Search all collections">
     <div class="collection-list" id="collectionList"></div>
-    <div class="search-all-results" id="searchAllResults" style="display:none;"></div>
     <div class="add-collection-row" id="addCollectionRow">
-      <input type="text" id="newCollectionInput" placeholder="New collection name…" maxlength="50">
+      <input type="text" id="newCollectionInput" placeholder="New collection name…">
       <button id="btnAddCollection">Add</button>
     </div>
   </div>
@@ -3078,8 +2870,6 @@
   let activeCollectionId = null;
   let activeFilters = new Set(); // color keys only (W/U/B/R/G)
   let activeBuildFilters = new Set(); // build type keys: homemade/precon/edited
-  const NO_SERIES_FILTER_VALUE = '__no_series__';
-  let activeSeriesFilter = ''; // '' = all series, NO_SERIES_FILTER_VALUE = untagged only, else a series id
   let searchTerm = '';
   let sortMode = 'name';
   let editingId = null; // null = new deck
@@ -3139,7 +2929,6 @@
       { el: $('addGroupModalOverlay'), close: ()=> returnToGroupMenu() },
       { el: $('groupDrawerOverlay'),   close: ()=> closeGroupDrawer() },
       { el: $('notifDrawerOverlay'),   close: ()=> closeNotifDrawer() },
-      { el: $('printsPickOverlay'),    close: ()=> closePrintsPicker() },
       { el: $('scannerOverlay'),       close: ()=> closeScanner() },
       { el: $('profileOverlay'),       close: ()=> closeProfile() },
       { el: $('filterModalOverlay'),   close: ()=> closeFilterModal() },
@@ -3502,7 +3291,6 @@
         const results = [];
         snap.forEach(d => results.push(d.data()));
         seriesList = results;
-        buildSeriesFilterOptions();
         if(!firstLoadDone){
           firstLoadDone = true;
           resolve();
@@ -3523,32 +3311,6 @@
     const entry = { id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, createdAt: Date.now() };
     await setDoc(doc(SERIES_COL, entry.id), entry);
     return entry;
-  }
-
-  // Renames a series entry (leader-only — enforced by the rename button's
-  // visibility, same as deleteSeriesEntry below). Decks tagged with this
-  // series aren't touched here; they just look up the series by id, so
-  // the new name shows up for them automatically everywhere it's read.
-  async function renameSeriesEntry(id, name){
-    await updateDoc(doc(SERIES_COL, id), { name });
-    const s = seriesList.find(x => x.id === id);
-    if(s) s.name = name;
-  }
-
-  // Deletes a series entry only. Unlike deleteCollection() above, this
-  // deliberately does NOT touch any decks — a series is just a label, not
-  // a container the way a collection is. Any deck tagged with this series
-  // has its seriesId cleared back to "no series" so nothing is left
-  // pointing at a series that no longer exists; the deck itself, its
-  // stats, and everything else about it is untouched.
-  async function deleteSeriesEntry(id){
-    await deleteDoc(doc(SERIES_COL, id));
-    const affected = decks.filter(d => d.seriesId === id);
-    for(const d of affected){
-      await updateDoc(doc(DECKS_COL, d.id), { seriesId: null });
-      d.seriesId = null;
-    }
-    seriesList = seriesList.filter(s => s.id !== id);
   }
 
   // ---------- Storage: decks (Firestore, live) ----------
@@ -3747,24 +3509,6 @@
     return `Can't use the character "${ch}" here. Avoid : " { } [ ] < >`;
   }
 
-  // Applies to deck/group/series/collection names (matches the
-  // maxlength="50" set on their inputs) — not to free-text fields like
-  // deck descriptions, or to the card-scanner lookup field, which is a
-  // Magic card name and can legitimately run much longer.
-  const NAME_MAX_LEN = 50;
-  function nameTooLongMessage(){
-    return `Names can't be longer than ${NAME_MAX_LEN} characters.`;
-  }
-
-  // Profile/display names (your own, and other members') stay shorter —
-  // they show up in tight spots throughout the UI (chips, tags, member
-  // rows) where a long name doesn't have as much room as a deck or
-  // series name does.
-  const PROFILE_NAME_MAX_LEN = 15;
-  function profileNameTooLongMessage(){
-    return `Names can't be longer than ${PROFILE_NAME_MAX_LEN} characters.`;
-  }
-
   // Player names are always shown with a capitalized first letter, no
   // matter how they were typed or derived from an email address.
   function capitalizeName(name){
@@ -3930,7 +3674,7 @@
   const filterModalClose = $('filterModalClose');
 
   function updateFilterBadge(){
-    const count = activeFilters.size + activeBuildFilters.size + (activeSeriesFilter ? 1 : 0);
+    const count = activeFilters.size + activeBuildFilters.size;
     if(count > 0){
       filterBadge.textContent = String(count);
       filterBadge.style.display = 'inline-flex';
@@ -3947,12 +3691,7 @@
     lockBodyScroll();
     setTimeout(()=>{ const f = focusableIn(filterModal); if(f.length) f[0].focus(); }, 30);
   }
-  function closeFilterModal(){
-    filterModalOverlay.classList.remove('show');
-    unlockBodyScroll();
-    restoreFocus();
-    closeSeriesFilterOptions();
-  }
+  function closeFilterModal(){ filterModalOverlay.classList.remove('show'); unlockBodyScroll(); restoreFocus(); }
   btnOpenFilters.addEventListener('click', openFilterModal);
   filterModalClose.addEventListener('click', closeFilterModal);
   filterModalOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'filterModalOverlay') closeFilterModal(); });
@@ -4003,98 +3742,16 @@
     });
   }
 
-  // Rebuilt any time seriesList changes (series added/renamed/deleted) so
-  // the dropdown never shows a stale name or a since-deleted series. If the
-  // currently active filter no longer exists (its series was deleted),
-  // falls back to "All series" rather than silently filtering on a dead id.
-  let seriesFilterOpen = false;
-  function seriesFilterLabel(){
-    if(!activeSeriesFilter) return 'All series';
-    if(activeSeriesFilter === NO_SERIES_FILTER_VALUE) return 'No series';
-    const s = seriesList.find(x => x.id === activeSeriesFilter);
-    return s ? s.name : 'All series';
-  }
-  function openSeriesFilterOptions(){
-    seriesFilterOpen = true;
-    $('seriesFilterCustomSelect').classList.add('open');
-    $('seriesFilterOptions').style.display = 'block';
-    $('seriesFilterTrigger').setAttribute('aria-expanded', 'true');
-  }
-  function closeSeriesFilterOptions(){
-    seriesFilterOpen = false;
-    $('seriesFilterCustomSelect').classList.remove('open');
-    $('seriesFilterOptions').style.display = 'none';
-    $('seriesFilterTrigger').setAttribute('aria-expanded', 'false');
-  }
-  function buildSeriesFilterOptions(){
-    const trigger = $('seriesFilterTrigger');
-    if(!trigger) return;
-    if(activeSeriesFilter && activeSeriesFilter !== NO_SERIES_FILTER_VALUE && !seriesList.find(s => s.id === activeSeriesFilter)){
-      activeSeriesFilter = '';
-    }
-    $('seriesFilterTriggerLabel').textContent = seriesFilterLabel();
-
-    const wrap = $('seriesFilterOptions');
-    wrap.innerHTML = '';
-
-    const makeOption = (value, label)=>{
-      const opt = document.createElement('button');
-      opt.type = 'button';
-      opt.className = 'custom-select-option';
-      opt.setAttribute('role', 'option');
-      const isActive = activeSeriesFilter === value;
-      opt.dataset.active = isActive ? 'true' : 'false';
-      opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'option-name';
-      nameSpan.textContent = label;
-      opt.appendChild(nameSpan);
-
-      const checkIcon = document.createElement('span');
-      checkIcon.className = 'check-icon';
-      checkIcon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      opt.appendChild(checkIcon);
-
-      opt.addEventListener('click', ()=>{
-        activeSeriesFilter = value;
-        buildSeriesFilterOptions();
-        updateFilterBadge();
-        closeSeriesFilterOptions();
-        render();
-      });
-      wrap.appendChild(opt);
-    };
-
-    makeOption('', 'All series');
-    makeOption(NO_SERIES_FILTER_VALUE, 'No series');
-    seriesList.forEach(s => makeOption(s.id, s.name));
-  }
-  $('seriesFilterTrigger').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    if(seriesFilterOpen) closeSeriesFilterOptions();
-    else openSeriesFilterOptions();
-  });
-  // Any other click inside the filter modal (a color chip, the build-type
-  // row, the modal's own background) collapses the option list back down —
-  // clicks on the trigger or on an option itself are inside
-  // #seriesFilterCustomSelect, so they're excluded here and handled above.
-  filterModal.addEventListener('click', (e)=>{
-    if(seriesFilterOpen && !$('seriesFilterCustomSelect').contains(e.target)) closeSeriesFilterOptions();
-  });
-
   $('btnClearFilters').addEventListener('click', ()=>{
-    const hasAnything = activeFilters.size > 0 || activeBuildFilters.size > 0 || activeSeriesFilter !== '' || searchTerm !== '';
+    const hasAnything = activeFilters.size > 0 || activeBuildFilters.size > 0 || searchTerm !== '';
     if(!hasAnything) return;
     if(!confirm('Clear all filters and search?')) return;
     activeFilters.clear();
     activeBuildFilters.clear();
-    activeSeriesFilter = '';
     searchTerm = '';
     $('searchInput').value = '';
     buildColorFilterChips();
     buildBuildFilterChips();
-    buildSeriesFilterOptions();
     updateFilterBadge();
     render();
   });
@@ -4112,13 +3769,6 @@
       }
       if(activeBuildFilters.size > 0){
         if(!d.buildType || !activeBuildFilters.has(d.buildType)) return false;
-      }
-      if(activeSeriesFilter){
-        if(activeSeriesFilter === NO_SERIES_FILTER_VALUE){
-          if(d.seriesId) return false;
-        } else if(d.seriesId !== activeSeriesFilter){
-          return false;
-        }
       }
       return true;
     });
@@ -4168,27 +3818,9 @@
   window.addEventListener('resize', updateScrollability);
   window.addEventListener('orientationchange', updateScrollability);
 
-  // A collection's "most used" deck is whichever has logged the most total
-  // games (wins + losses, tracked by MTG Tracker) — ties or all-zero mean
-  // no deck is singled out. Computed off the full per-collection deck list
-  // (not the filtered/sorted one) so the badge stays put regardless of
-  // whatever search/filter/sort is currently applied.
-  function computeMostUsedDeckId(decksInCollection){
-    let bestId = null, bestGames = 0;
-    decksInCollection.forEach(d=>{
-      const games = (d.wins || 0) + (d.losses || 0);
-      if(games > 0 && games > bestGames){
-        bestGames = games;
-        bestId = d.id;
-      }
-    });
-    return bestId;
-  }
-
   function render(){
     const decksInCollection = decks.filter(d => d.collectionId === activeCollectionId && !pendingDeleteIds.has(d.id));
     const list = getFilteredSorted();
-    const mostUsedId = computeMostUsedDeckId(decksInCollection);
     content.innerHTML = '';
 
     if(decksInCollection.length === 0){
@@ -4218,16 +3850,7 @@
       card.style.setProperty('--stripe', stripeGradient(deck.colors));
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.setAttribute('aria-label', deck.id === mostUsedId ? `View ${deck.name} (most used deck)` : `View ${deck.name}`);
-
-      if(deck.id === mostUsedId){
-        card.classList.add('has-most-used-badge');
-        const badge = document.createElement('div');
-        badge.className = 'most-used-badge';
-        badge.setAttribute('aria-label', 'Most used deck in this collection');
-        badge.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 7.1-1.01z"/></svg><span>Most Used</span>';
-        card.appendChild(badge);
-      }
+      card.setAttribute('aria-label', `View ${deck.name}`);
 
       const topRow = document.createElement('div');
       topRow.className = 'deck-top-row';
@@ -4261,37 +3884,21 @@
       const metaRow = document.createElement('div');
       metaRow.className = 'meta-row';
 
-      const seriesTag = document.createElement('div');
-      seriesTag.className = 'deck-meta';
-      const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
-      if(series){
-        seriesTag.textContent = series.name;
-        seriesTag.title = series.name;
-      } else {
-        // Invisible placeholder: rendered on every card (not just ones
-        // without a series) so the meta row is always exactly as tall as
-        // it would be with a real series tag in it — same font, same box,
-        // just not shown. This is what actually fixes cards being a
-        // different height depending on whether they have a series.
-        seriesTag.classList.add('deck-meta-placeholder');
-        seriesTag.textContent = '\u00A0';
-        seriesTag.setAttribute('aria-hidden', 'true');
+      if(deck.seriesId){
+        const series = seriesList.find(s => s.id === deck.seriesId);
+        if(series){
+          const seriesTag = document.createElement('div');
+          seriesTag.className = 'deck-meta';
+          seriesTag.textContent = series.name;
+          metaRow.appendChild(seriesTag);
+        }
       }
-      metaRow.appendChild(seriesTag);
-
-      // Build type and owner sit on their own row below the series name,
-      // so the series line above gets the full width of the card to
-      // itself (it's the one most likely to need it, and truncates with
-      // an ellipsis via CSS if it's still too long — the full name is
-      // always visible in the deck's info view after tapping the card).
-      const tagsRow = document.createElement('div');
-      tagsRow.className = 'deck-tags-row';
 
       if(deck.buildType){
         const buildTag = document.createElement('div');
         buildTag.className = 'build-tag';
         buildTag.textContent = buildTypeName(deck.buildType);
-        tagsRow.appendChild(buildTag);
+        metaRow.appendChild(buildTag);
       }
 
       if(deck.ownerUid){
@@ -4300,18 +3907,11 @@
           const ownerTag = document.createElement('div');
           ownerTag.className = 'owner-tag';
           ownerTag.textContent = deck.ownerUid === (currentUser && currentUser.uid) ? 'You' : ownerName;
-          tagsRow.appendChild(ownerTag);
+          metaRow.appendChild(ownerTag);
         }
       }
 
-      metaRow.appendChild(tagsRow);
-
-      // Always appended — even with zero tags — so every card reserves the
-      // same vertical space here. Appending it only when non-empty (the
-      // old behavior) meant a deck with a series (or build type/owner) tag
-      // was measurably taller than one without, since that whole row plus
-      // its flex gap simply didn't exist on the shorter cards.
-      card.appendChild(metaRow);
+      if(metaRow.children.length) card.appendChild(metaRow);
 
       const pipRow = document.createElement('div');
       pipRow.className = 'pip-row';
@@ -4320,7 +3920,7 @@
 
       const desc = document.createElement('p');
       desc.className = 'deck-desc-preview';
-      desc.textContent = deck.description ? deck.description : (deck.buildType === 'homemade' ? 'Custom Deck' : 'No description yet.');
+      desc.textContent = deck.description ? deck.description : 'No description yet.';
       card.appendChild(desc);
 
       if(canEditDeck(deck)){
@@ -4671,7 +4271,7 @@
       descEl.textContent = deck.description;
       descEl.classList.remove('empty');
     } else {
-      descEl.textContent = deck.buildType === 'homemade' ? 'Custom Deck' : 'No description written for this deck yet.';
+      descEl.textContent = 'No description written for this deck yet.';
       descEl.classList.add('empty');
     }
 
@@ -4838,15 +4438,35 @@
 
   // ---------- Card price scanner ----------
   // Deliberately stateless: nothing here ever touches Firestore or any
-  // storage. OCR runs against OCR.space's hosted API (a free/keyed call —
-  // see OCR_SPACE_API_KEY below), and the price lookup + printings list are
-  // public, keyless calls to Scryfall. Closing the modal discards
-  // everything. Scanning auto-runs the full pipeline the moment a photo is
-  // picked: read the text, guess the name, look it up, and — if no exact
-  // collector number was found — show every printing so the person can
-  // pick the one matching their physical card (and its foil/non-foil
-  // price) instead of silently guessing for them.
-  const OCR_SPACE_API_KEY = 'k84051577888957';
+  // storage. OCR runs entirely client-side (Tesseract.js, loaded on first
+  // use so nobody pays for it who never opens this), and the price lookup
+  // is a single public, keyless call to Scryfall. Closing the modal
+  // discards everything.
+  let ocrWorkerPromise = null;
+  function getOcrWorker(){
+    if(!ocrWorkerPromise){
+      ocrWorkerPromise = (async ()=>{
+        if(!window.Tesseract){
+          await new Promise((resolve, reject)=>{
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Could not load the text-recognition library.'));
+            document.head.appendChild(script);
+          });
+        }
+        return await window.Tesseract.createWorker('eng');
+      })().catch(e => {
+        // Don't let one failed load (e.g. a network hiccup) permanently
+        // wedge every future scan attempt — clear the cache so the next
+        // photo tried gets a fresh attempt instead of an instant repeat
+        // failure.
+        ocrWorkerPromise = null;
+        throw e;
+      });
+    }
+    return ocrWorkerPromise;
+  }
 
   const scannerOverlay = $('scannerOverlay');
   const scannerFileInput = $('scannerFileInput');
@@ -4857,14 +4477,6 @@
   const scannerError = $('scannerError');
   const scannerResult = $('scannerResult');
   const btnScannerLookup = $('btnScannerLookup');
-
-  // The "choose printing" picker nests on top of the scanner modal when a
-  // name-only match (no exact collector number) turns up more than one
-  // printing to choose between.
-  const printsPickOverlay = $('printsPickOverlay');
-  const printsPickList = $('printsPickList');
-  const printsPickSubtitle = $('printsPickSubtitle');
-  const printsPickNote = $('printsPickNote');
 
   function resetScanner(){
     scannerFileInput.value = '';
@@ -4879,7 +4491,6 @@
     scannerResult.innerHTML = '';
     btnScannerLookup.disabled = false;
     btnScannerLookup.textContent = 'Look Up Price';
-    closePrintsPicker();
   }
 
   function openScanner(){
@@ -4899,105 +4510,109 @@
   scannerOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'scannerOverlay') closeScanner(); });
   $('btnScannerTakePhoto').addEventListener('click', ()=> scannerFileInput.click());
 
-  function openPrintsPicker(prints, cardName, hasMore){
-    printsPickSubtitle.textContent = `Pick the printing that matches your card — ${cardName}`;
-    printsPickList.innerHTML = '';
-    prints.forEach(p=>{
-      const faceImages = p.card_faces && p.card_faces[0] ? p.card_faces[0].image_uris : null;
-      const img = (p.image_uris && p.image_uris.small) || (faceImages && faceImages.small) || '';
-      const nonfoil = (p.prices && p.prices.usd) ? `$${p.prices.usd}` : '—';
-      const foil = (p.prices && p.prices.usd_foil) ? `$${p.prices.usd_foil}` : '—';
+  // Picking "the first line" works for traditional card frames, but
+  // borderless/extended-art cards have no fixed layout to anchor on, so
+  // OCR's first readable line is just as likely to be flavor text or an
+  // artist credit. Instead, score the first several lines and pick the one
+  // that looks most like a title: capitalized words, plausible length, and
+  // none of the common rules-text phrasing that shows up in a card's body.
+  const RULES_TEXT_HINTS = [
+    'target', 'whenever', 'when this', 'you may', 'enters the', 'sacrifice',
+    'destroy', 'graveyard', 'battlefield', 'library', 'opponent', 'exile',
+    'draw a card', 'create a', 'equipped', 'choose one', 'this spell',
+    'end of turn', 'upkeep', 'flavor'
+  ];
+  function scoreCandidateNameLine(line){
+    if(line.length < 2 || line.length > 45) return -100;
+    const lower = line.toLowerCase();
+    if(RULES_TEXT_HINTS.some(hint => lower.includes(hint))) return -50;
 
-      const row = document.createElement('div');
-      row.className = 'prints-row';
-      row.setAttribute('role', 'button');
-      row.setAttribute('tabindex', '0');
-      row.setAttribute('aria-label', `${p.set_name}, ${(p.set || '').toUpperCase()} number ${p.collector_number || '?'}`);
-      row.innerHTML = `
-        ${img ? `<img src="${img}" alt="">` : ''}
-        <div class="prints-info">
-          <div>${p.set_name}</div>
-          <div class="prints-set">${(p.set || '').toUpperCase()} #${p.collector_number || '?'}${p.rarity ? ` · ${p.rarity}` : ''}</div>
-        </div>
-        <div class="prints-prices">Non-foil: <b>${nonfoil}</b><br>Foil: <b>${foil}</b></div>
-      `;
-      const choose = ()=>{
-        scannerNameInput.value = p.name;
-        scannerNumberInput.value = p.collector_number || '';
-        renderScannerResult(p);
-        closePrintsPicker();
-        scannerStatus.style.display = 'block';
-        scannerStatus.textContent = `Selected the ${p.set_name} printing.`;
-      };
-      row.addEventListener('click', choose);
-      row.addEventListener('keydown', (e)=>{
-        if(e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        choose();
-      });
-      printsPickList.appendChild(row);
+    const words = line.split(/\s+/).filter(Boolean);
+    const smallWords = new Set(['of','the','a','an','to','and','from']);
+    const titleCaseHits = words.filter((w, i) =>
+      smallWords.has(w.toLowerCase()) && i > 0 ? true : /^[A-Z]/.test(w)
+    ).length;
+    const titleCaseFraction = titleCaseHits / words.length;
+
+    const letters = line.replace(/[^A-Za-z]/g, '');
+    const lowerLetters = line.replace(/[^a-z]/g, '');
+    const lowercaseRatio = letters.length ? lowerLetters.length / letters.length : 1;
+
+    let score = titleCaseFraction * 3 - lowercaseRatio * 2;
+    if(line.length >= 3 && line.length <= 35) score += 1;
+    if(/[{}]/.test(line)) score -= 2; // stray mana-symbol OCR artifacts
+    // Set-code / language-code remnants (e.g. "C EN", "M U") are short,
+    // all-caps, and have zero lowercase letters — which otherwise scores
+    // deceptively well above, since the lowercase-ratio penalty rewards
+    // having no lowercase letters at all. Real card names are essentially
+    // never built from 1–2 letter words, so penalize that shape directly.
+    const avgWordLen = words.reduce((a, w) => a + w.length, 0) / words.length;
+    if(avgWordLen < 3) score -= 4;
+    return score;
+  }
+  function bestGuessCardName(rawText){
+    const lines = (rawText || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 8);
+    if(!lines.length) return '';
+    // Minimum plausibility bar — if nothing clears this, we'd rather admit
+    // we couldn't read it than hand back a low-confidence guess dressed up
+    // to look like a real answer.
+    const MIN_SCORE = 0.5;
+    let best = '';
+    let bestScore = -Infinity;
+    for(const line of lines){
+      // Collector-number lines ("141/264 C EN") are shaped nothing like a
+      // name — exclude them outright rather than let them compete on score.
+      if(/^0*\d{1,4}\s*\/\s*0*\d{1,4}\b/.test(line)) continue;
+      const cleaned = line.replace(/^[^A-Za-z]+/, '').trim();
+      if(!cleaned) continue;
+      const s = scoreCandidateNameLine(cleaned);
+      if(s > bestScore){ bestScore = s; best = cleaned; }
+    }
+    return bestScore >= MIN_SCORE ? best : '';
+  }
+
+  // The collector number is printed small along the bottom edge, almost
+  // always as "141/264" (this number / set size). The same X/Y shape also
+  // matches a creature's power/toughness box (e.g. "3/3"), which was
+  // getting picked up by mistake — real sets are essentially never smaller
+  // than ~40 cards, so requiring the second number to be at least that
+  // large filters P/T pairs out. When more than one match qualifies, the
+  // last one in the text is favored since the collector line sits at the
+  // very bottom of the card, read last by OCR.
+  function bestGuessCollectorNumber(rawText){
+    const matches = [...(rawText || '').matchAll(/\b0*(\d{1,4})\s*\/\s*0*(\d{1,4})\b/g)];
+    const plausible = matches.filter(m => Number(m[2]) >= 40);
+    if(!plausible.length) return '';
+    return plausible[plausible.length - 1][1];
+  }
+
+  // Feeding Tesseract a whole card photo means it has to fight through
+  // art, colored frames, and rules/flavor text to find the name — that
+  // fight is where most misreads actually come from, not the OCR engine
+  // itself. Cropping straight to the printed name band (and, separately,
+  // the collector-number corner), upscaling it, and stretching contrast
+  // hands the recognizer a tight, high-DPI, mostly-text image instead —
+  // much closer to what its model was trained on than a full photo.
+  async function loadImageBitmapFromFile(file){
+    if(window.createImageBitmap){
+      try{ return await createImageBitmap(file); }catch(e){ /* fall through to <img> */ }
+    }
+    return await new Promise((resolve, reject)=>{
+      const img = new Image();
+      img.onload = ()=> resolve(img);
+      img.onerror = ()=> reject(new Error('Could not read the photo.'));
+      img.src = URL.createObjectURL(file);
     });
-    printsPickNote.textContent = hasMore ? 'Showing the most recent printings — older ones exist too.' : '';
-    rememberFocus();
-    printsPickOverlay.classList.add('show');
-    lockBodyScroll();
-    setTimeout(()=> $('printsPickClose').focus(), 30);
-  }
-  function closePrintsPicker(){
-    if(!printsPickOverlay.classList.contains('show')) return;
-    printsPickOverlay.classList.remove('show');
-    unlockBodyScroll();
-    restoreFocus();
-  }
-  $('printsPickClose').addEventListener('click', closePrintsPicker);
-  printsPickOverlay.addEventListener('click', (e)=>{ if(e.target.id === 'printsPickOverlay') closePrintsPicker(); });
-
-  // Downscale before sending — OCR.space's free tier caps request size
-  // (~1MB), and full phone-camera photos can be several times that. This
-  // also speeds the upload up without hurting text recognition, which
-  // doesn't need much more than ~1200px on the long edge.
-  function toScaledDataUrl(canvas, maxDim){
-    const scale = Math.min(1, maxDim / Math.max(canvas.width, canvas.height));
-    if(scale === 1) return canvas.toDataURL('image/jpeg', 0.92);
-    const out = document.createElement('canvas');
-    out.width = Math.round(canvas.width * scale);
-    out.height = Math.round(canvas.height * scale);
-    out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
-    return out.toDataURL('image/jpeg', 0.92);
   }
 
-  async function fileToCanvas(file){
-    const bitmap = window.createImageBitmap ? await createImageBitmap(file).catch(()=>null) : null;
-    const img = bitmap || await new Promise((resolve, reject)=>{
-      const image = new Image();
-      image.onload = ()=> resolve(image);
-      image.onerror = ()=> reject(new Error('Could not read the photo.'));
-      image.src = URL.createObjectURL(file);
-    });
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width || img.naturalWidth;
-    canvas.height = img.height || img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas;
-  }
-
-  // Feeding OCR the whole card photo means it has to fight through art,
-  // colored frames, and rules/type-line text to find the name — that
-  // fight is exactly what was causing the type line ("Legendary Creature —
-  // ...") to get picked up instead of the name above it. Cropping straight
-  // to the printed name band (and, separately, the collector-number
-  // corner), upscaling it, and stretching contrast hands the recognizer a
-  // tight, high-DPI, mostly-text image instead — one where the name is
-  // physically the only line of text present.
-  //
   // Crops a normalized [x, y, w, h] region (fractions of the full image),
-  // scales it up so the text sits at a healthier effective resolution, and
-  // converts it to contrast-stretched grayscale. The min/max stretch
-  // (rather than a fixed brightness threshold) pulls faint text up to full
-  // black/white range whether the card frame is light or dark, foil or
-  // matte, instead of a single cutoff that only works for one of those.
-  function cropAndEnhance(source, [xf, yf, wf, hf], targetWidth){
-    const srcW = source.width, srcH = source.height;
+  // scales it up so the text sits at a healthier effective resolution,
+  // and converts it to contrast-stretched grayscale. The min/max stretch
+  // (rather than a fixed brightness threshold) pulls faint text up to
+  // full black/white range whether the card frame is light or dark, foil
+  // or matte, instead of a single cutoff that only works for one of those.
+  function cropAndEnhance(bitmap, [xf, yf, wf, hf], targetWidth){
+    const srcW = bitmap.width, srcH = bitmap.height;
     const sx = Math.round(xf * srcW), sy = Math.round(yf * srcH);
     const sw = Math.round(wf * srcW), sh = Math.round(hf * srcH);
     const scale = Math.max(1, targetWidth / sw);
@@ -5008,7 +4623,7 @@
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, outW, outH);
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, outW, outH);
 
     const imgData = ctx.getImageData(0, 0, outW, outH);
     const d = imgData.data;
@@ -5032,113 +4647,58 @@
   // Standard modern Magic frames print the name in a band roughly 3–13%
   // down from the top, spanning most of the width — trimming the right
   // edge keeps the mana cost symbols mostly out of the crop rather than
-  // relying entirely on after-the-fact filtering. The collector number
-  // sits as small print in the bottom-left corner, shaped like "141/264".
-  // Borderless/extended-art cards don't reliably match either band, which
-  // is what the whole-photo fallback further down is for.
+  // relying entirely on after-the-fact artifact filtering. The collector
+  // number sits as small print in the bottom-left corner, shaped like
+  // "141/264". Borderless/extended-art cards don't reliably match either
+  // band, which is what the whole-photo fallback below is for.
   const NAME_BAND = [0.04, 0.03, 0.80, 0.10];
   const NUMBER_BAND = [0.02, 0.905, 0.46, 0.06];
 
-  // OCR.space does the actual text recognition — engine 2, with the
-  // overlay (per-line position) turned on so we can tell a topmost title
-  // line apart from body text further down the card.
-  async function runOCR(dataUrl){
-    const form = new FormData();
-    form.append('apikey', OCR_SPACE_API_KEY);
-    form.append('base64Image', dataUrl);
-    form.append('language', 'eng');
-    form.append('OCREngine', '2');
-    form.append('isOverlayRequired', 'true');
-    form.append('scale', 'true');
-    form.append('detectOrientation', 'true');
+  const PSM_SINGLE_LINE = '7';
+  const PSM_AUTO = '3';
 
-    const res = await fetch('https://api.ocr.space/parse/image', { method: 'POST', body: form });
-    const data = await res.json();
-    if(data.IsErroredOnProcessing){
-      throw new Error((data.ErrorMessage && data.ErrorMessage.join(', ')) || 'OCR.space processing error.');
-    }
-    return data.ParsedResults && data.ParsedResults[0];
+  async function runOcrOnCrops(worker, bitmap){
+    const nameCrop = cropAndEnhance(bitmap, NAME_BAND, 900);
+    const numberCrop = cropAndEnhance(bitmap, NUMBER_BAND, 700);
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_SINGLE_LINE, tessedit_char_whitelist: '' });
+    const nameData = (await worker.recognize(nameCrop)).data;
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_SINGLE_LINE, tessedit_char_whitelist: '0123456789/' });
+    const numberData = (await worker.recognize(numberCrop)).data;
+
+    await worker.setParameters({ tessedit_pageseg_mode: PSM_AUTO, tessedit_char_whitelist: '' });
+    return { nameData, numberData };
   }
 
-  // Runs the name-band and number-band crops through OCR.space in
-  // parallel — two small, targeted requests instead of one that has to
-  // fight through the whole card.
-  async function runOcrOnCrops(canvas){
-    const nameCrop = cropAndEnhance(canvas, NAME_BAND, 900);
-    const numberCrop = cropAndEnhance(canvas, NUMBER_BAND, 700);
-    const [nameParsed, numberParsed] = await Promise.all([
-      runOCR(nameCrop.toDataURL('image/jpeg', 0.95)),
-      runOCR(numberCrop.toDataURL('image/jpeg', 0.95))
-    ]);
-    return { nameParsed, numberParsed };
-  }
-
-  // Pick the most likely card-name line: the topmost line with enough
-  // letters in it to plausibly be a title rather than a stray mark or a
-  // set/language code remnant. With a proper name-band crop this is
-  // usually the *only* line; this heuristic is really earning its keep on
-  // the whole-photo fallback path, where a type or rules-text line could
-  // otherwise get mistaken for the name.
-  function extractNameGuess(parsedResult){
-    if(!parsedResult) return '';
-    const lines = (parsedResult.TextOverlay && parsedResult.TextOverlay.Lines) || [];
-    if(lines.length){
-      const sorted = [...lines].sort((a, b) => a.MinTop - b.MinTop);
-      for(const line of sorted){
-        const cleaned = line.LineText.replace(/[^A-Za-z',.\- ]/g, '').trim();
-        const letterCount = (cleaned.match(/[A-Za-z]/g) || []).length;
-        if(letterCount >= 3) return cleaned;
-      }
-    }
-    // Fallback: first non-empty line of the plain parsed text.
-    const plain = (parsedResult.ParsedText || '').split('\n').map(s => s.trim()).filter(Boolean);
-    return plain[0] || '';
-  }
-
-  // The collector number is printed small along the bottom edge, almost
-  // always as "141/264" (this number / set size). The same X/Y shape also
-  // matches a creature's power/toughness box (e.g. "3/3"), which was
-  // getting picked up by mistake — real sets are essentially never smaller
-  // than ~40 cards, so requiring the second number to be at least that
-  // large filters P/T pairs out. When more than one match qualifies, the
-  // last one in the text is favored since the collector line sits at the
-  // very bottom of the card, read last by OCR.
-  function bestGuessCollectorNumber(rawText){
-    const matches = [...(rawText || '').matchAll(/\b0*(\d{1,4})\s*\/\s*0*(\d{1,4})\b/g)];
-    const plausible = matches.filter(m => Number(m[2]) >= 40);
-    if(!plausible.length) return '';
-    return plausible[plausible.length - 1][1];
-  }
 
   scannerFileInput.addEventListener('change', async ()=>{
     const file = scannerFileInput.files && scannerFileInput.files[0];
     if(!file) return;
     scannerError.style.display = 'none';
     scannerResult.style.display = 'none';
-    scannerResult.innerHTML = '';
     scannerPreviewImg.src = URL.createObjectURL(file);
     scannerPreviewImg.style.display = 'block';
 
     scannerStatus.style.display = 'block';
-    scannerStatus.textContent = 'Reading the card text from your photo…';
-    // Disabled for the duration of OCR + the auto lookup that follows —
-    // otherwise a tap on "Look Up Price" that lands before this finishes
-    // fires on whatever was in the name/number fields before this photo
-    // (often nothing), which either errors out or searches for the wrong
-    // card.
+    scannerStatus.textContent = 'Reading the card name from your photo…';
+    // Disabled for the duration of OCR — otherwise a tap on "Look Up
+    // Price" that lands before OCR finishes fires on whatever was in the
+    // name/number fields before this photo (often nothing), which either
+    // errors out or searches for the wrong card.
     btnScannerLookup.disabled = true;
     btnScannerLookup.textContent = 'Reading photo…';
     try{
-      const canvas = await fileToCanvas(file);
+      const worker = await getOcrWorker();
+      const MIN_OCR_CONFIDENCE = 35;
 
-      let guess = '', numberGuess = '';
+      let guess = '', numberGuess = '', lowConfidence = true;
       try{
-        const { nameParsed, numberParsed } = await Promise.race([
-          runOcrOnCrops(canvas),
-          timeout(20000, 'Reading the photo')
-        ]);
-        guess = extractNameGuess(nameParsed);
-        numberGuess = bestGuessCollectorNumber(numberParsed && numberParsed.ParsedText);
+        const bitmap = await loadImageBitmapFromFile(file);
+        const { nameData, numberData } = await runOcrOnCrops(worker, bitmap);
+        lowConfidence = typeof nameData.confidence === 'number' && nameData.confidence < MIN_OCR_CONFIDENCE;
+        guess = lowConfidence ? '' : bestGuessCardName(nameData.text);
+        numberGuess = bestGuessCollectorNumber(numberData.text);
       }catch(cropErr){
         console.error('Cropped OCR pass failed, falling back to whole photo', cropErr);
       }
@@ -5148,23 +4708,22 @@
       // empty even on a perfectly readable photo, so fall back to reading
       // the whole image rather than reporting failure too early.
       if(!guess){
-        const dataUrl = toScaledDataUrl(canvas, 1200);
-        const parsed = await Promise.race([runOCR(dataUrl), timeout(20000, 'Reading the photo')]);
-        guess = extractNameGuess(parsed);
-        if(!numberGuess) numberGuess = bestGuessCollectorNumber(parsed && parsed.ParsedText);
+        const { data } = await worker.recognize(file);
+        const wholePhotoLowConfidence = typeof data.confidence === 'number' && data.confidence < MIN_OCR_CONFIDENCE;
+        lowConfidence = lowConfidence && wholePhotoLowConfidence;
+        guess = wholePhotoLowConfidence ? '' : bestGuessCardName(data.text);
+        if(!numberGuess) numberGuess = bestGuessCollectorNumber(data.text);
       }
 
+      if(guess) scannerNameInput.value = guess;
       if(numberGuess) scannerNumberInput.value = numberGuess;
-      if(!guess){
-        scannerStatus.textContent = "Couldn't get a confident read on this photo — type the card name in below.";
-        return;
+      if(lowConfidence && !guess){
+        scannerStatus.textContent = "Couldn't get a confident read on this photo — try better lighting or a closer shot, or type the card name in below.";
+      } else {
+        scannerStatus.textContent = guess
+          ? `Got "${guess}"${numberGuess ? ` (#${numberGuess})` : ''} — check it looks right, then look up the price.`
+          : "Couldn't quite make out the name — type it in below.";
       }
-      scannerNameInput.value = guess;
-      scannerStatus.textContent = `Read "${guess}"${numberGuess ? ` (#${numberGuess})` : ''} — looking it up…`;
-      // Auto-run the lookup immediately rather than waiting for a second
-      // tap — lookUpCardPrice() manages btnScannerLookup's disabled state
-      // itself from here on, so it's left alone in this function's finally.
-      await lookUpCardPrice();
     }catch(e){
       console.error('OCR failed', e);
       scannerStatus.textContent = "Couldn't read the photo — type the card name in below instead.";
@@ -5205,48 +4764,6 @@
     scannerResult.style.display = 'flex';
   }
 
-  // A light throttle on Scryfall calls — mainly matters for the
-  // autocomplete-style back-to-back requests loadPrintings/renderScannerResult
-  // can trigger in quick succession, so a fast series of taps in the
-  // printings picker doesn't hammer the API.
-  let lastScryfallCall = 0;
-  async function scryfallFetch(url){
-    const wait = Math.max(0, 75 - (Date.now() - lastScryfallCall));
-    if(wait) await new Promise(r => setTimeout(r, wait));
-    lastScryfallCall = Date.now();
-    return fetch(url);
-  }
-
-  // Loads every printing of a resolved card and opens the picker so the
-  // person can match it against their actual photo (foil/non-foil, set,
-  // etc.) instead of silently taking Scryfall's default pick among
-  // reprints. If the printings list itself fails to load, falls back to
-  // just showing the one card that was already resolved.
-  async function loadPrintingsAndPick(card){
-    try{
-      const res = await Promise.race([
-        scryfallFetch(card.prints_search_uri + '&order=released&dir=desc'),
-        timeout(15000, 'Loading printings')
-      ]);
-      const data = await res.json();
-      const prints = (data.data && data.data.length) ? data.data : [card];
-      if(prints.length === 1){
-        renderScannerResult(prints[0]);
-        scannerStatus.style.display = 'block';
-        scannerStatus.textContent = `Found "${prints[0].name}".`;
-        return;
-      }
-      openPrintsPicker(prints, card.name, !!data.has_more);
-      scannerStatus.style.display = 'block';
-      scannerStatus.textContent = 'Pick the printing that matches your card.';
-    }catch(e){
-      console.error('Could not load printings, showing the resolved card instead', e);
-      renderScannerResult(card);
-      scannerStatus.style.display = 'block';
-      scannerStatus.textContent = `Found "${card.name}" but couldn't load its other printings.`;
-    }
-  }
-
   async function lookUpCardPrice(){
     const name = scannerNameInput.value.trim();
     const number = scannerNumberInput.value.trim();
@@ -5261,50 +4778,36 @@
     btnScannerLookup.disabled = true;
     btnScannerLookup.textContent = 'Looking up…';
     try{
-      if(number){
-        // With a collector number already pinned down, do an exact search
-        // (name + cn: filter) and show that printing directly — the person
-        // has already told us which one they mean, so the picker would
-        // just be an extra tap for nothing.
-        const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${name}" cn:${number}`)}`;
-        const res = await Promise.race([
-          scryfallFetch(url),
-          timeout(15000, 'Looking up the price')
-        ]);
-        if(!res.ok){
-          scannerError.textContent = res.status === 404
-            ? `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`
-            : 'Something went wrong looking that up. Please try again.';
-          scannerError.style.display = 'block';
-          return;
-        }
-        const data = await res.json();
-        const card = data.data && data.data[0];
-        if(!card){
-          scannerError.textContent = `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`;
-          scannerError.style.display = 'block';
-          return;
-        }
-        renderScannerResult(card);
-        return;
-      }
-
-      // No collector number — resolve the name fuzzily to a canonical
-      // card, then show every printing so the person can pick the one
-      // that matches their photo.
+      // With a collector number, do an exact search (name + cn: filter) so
+      // we land on the specific printing rather than Scryfall's default
+      // pick among reprints. Without one, fall back to a fuzzy name-only
+      // lookup, which is looser but needs nothing else from the person.
+      const url = number
+        ? `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${name}" cn:${number}`)}`
+        : `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`;
       const res = await Promise.race([
-        scryfallFetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`),
+        fetch(url),
         timeout(15000, 'Looking up the price')
       ]);
       if(!res.ok){
-        scannerError.textContent = res.status === 404
-          ? `Couldn't find a card matching "${name}". Check the spelling and try again.`
-          : 'Something went wrong looking that up. Please try again.';
+        if(res.status === 404){
+          scannerError.textContent = number
+            ? `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`
+            : `Couldn't find a card matching "${name}". Check the spelling and try again.`;
+        } else {
+          scannerError.textContent = 'Something went wrong looking that up. Please try again.';
+        }
         scannerError.style.display = 'block';
         return;
       }
-      const card = await res.json();
-      await loadPrintingsAndPick(card);
+      const data = await res.json();
+      const card = number ? (data.data && data.data[0]) : data;
+      if(!card){
+        scannerError.textContent = `Couldn't find "${name}" with collector number ${number}. Double-check both and try again.`;
+        scannerError.style.display = 'block';
+        return;
+      }
+      renderScannerResult(card);
     }catch(e){
       console.error('Price lookup failed', e);
       scannerError.textContent = (e && e.message) ? e.message : 'Something went wrong looking that up. Please try again.';
@@ -5441,109 +4944,30 @@
   }
 
   const ADD_NEW_SERIES_VALUE = '__add_new_series__';
-  // Stands in for the old <select id="formSeries"> element's .value, now
-  // that the picker is a custom dropdown instead of a native select.
-  let formSeriesValue = '';
-  let formSeriesOpen = false;
-
-  function formSeriesLabelFor(value){
-    if(!value) return 'No series';
-    if(value === ADD_NEW_SERIES_VALUE) return '+ Add new series…';
-    const s = seriesList.find(x => x.id === value);
-    return s ? s.name : 'No series';
-  }
-  function openFormSeriesOptions(){
-    formSeriesOpen = true;
-    $('formSeriesCustomSelect').classList.add('open');
-    $('formSeriesOptions').style.display = 'block';
-    $('formSeriesTrigger').setAttribute('aria-expanded', 'true');
-  }
-  function closeFormSeriesOptions(){
-    formSeriesOpen = false;
-    $('formSeriesCustomSelect').classList.remove('open');
-    $('formSeriesOptions').style.display = 'none';
-    $('formSeriesTrigger').setAttribute('aria-expanded', 'false');
-  }
-
-  // Selects a value in the series picker — mirrors what a native <select>'s
-  // change event used to drive: updates the trigger label, shows/hides the
-  // inline "add a series" row, and refreshes the rename/delete buttons.
-  function selectFormSeriesValue(value){
-    formSeriesValue = value || '';
-    $('formSeriesTriggerLabel').textContent = formSeriesLabelFor(formSeriesValue);
-    if(formSeriesValue === ADD_NEW_SERIES_VALUE){
-      showSeriesAddRow();
-    } else {
-      hideSeriesAddRow();
-    }
-    updateSeriesActionBtnsVisibility();
-    buildFormSeriesOptionList();
-  }
-
-  function buildFormSeriesOptionList(){
-    const wrap = $('formSeriesOptions');
-    wrap.innerHTML = '';
-
-    const makeOption = (value, label, isAction)=>{
-      const opt = document.createElement('button');
-      opt.type = 'button';
-      opt.className = 'custom-select-option' + (isAction ? ' custom-select-option-action' : '');
-      opt.setAttribute('role', 'option');
-      const isActive = formSeriesValue === value;
-      opt.dataset.active = isActive ? 'true' : 'false';
-      opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'option-name';
-      nameSpan.textContent = label;
-      opt.appendChild(nameSpan);
-
-      if(!isAction){
-        const checkIcon = document.createElement('span');
-        checkIcon.className = 'check-icon';
-        checkIcon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        opt.appendChild(checkIcon);
-      }
-
-      opt.addEventListener('click', ()=>{
-        selectFormSeriesValue(value);
-        closeFormSeriesOptions();
-      });
-      wrap.appendChild(opt);
-    };
-
-    makeOption('', 'No series');
-    seriesList.forEach(s => makeOption(s.id, s.name));
-    makeOption(ADD_NEW_SERIES_VALUE, '+ Add new series…', true);
-  }
-  $('formSeriesTrigger').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    if(formSeriesOpen) closeFormSeriesOptions();
-    else openFormSeriesOptions();
-  });
-  // Collapses the list when clicking anywhere else in the deck form
-  // (another field, the modal background) — clicks on the trigger or an
-  // option are inside #formSeriesCustomSelect and excluded here, handled
-  // by the trigger's own listener and each option's click handler above.
-  $('deckFormModal').addEventListener('click', (e)=>{
-    if(formSeriesOpen && !$('formSeriesCustomSelect').contains(e.target)) closeFormSeriesOptions();
-  });
 
   function buildSeriesSelect(selectedId){
-    selectFormSeriesValue(selectedId || '');
-  }
+    const sel = $('formSeries');
+    sel.innerHTML = '';
 
-  // Leader-only, and only for an actual existing series (not "No series"
-  // or the "+ Add new series…" placeholder row). Covers both the rename
-  // and delete buttons, which share the exact same visibility rule.
-  function updateSeriesActionBtnsVisibility(){
-    const delBtn = $('btnDeleteSeries');
-    const editBtn = $('btnEditSeries');
-    if(!delBtn || !editBtn) return;
-    const val = formSeriesValue;
-    const show = !!(isLeader() && val && val !== ADD_NEW_SERIES_VALUE);
-    delBtn.style.display = show ? 'inline-block' : 'none';
-    editBtn.style.display = show ? 'inline-block' : 'none';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'No series';
+    sel.appendChild(noneOpt);
+
+    seriesList.forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+
+    const addOpt = document.createElement('option');
+    addOpt.value = ADD_NEW_SERIES_VALUE;
+    addOpt.textContent = '+ Add new series…';
+    sel.appendChild(addOpt);
+
+    sel.value = selectedId || '';
+    hideSeriesAddRow();
   }
 
   function showSeriesAddRow(){
@@ -5555,14 +4979,22 @@
     $('seriesAddRow').style.display = 'none';
   }
 
+  $('formSeries').addEventListener('change', (e)=>{
+    if(e.target.value === ADD_NEW_SERIES_VALUE){
+      showSeriesAddRow();
+    } else {
+      hideSeriesAddRow();
+    }
+  });
+
   $('btnCancelAddSeries').addEventListener('click', ()=>{
-    selectFormSeriesValue('');
+    hideSeriesAddRow();
+    $('formSeries').value = '';
   });
 
   $('btnConfirmAddSeries').addEventListener('click', async ()=>{
     const name = $('newSeriesInput').value.trim();
     if(!name) return;
-    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnConfirmAddSeries');
@@ -5579,63 +5011,6 @@
   });
   $('newSeriesInput').addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ e.preventDefault(); $('btnConfirmAddSeries').click(); }
-  });
-
-  // Renames whichever series is currently selected in the form. Leader-only
-  // (enforced by updateSeriesActionBtnsVisibility, same as delete below).
-  // Every deck tagged with this series just looks the id up in seriesList,
-  // so the new name shows up everywhere automatically — nothing else to update.
-  $('btnEditSeries').addEventListener('click', async ()=>{
-    const id = formSeriesValue;
-    if(!id || id === ADD_NEW_SERIES_VALUE) return;
-    const series = seriesList.find(s => s.id === id);
-    if(!series) return;
-    const next = prompt('Rename series', series.name);
-    if(next === null) return;
-    const trimmed = next.trim();
-    if(!trimmed || trimmed === series.name) return;
-    if(trimmed.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
-    const badChar = forbiddenCharIn(trimmed);
-    if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
-    const btn = $('btnEditSeries');
-    btn.disabled = true;
-    try{
-      await renameSeriesEntry(id, trimmed);
-      buildSeriesSelect(id);
-      buildSeriesFilterOptions();
-    }catch(e){
-      alert('Could not rename that series. Please try again.');
-      console.error(e);
-    }finally{
-      btn.disabled = false;
-    }
-  });
-
-  // Deletes whichever series is currently selected in the form. The decks
-  // tagged with it are explicitly kept — only the series label goes away,
-  // and those decks fall back to "no series" (see deleteSeriesEntry above).
-  $('btnDeleteSeries').addEventListener('click', async ()=>{
-    const id = formSeriesValue;
-    if(!id || id === ADD_NEW_SERIES_VALUE) return;
-    const series = seriesList.find(s => s.id === id);
-    if(!series) return;
-    const deckCount = decks.filter(d => d.seriesId === id).length;
-    const msg = deckCount > 0
-      ? `Delete series "${series.name}"? Its ${deckCount} deck${deckCount===1?'':'s'} will stay — they'll just no longer be tagged with this series.`
-      : `Delete series "${series.name}"?`;
-    if(!confirm(msg)) return;
-    const btn = $('btnDeleteSeries');
-    btn.disabled = true;
-    try{
-      await deleteSeriesEntry(id);
-      buildSeriesSelect('');
-      buildSeriesFilterOptions();
-    }catch(e){
-      alert('Could not delete that series. Please try again.');
-      console.error(e);
-    }finally{
-      btn.disabled = false;
-    }
   });
 
   // Compares a deck's fields before/after a save and produces a short,
@@ -5688,12 +5063,11 @@
     };
   }
 
-  // Appends a new entry (newest first) to a deck's `history` array. Capped
-  // to just the single most recent previous version — only the state right
-  // before the current edit — rather than a growing log, per how this is
-  // meant to be used: one step of "what was this before the last change,"
-  // not a full audit trail.
-  const DECK_HISTORY_MAX_ENTRIES = 1;
+  // Appends a new entry (newest first) to a deck's `history` array, capped
+  // to a reasonable length so the doc doesn't grow forever. `snapshot` is
+  // the deck's state right before this change, so tapping the entry later
+  // can show exactly what it looked like at that point in time.
+  const DECK_HISTORY_MAX_ENTRIES = 20;
   function withAppendedHistory(existingHistory, text, snapshot){
     const prior = Array.isArray(existingHistory) ? existingHistory : [];
     return [{ ts: Date.now(), text, snapshot }, ...prior].slice(0, DECK_HISTORY_MAX_ENTRIES);
@@ -5746,7 +5120,6 @@
     unlockBodyScroll();
     editingId = null;
     restoreFocus();
-    closeFormSeriesOptions();
   }
 
   $('btnNewDeck').addEventListener('click', ()=> openForm(null));
@@ -5758,18 +5131,12 @@
     const name = $('formName').value.trim();
     const description = $('formDesc').value.trim();
     const collectionId = isLeader() ? $('formCollection').value : (editingId ? $('formCollection').value : personalCollectionId(currentUser.uid));
-    const seriesRaw = formSeriesValue;
+    const seriesRaw = $('formSeries').value;
     const errorEl = $('formError');
     errorEl.style.display = 'none';
 
     if(!name){
       errorEl.textContent = 'Give this deck a name before saving.';
-      errorEl.style.display = 'block';
-      return;
-    }
-
-    if(name.length > NAME_MAX_LEN){
-      errorEl.textContent = nameTooLongMessage();
       errorEl.style.display = 'block';
       return;
     }
@@ -5920,7 +5287,6 @@
           if(next === null) return;
           const trimmed = next.trim();
           if(!trimmed || trimmed === current) return;
-          if(trimmed.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
           const badChar = forbiddenCharIn(trimmed);
           if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
           try{
@@ -5987,104 +5353,10 @@
     });
   }
 
-  // Searches deck names across every collection (not just the active one),
-  // regardless of which collection is currently open. Swaps the normal
-  // collection-list out for a flat list of matching decks, each tagged
-  // with which collection it lives in — tapping one jumps straight to
-  // that collection and opens the deck's full info view. Decks that don't
-  // match by name but belong to a series whose name matches are shown
-  // too, separated out under a "Similar Series" divider so it's clear why
-  // they turned up.
-  function renderSearchAllResults(){
-    const query = $('searchAllCollectionsInput').value.trim().toLowerCase();
-    const listEl = $('collectionList');
-    const resultsEl = $('searchAllResults');
-    const addRow = $('addCollectionRow');
-
-    if(!query){
-      resultsEl.style.display = 'none';
-      resultsEl.innerHTML = '';
-      listEl.style.display = 'flex';
-      addRow.style.display = isLeader() ? 'flex' : 'none';
-      return;
-    }
-
-    listEl.style.display = 'none';
-    addRow.style.display = 'none';
-    resultsEl.style.display = 'flex';
-    resultsEl.innerHTML = '';
-
-    const nameMatches = decks
-      .filter(d => !pendingDeleteIds.has(d.id) && d.name.toLowerCase().includes(query))
-      .sort((a,b)=> a.name.localeCompare(b.name));
-    const nameMatchIds = new Set(nameMatches.map(d => d.id));
-
-    // Only decks not already shown above as a direct name match — a deck
-    // that matches both by its own name and its series name should only
-    // ever appear once, in the main list.
-    const seriesMatches = decks
-      .filter(d => {
-        if(pendingDeleteIds.has(d.id) || nameMatchIds.has(d.id) || !d.seriesId) return false;
-        const s = seriesList.find(x => x.id === d.seriesId);
-        return s && s.name.toLowerCase().includes(query);
-      })
-      .sort((a,b)=> a.name.localeCompare(b.name));
-
-    if(nameMatches.length === 0 && seriesMatches.length === 0){
-      const empty = document.createElement('div');
-      empty.className = 'search-all-empty';
-      empty.textContent = 'No decks match that search.';
-      resultsEl.appendChild(empty);
-      return;
-    }
-
-    // deck.seriesId is only passed for series-match rows, so the subtitle
-    // can show "Series Name • Collection" instead of just the collection —
-    // making it clear why a deck with a non-matching name showed up here.
-    const makeResultRow = (deck)=>{
-      const col = collections.find(c => c.id === deck.collectionId);
-      const series = deck.seriesId ? seriesList.find(s => s.id === deck.seriesId) : null;
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'search-all-item';
-      item.setAttribute('aria-label', `Open ${deck.name} in ${col ? collectionDisplayName(col) : 'its collection'}`);
-
-      const nameEl = document.createElement('span');
-      nameEl.className = 'search-all-item-name';
-      nameEl.textContent = deck.name;
-      item.appendChild(nameEl);
-
-      const colEl = document.createElement('span');
-      colEl.className = 'search-all-item-collection';
-      const colLabel = col ? collectionDisplayName(col) : 'Unknown collection';
-      colEl.textContent = series ? `${series.name} • ${colLabel}` : colLabel;
-      item.appendChild(colEl);
-
-      item.addEventListener('click', ()=>{
-        setActiveCollection(deck.collectionId);
-        closeDrawer();
-        openInfo(deck.id);
-      });
-      return item;
-    };
-
-    nameMatches.forEach(deck => resultsEl.appendChild(makeResultRow(deck)));
-
-    if(seriesMatches.length > 0){
-      const divider = document.createElement('div');
-      divider.className = 'search-all-divider';
-      divider.innerHTML = '<span>Similar Series</span>';
-      resultsEl.appendChild(divider);
-      seriesMatches.forEach(deck => resultsEl.appendChild(makeResultRow(deck)));
-    }
-  }
-  $('searchAllCollectionsInput').addEventListener('input', renderSearchAllResults);
-
   function openDrawer(){
     rememberFocus();
     renderDrawer();
-    $('searchAllCollectionsInput').value = '';
-    renderSearchAllResults();
+    $('addCollectionRow').style.display = isLeader() ? 'flex' : 'none';
     $('drawerOverlay').classList.add('show');
     lockBodyScroll();
     setTimeout(()=> $('drawerClose').focus(), 30);
@@ -6105,7 +5377,6 @@
     const input = $('newCollectionInput');
     const name = input.value.trim();
     if(!name) return;
-    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     const btn = $('btnAddCollection');
@@ -6132,10 +5403,98 @@
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(render, 120);
   });
-  $('sortSelect').addEventListener('change', (e)=>{
-    sortMode = e.target.value;
-    render();
-  });
+  // Custom "Sort by" dropdown — same job as a native <select>, but the
+  // open menu is our own markup so it's styled like the rest of the app
+  // instead of falling back to the OS/browser's system dropdown.
+  (function initSortDropdown(){
+    const wrap = $('sortDropdown');
+    const btn = $('sortDropdownBtn');
+    const label = $('sortDropdownLabel');
+    const menu = $('sortDropdownMenu');
+    const options = [...menu.querySelectorAll('.sort-dropdown-option')];
+    let highlightedIndex = options.findIndex(o => o.classList.contains('selected'));
+
+    function selectOption(opt, {focusBtn = false} = {}){
+      options.forEach(o => { o.classList.remove('selected'); o.setAttribute('aria-selected', 'false'); });
+      opt.classList.add('selected');
+      opt.setAttribute('aria-selected', 'true');
+      label.textContent = opt.dataset.label;
+      sortMode = opt.dataset.value;
+      highlightedIndex = options.indexOf(opt);
+      render();
+      closeMenu({focusBtn});
+    }
+
+    function setHighlight(idx){
+      options.forEach(o => o.classList.remove('highlighted'));
+      highlightedIndex = idx;
+      const opt = options[idx];
+      if(opt){
+        opt.classList.add('highlighted');
+        opt.scrollIntoView({block: 'nearest'});
+      }
+    }
+
+    function openMenu(){
+      wrap.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+      const selectedIdx = options.findIndex(o => o.classList.contains('selected'));
+      setHighlight(selectedIdx >= 0 ? selectedIdx : 0);
+      document.addEventListener('click', onOutsideClick, true);
+    }
+
+    function closeMenu({focusBtn = false} = {}){
+      wrap.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      options.forEach(o => o.classList.remove('highlighted'));
+      document.removeEventListener('click', onOutsideClick, true);
+      if(focusBtn) btn.focus();
+    }
+
+    function onOutsideClick(e){
+      if(!wrap.contains(e.target)) closeMenu();
+    }
+
+    btn.addEventListener('click', ()=>{
+      if(wrap.classList.contains('open')) closeMenu();
+      else openMenu();
+    });
+
+    options.forEach(opt => {
+      opt.addEventListener('click', ()=> selectOption(opt, {focusBtn: true}));
+    });
+
+    btn.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowUp'){
+        e.preventDefault();
+        if(!wrap.classList.contains('open')) openMenu();
+        else if(e.key === 'ArrowDown') setHighlight(Math.min(highlightedIndex + 1, options.length - 1));
+        else if(e.key === 'ArrowUp') setHighlight(Math.max(highlightedIndex - 1, 0));
+      }else if(e.key === 'Escape' && wrap.classList.contains('open')){
+        e.preventDefault();
+        closeMenu({focusBtn: true});
+      }
+    });
+
+    menu.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowDown'){
+        e.preventDefault();
+        setHighlight(Math.min(highlightedIndex + 1, options.length - 1));
+      }else if(e.key === 'ArrowUp'){
+        e.preventDefault();
+        setHighlight(Math.max(highlightedIndex - 1, 0));
+      }else if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        const opt = options[highlightedIndex];
+        if(opt) selectOption(opt, {focusBtn: true});
+      }else if(e.key === 'Escape'){
+        e.preventDefault();
+        closeMenu({focusBtn: true});
+      }else if(e.key === 'Tab'){
+        closeMenu();
+      }
+    });
+  })();
 
   document.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape'){
@@ -6213,40 +5572,46 @@
   const authError = $('authError');
   const authNotice = $('authNotice');
   const btnAuthSubmit = $('btnAuthSubmit');
+  const btnAuthToggleMode = $('btnAuthToggleMode');
   const btnTogglePassword = $('btnTogglePassword');
   const btnForgotPassword = $('btnForgotPassword');
   const authSub = $('authSub');
+  const authToggleText = $('authToggleText');
 
-  // No separate "sign in" vs "create account" mode to switch between —
-  // nobody shares a login here, so there's nothing to toggle up front.
-  // Just attempt to sign in; if Firebase reports no account exists for
-  // that email, offer to create one (with a second, explicit confirmation
-  // before actually doing it, since it's easy to typo an email).
-  const authConfirm = $('authConfirm');
-  const authConfirmText = $('authConfirmText');
-  const authConfirmYes = $('authConfirmYes');
-  const authConfirmNo = $('authConfirmNo');
-  let pendingCreateEmail = null;
-  let pendingCreateStep = null; // null | 'offer' | 'confirm'
+  let authMode = 'signin'; // 'signin' | 'signup'
 
-  function showAuthConfirm(text){
-    authConfirmText.textContent = text;
-    authConfirm.style.display = 'block';
+  function setAuthMode(mode){
+    authMode = mode;
+    authError.style.display = 'none';
+    authNotice.style.display = 'none';
+    if(mode === 'signup'){
+      btnAuthSubmit.textContent = 'Create Account';
+      authSub.textContent = 'Create your own Deck Codex account, then create or join a group.';
+      authToggleText.textContent = 'Already have an account?';
+      btnAuthToggleMode.textContent = 'Sign in instead';
+      authPassword.setAttribute('autocomplete', 'new-password');
+    } else {
+      btnAuthSubmit.textContent = 'Sign In';
+      authSub.textContent = 'Sign in to your Deck Codex account.';
+      authToggleText.textContent = 'New here?';
+      btnAuthToggleMode.textContent = 'Create an account';
+      authPassword.setAttribute('autocomplete', 'current-password');
+    }
   }
-  function hideAuthConfirm(){
-    authConfirm.style.display = 'none';
-    pendingCreateEmail = null;
-    pendingCreateStep = null;
-  }
+
+  btnAuthToggleMode.addEventListener('click', ()=>{
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  });
 
   function friendlyAuthError(code){
     switch(code){
       case 'auth/invalid-email': return 'That email address doesn\'t look right.';
       case 'auth/missing-password':
       case 'auth/weak-password': return 'Password must be at least 6 characters.';
-      case 'auth/email-already-in-use': return 'An account already exists for that email — your password was probably just mistyped. Try again, or use "Forgot password?" below.';
+      case 'auth/email-already-in-use': return 'An account already exists for that email — try signing in instead.';
       case 'auth/invalid-credential':
-      case 'auth/wrong-password': return 'Incorrect email or password.';
+      case 'auth/wrong-password':
+      case 'auth/user-not-found': return 'Incorrect email or password.';
       case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
       default: return 'Something went wrong. Please try again.';
     }
@@ -6256,8 +5621,6 @@
     const email = authEmail.value.trim();
     const password = authPassword.value;
     authError.style.display = 'none';
-    authNotice.style.display = 'none';
-    hideAuthConfirm();
 
     if(!email || !password){
       authError.textContent = 'Enter both an email and a password.';
@@ -6267,80 +5630,24 @@
 
     btnAuthSubmit.disabled = true;
     const prevLabel = btnAuthSubmit.textContent;
-    btnAuthSubmit.textContent = 'Signing in…';
+    btnAuthSubmit.textContent = authMode === 'signup' ? 'Creating…' : 'Signing in…';
 
     try{
-      await Promise.race([
-        signInWithEmailAndPassword(auth, email, password),
-        timeout(15000, 'Signing in')
-      ]);
+      const authCall = authMode === 'signup'
+        ? createUserWithEmailAndPassword(auth, email, password)
+        : signInWithEmailAndPassword(auth, email, password);
+      await Promise.race([authCall, timeout(15000, 'Signing in')]);
       authPassword.value = '';
       // onAuthStateChanged below takes it from here.
     }catch(e){
-      if(e && (e.code === 'auth/invalid-email' || e.code === 'auth/too-many-requests')){
-        // These aren't about whether the account exists, so just show them
-        // directly rather than offering to create an account.
-        authError.textContent = friendlyAuthError(e.code);
-        authError.style.display = 'block';
-      } else {
-        // Current Firebase projects report the same generic error here
-        // whether the password was wrong or no account exists at all for
-        // this email — a deliberate anti-enumeration measure on Google's
-        // end, and there's no reliable client-side way around it. So
-        // rather than guess, offer to create an account; if one already
-        // exists, the creation attempt itself will say so (Firebase can't
-        // silently allow two accounts on the same email, so that error is
-        // always trustworthy) and we'll point the person back here instead.
-        pendingCreateEmail = email;
-        pendingCreateStep = 'offer';
-        showAuthConfirm(`That didn't sign you in — wrong password, or no account yet for ${email}? If you don't have one, we can create it.`);
-      }
+      authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
+      authError.style.display = 'block';
       console.error(e);
     }finally{
       btnAuthSubmit.disabled = false;
       btnAuthSubmit.textContent = prevLabel;
     }
   }
-
-  async function createPendingAccount(){
-    const email = pendingCreateEmail;
-    const password = authPassword.value;
-    authConfirmYes.disabled = true;
-    authConfirmNo.disabled = true;
-    const prevLabel = authConfirmYes.textContent;
-    authConfirmYes.textContent = 'Creating…';
-    try{
-      await Promise.race([
-        createUserWithEmailAndPassword(auth, email, password),
-        timeout(15000, 'Creating your account')
-      ]);
-      hideAuthConfirm();
-      authPassword.value = '';
-      // onAuthStateChanged below takes it from here.
-    }catch(e){
-      hideAuthConfirm();
-      authError.textContent = e && e.code ? friendlyAuthError(e.code) : e.message;
-      authError.style.display = 'block';
-      if(e && e.code === 'auth/email-already-in-use'){
-        authPassword.focus();
-      }
-      console.error(e);
-    }finally{
-      authConfirmYes.disabled = false;
-      authConfirmNo.disabled = false;
-      authConfirmYes.textContent = prevLabel;
-    }
-  }
-
-  authConfirmYes.addEventListener('click', ()=>{
-    if(pendingCreateStep === 'offer'){
-      pendingCreateStep = 'confirm';
-      showAuthConfirm(`Are you sure you want to create an account for ${pendingCreateEmail}? (If you already have one, this will fail and let you try signing in again instead.)`);
-    } else if(pendingCreateStep === 'confirm'){
-      createPendingAccount();
-    }
-  });
-  authConfirmNo.addEventListener('click', hideAuthConfirm);
 
   btnAuthSubmit.addEventListener('click', submitAuth);
   authPassword.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submitAuth(); });
@@ -6401,6 +5708,8 @@
   }
 
   btnForgotPassword.addEventListener('click', submitForgotPassword);
+
+  setAuthMode('signin');
 
   // ---------- Groups ----------
   const groupSetupScreen = $('groupSetupScreen');
@@ -6511,18 +5820,6 @@
   // whenever you ship something worth telling people about. Newest entry's
   // date is what drives the unread dot on the bell icon.
   const CHANGELOG = [
-    {
-      date: '2026-07-27',
-      title: 'Major Update',
-      items: [
-        'Card Price Scanner: snap a photo of a card (or upload one) and it reads the name and collector number for you, looks the card up on Scryfall automatically, and — when it can\'t pin down the exact printing from a name alone — shows every printing of that card so you can pick the one matching yours and compare foil vs. non-foil prices.',
-        'Favoriting: tap the heart icon on any deck to favorite it. Favorited decks are pinned to the top of your deck list ahead of everything else, so the ones you\'re actively playing are always the first thing you see.',
-        'Undo, anytime: every create, delete, favorite, and unfavorite you make is now logged to a personal "Recent Actions" history (your last 10), viewable from your profile. You can undo any of them whenever you notice a mistake — not just in the few seconds right after you did it.',
-        'Swipe to delete: swipe a deck card to the left to reveal its delete action. Deleting isn\'t instant — a banner with a 5-second countdown bar appears afterward so you can undo it before it\'s actually gone.',
-        'Deck editing: edit any deck you created right in place — name, colors, description, and everything else — using the same form you used to create it, no more delete-and-redo.',
-        'Deck edit history: every change you make to a deck is now recorded. Open a deck\'s update history to see a timeline of prior versions with what changed and when, and tap into any entry to see exactly how the deck looked at that point in time.'
-      ]
-    },
     {
       date: '2026-07-26',
       title: 'Update alerts, easier sign-in, and this "What\'s New" tab',
@@ -6673,7 +5970,6 @@
     const name = createGroupNameInput.value.trim();
     clearGroupSetupError();
     if(!name){ showGroupSetupError('Give your group a name.'); return; }
-    if(name.length > NAME_MAX_LEN){ showGroupSetupError(nameTooLongMessage()); return; }
     const groupBadChar = forbiddenCharIn(name);
     if(groupBadChar){ showGroupSetupError(forbiddenCharMessage(groupBadChar)); return; }
     btnCreateGroup.disabled = true;
@@ -6719,7 +6015,6 @@
   async function renameSelfEverywhere(newNameRaw){
     const trimmed = (newNameRaw || '').trim();
     if(!trimmed) throw new Error('Enter a name.');
-    if(trimmed.length > PROFILE_NAME_MAX_LEN) throw new Error(profileNameTooLongMessage());
     const badChar = forbiddenCharIn(trimmed);
     if(badChar) throw new Error(forbiddenCharMessage(badChar));
     const newName = capitalizeName(trimmed);
@@ -6919,7 +6214,6 @@
 
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
-      nameInput.maxLength = PROFILE_NAME_MAX_LEN;
       const displayValue = capitalizeName(m.displayName);
       nameInput.value = displayValue;
       nameInput.setAttribute('aria-label', `Display name for ${displayValue}`);
@@ -6928,7 +6222,6 @@
       nameInput.addEventListener('change', async ()=>{
         const newName = capitalizeName(nameInput.value.trim());
         if(!newName || newName === displayValue){ nameInput.value = displayValue; return; }
-        if(newName.length > PROFILE_NAME_MAX_LEN){ alert(profileNameTooLongMessage()); nameInput.value = displayValue; return; }
         const badChar = forbiddenCharIn(newName);
         if(badChar){ alert(forbiddenCharMessage(badChar)); nameInput.value = displayValue; return; }
         try{
@@ -7103,7 +6396,6 @@
     const name = drawerNewGroupInput.value.trim();
     drawerGroupError.style.display = 'none';
     if(!name){ showDrawerGroupError('Give your new group a name.'); return; }
-    if(name.length > NAME_MAX_LEN){ showDrawerGroupError(nameTooLongMessage()); return; }
     const newGroupBadChar = forbiddenCharIn(name);
     if(newGroupBadChar){ showDrawerGroupError(forbiddenCharMessage(newGroupBadChar)); return; }
     btnDrawerConfirmNewGroup.disabled = true;
@@ -7181,7 +6473,6 @@
     if(!isLeader()) return;
     const name = groupNameInput.value.trim();
     if(!name) return;
-    if(name.length > NAME_MAX_LEN){ alert(nameTooLongMessage()); return; }
     const badChar = forbiddenCharIn(name);
     if(badChar){ alert(forbiddenCharMessage(badChar)); return; }
     btnSaveGroupName.disabled = true;
