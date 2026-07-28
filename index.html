@@ -629,18 +629,26 @@
   }
   .deck-delete-action{
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0;
+    left: auto;
+    width: 140px;
     z-index: 1;
     border: none;
     background: #b5675a;
     color: #fff;
     padding: 0;
   }
-  /* The button itself now covers the whole card (see .deck-delete-action)
-     so a swipe that bounces past the button's true width still only ever
-     reveals more red, never the card wrap's plain background peeking
-     through — only this inner content stays pinned to the right 84px,
-     matching SWIPE_OPEN_OFFSET. */
+  /* Anchored to the right (see .deck-delete-action above) with a fixed
+     width comfortably wider than the actual reveal (84px) — that width is
+     what a normal bounce might legitimately overshoot into, so it's still
+     covered in red rather than the wrap's plain background peeking
+     through, exactly like before. The difference is this red zone stops
+     140px in from the right: it never spans the whole wrap, so however
+     bouncy the snap-back animation is and however far a drag started from,
+     the delete layer itself has no red to show past that point — it simply
+     can't paint anywhere near the card's *left* edge, regardless of how
+     far the foreground card's own transform swings. This inner content
+     stays pinned to the right 84px, matching SWIPE_OPEN_OFFSET. */
   .deck-delete-action-content{
     position: absolute;
     top: 0; right: 0; bottom: 0;
@@ -4909,24 +4917,12 @@
 
     function openCard(){
       wrap.dataset.open = 'true';
-      // Regardless of how far past the open point the drag went (the
-      // rubber-band above has no upper limit), snap back in two steps so
-      // the bounce at the very end always overshoots by the same small,
-      // fixed amount. A single bounce animated straight from a potentially
-      // huge starting distance overshoots in proportion to that whole
-      // distance — for a big enough drag, that was enough to swing past
-      // the card's closed position and flash the delete layer's plain
-      // (button-less) red out along the card's *left* edge. Approaching
-      // first with no bounce to a fixed point just short of the target,
-      // then bouncing only that last small stretch, keeps the overshoot
-      // bounded no matter how far the original drag was.
-      const BOUNCE_APPROACH_GIVE = 10;
-      const approachPoint = SWIPE_OPEN_OFFSET - BOUNCE_APPROACH_GIVE;
-      if(currentTranslate < approachPoint){
-        animateTo(approachPoint, ()=> animateTo(SWIPE_OPEN_OFFSET), { noBounce: true });
-      } else {
-        animateTo(SWIPE_OPEN_OFFSET);
-      }
+      // Just the one normal bouncy snap, same as ever, regardless of how
+      // far the drag started from — the delete layer itself is now what
+      // keeps a big overshoot from ever showing red on the card's left
+      // edge (see .deck-delete-action above), so the animation doesn't
+      // need to compensate for that anymore.
+      animateTo(SWIPE_OPEN_OFFSET);
     }
 
     wrap._closeSwipe = ()=> closeCard(true);
