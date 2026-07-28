@@ -591,7 +591,7 @@
     outline-offset: 2px;
   }
   .deck-card.swipe-dragging{ transition: none; user-select: none; -webkit-user-select: none; }
-  .deck-card.swipe-snap{ transition: transform 0.5s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  .deck-card.swipe-snap{ transition: transform 0.42s cubic-bezier(0.34, 2.5, 0.64, 1); }
   /* Used only for the return-to-closed snap: the bouncy easing above
      overshoots past its target mid-animation, which for opening just means
      briefly revealing a little extra red (harmless, already covered) — but
@@ -626,6 +626,14 @@
   .deck-card-wrap .deck-card{
     border: none;
     border-radius: 0;
+    /* This card's transform updates on every touchmove during a swipe, and
+       on mobile (notably iOS Safari) an element that isn't already
+       promoted to its own compositing layer can end up repainting its
+       background separately from — and a frame or two behind — the rest
+       of its own content while that's happening. will-change tells the
+       browser to promote it ahead of time, so background/border/content
+       all move together as a single bitmap instead. */
+    will-change: transform;
   }
   /* Anchored to the right, but with NO fixed width of its own — its width
      is driven live by JS (see setTransform in attachSwipeToDelete) to
@@ -657,7 +665,7 @@
     overflow: hidden;
   }
   .deck-delete-action.swipe-dragging{ transition: none; }
-  .deck-delete-action.swipe-snap{ transition: width 0.5s cubic-bezier(0.34, 1.8, 0.64, 1); }
+  .deck-delete-action.swipe-snap{ transition: width 0.42s cubic-bezier(0.34, 2.5, 0.64, 1); }
   .deck-delete-action.swipe-snap-close{ transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 
   /* Stays pinned to the right 84px of whatever the current width is (see
@@ -4894,8 +4902,45 @@
       deleteBtn.style.width = `${Math.max(0, -x)}px`;
     }
 
+    // Width triggers a real layout/paint pass, unlike transform (which the
+    // compositor can handle on its own) — and raw pointermove can fire far
+    // more often than the screen actually repaints. Writing a new width on
+    // every single one of those events is more main-thread work than
+    // necessary and, on some mobile browsers, can compete with — and
+    // visibly lag a frame or two behind — the card's own (compositor-only)
+    // transform updates. This collapses those writes to at most one per
+    // animation frame during an active drag, always using whatever the
+    // latest value is by the time that frame runs.
+    // currentTranslate itself still updates immediately/synchronously
+    // (never deferred) so anything reading it — like endDrag's open/close
+    // decision — always sees the true up-to-the-moment value regardless of
+    // whether the frame has flushed yet.
+    // Only used for the drag itself: animateTo's snap/bounce calls
+    // setTransform() directly and just the once, so there's no flood of
+    // events to batch there, and doing so would only delay that
+    // transition's start by a frame for no benefit.
+    let dragRafId = null;
+    let latestDragX = 0;
+    function setTransformThrottled(x){
+      currentTranslate = x;
+      latestDragX = x;
+      if(dragRafId !== null) return;
+      dragRafId = requestAnimationFrame(()=>{
+        dragRafId = null;
+        card.style.transform = `translateX(${latestDragX}px)`;
+        deleteBtn.style.width = `${Math.max(0, -latestDragX)}px`;
+      });
+    }
+    // A throttled frame queued mid-drag could otherwise still fire (and
+    // stomp on) whatever animateTo sets a moment later, once the drag ends
+    // and the snap/bounce/close animation takes over.
+    function cancelThrottledTransform(){
+      if(dragRafId !== null){ cancelAnimationFrame(dragRafId); dragRafId = null; }
+    }
+
     function animateTo(x, onDone, opts){
       const noBounce = !!(opts && opts.noBounce);
+      cancelThrottledTransform();
       // Clear out any in-flight snap animation first — if a transition was
       // interrupted (e.g. the user grabbed the card again mid-animation),
       // its leftover class/listener would otherwise still be attached,
@@ -4935,6 +4980,7 @@
     function closeCard(animate){
       wrap.dataset.open = 'false';
       if(animate === false){
+        cancelThrottledTransform();
         card.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
         deleteBtn.classList.remove('swipe-dragging', 'swipe-snap', 'swipe-snap-close');
         card.style.transform = '';
@@ -4965,6 +5011,7 @@
       startX = e.clientX;
       startY = e.clientY;
       baseOffset = wrap.dataset.open === 'true' ? SWIPE_OPEN_OFFSET : 0;
+      cancelThrottledTransform();
       if(card._swipeTransitionHandler){
         card.removeEventListener('transitionend', card._swipeTransitionHandler);
         card._swipeTransitionHandler = null;
@@ -4991,7 +5038,7 @@
       if(axisLocked !== 'x') return;
       e.preventDefault();
       const next = applyDragResistance(baseOffset + dx);
-      setTransform(next);
+      setTransformThrottled(next);
       // A light tick right as the swipe crosses the reveal threshold, in
       // either direction — mirrors the little "catch" feeling of native
       // swipe actions instead of only buzzing once you let go.
