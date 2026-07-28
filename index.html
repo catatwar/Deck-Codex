@@ -808,6 +808,38 @@
     85%{ transform: translate(1px, 0); }
   }
 
+  /* ---------- New-card entrance / undo blip ---------- */
+  /* Played on the brand-new tile itself (see entryAnimId/entryAnimType and
+     playFlipAnimation) while every *other* tile on screen slides over via
+     the existing FLIP pass to make room for it — the two run at the same
+     time so the grid reads as "everything shifts to open a slot, then the
+     new card drops into it" rather than two separate steps. */
+  .deck-entry-drop{
+    animation: deck-entry-drop 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  @keyframes deck-entry-drop{
+    0%{ transform: translateY(-70px); opacity: 0; }
+    55%{ transform: translateY(10px); opacity: 1; }
+    75%{ transform: translateY(-5px); }
+    90%{ transform: translateY(2px); }
+    100%{ transform: translateY(0); }
+  }
+  /* Undo: the deck reappears in the spot it left, so instead of falling
+     in from off-screen it "blips" back — a quick pop-and-settle right
+     where it already belongs. */
+  .deck-entry-blip{
+    animation: deck-entry-blip 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  @keyframes deck-entry-blip{
+    0%{ transform: scale(0.82); opacity: 0; }
+    55%{ transform: scale(1.045); opacity: 1; }
+    80%{ transform: scale(0.98); }
+    100%{ transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .deck-entry-drop, .deck-entry-blip{ animation: none; }
+  }
+
 
   .deck-top-row{ display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-top: 4px; }
 
@@ -4603,10 +4635,33 @@
     return map;
   }
 
+  // Set right before a renderWithFlip() call to give the one tile that's
+  // brand-new on screen (just created, or just brought back via Undo) its
+  // own entrance animation — 'drop' for a fresh deck falling/bouncing into
+  // its slot, 'blip' for an undone delete popping back into the spot it
+  // left. Left null the rest of the time so ordinary re-renders (search,
+  // filters, sort, live sync echoes) never trigger either animation.
+  let entryAnimId = null;
+  let entryAnimType = null; // 'drop' | 'blip'
+
   function playFlipAnimation(oldPositions){
     content.querySelectorAll('[data-deck-id]').forEach(el=>{
       const oldRect = oldPositions.get(el.dataset.deckId);
-      if(!oldRect) return; // wasn't on screen before (e.g. a brand-new card) — nothing to slide from
+      if(!oldRect){
+        // Wasn't on screen before — either a brand-new card with nothing to
+        // slide from, or just this one that we've been asked to give an
+        // entrance animation to.
+        if(el.dataset.deckId === entryAnimId && entryAnimType){
+          const cls = entryAnimType === 'blip' ? 'deck-entry-blip' : 'deck-entry-drop';
+          el.classList.add(cls);
+          el.addEventListener('animationend', function clearEntry(e){
+            if(e.target !== el) return;
+            el.classList.remove(cls);
+            el.removeEventListener('animationend', clearEntry);
+          });
+        }
+        return;
+      }
       const newRect = el.getBoundingClientRect();
       const dx = oldRect.left - newRect.left;
       const dy = oldRect.top - newRect.top;
@@ -4634,6 +4689,8 @@
     const oldPositions = captureCardPositions();
     render();
     playFlipAnimation(oldPositions);
+    entryAnimId = null;
+    entryAnimType = null;
   }
 
   function render(){
@@ -5291,6 +5348,8 @@
   function undoDelete(){
     if(!activeUndo) return;
     clearTimeout(activeUndo.timeoutId);
+    entryAnimId = activeUndo.id;
+    entryAnimType = 'blip';
     pendingDeleteIds.delete(activeUndo.id);
     activeUndo = null;
     hideUndoBanner();
@@ -6551,9 +6610,11 @@
         // listener already adds it (often before this line even runs),
         // and pushing again here was what caused the deck to show up
         // twice for whoever just created it.
+        entryAnimId = deck.id;
+        entryAnimType = 'drop';
       }
       closeForm();
-      render();
+      renderWithFlip();
     }catch(e){
       errorEl.textContent = 'Could not save this deck. Please try again.';
       errorEl.style.display = 'block';
