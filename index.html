@@ -3948,7 +3948,7 @@
           firstLoadDone = true;
           resolve();
         } else {
-          render();
+          renderWithFlip();
           if($('infoOverlay').classList.contains('show') && currentInfoId){
             const d = decks.find(x => x.id === currentInfoId);
             if(d) renderInfoRecord(d);
@@ -6604,18 +6604,34 @@
           createdAt: Date.now(),
           history: [{ ts: Date.now(), text: 'Deck created' }]
         };
-        await createDeck(deck);
-        await recordAction('create', deck);
-        // Not pushing to `decks` here on purpose — attachLiveDecks' live
-        // listener already adds it (often before this line even runs),
-        // and pushing again here was what caused the deck to show up
-        // twice for whoever just created it.
+        // Reflect the new deck locally and animate it in ourselves, right
+        // now — waiting on attachLiveDecks' live listener to echo the
+        // write back was a race we couldn't reliably win (it can fire its
+        // own unanimated render either just before or just after this
+        // function resumes from its awaits, and either way ate the
+        // entrance animation). This optimistic push can't end up
+        // duplicated: the live listener fully *replaces* `decks` wholesale
+        // the moment its own snapshot arrives, rather than appending.
+        if(!decks.some(d => d.id === deck.id)) decks.push(deck);
         entryAnimId = deck.id;
         entryAnimType = 'drop';
+        closeForm();
+        renderWithFlip();
+        try{
+          await createDeck(deck);
+          await recordAction('create', deck);
+        }catch(err){
+          decks = decks.filter(d => d.id !== deck.id);
+          renderWithFlip();
+          throw err;
+        }
+        return;
       }
       closeForm();
       renderWithFlip();
     }catch(e){
+      entryAnimId = null;
+      entryAnimType = null;
       errorEl.textContent = 'Could not save this deck. Please try again.';
       errorEl.style.display = 'block';
       console.error(e);
